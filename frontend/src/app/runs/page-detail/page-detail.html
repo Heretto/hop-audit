@@ -180,6 +180,61 @@
       </mat-card>
     </div>
 
+    @if (integrity().length) {
+      <mat-card class="section">
+        <div class="row between">
+          <div class="card-title">
+            <h2>Content integrity findings involving this page ({{ integrity().length }})</h2>
+            <span class="sub">Quotes are exact; the other article is named by slug.</span>
+          </div>
+          <a [routerLink]="['/audits', p.run_id, 'findings']">All findings and triage</a>
+        </div>
+        <table class="plain-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Severity</th>
+              <th>Issue</th>
+              <th>This page</th>
+              <th>Other article</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of integrity(); track row.finding.id) {
+              <tr>
+                <td class="mono">{{ row.finding.code }}</td>
+                <td>
+                  <span
+                    class="sev"
+                    [class.error]="row.finding.severity === 'High'"
+                    [class.warn]="row.finding.severity === 'Medium'"
+                  >
+                    {{ row.finding.severity }}
+                  </span>
+                  @if (tierLabels[row.finding.tier]) {
+                    <span class="sub block">{{ tierLabels[row.finding.tier] }}</span>
+                  }
+                </td>
+                <td>{{ row.finding.title }}</td>
+                <td>
+                  @for (q of row.here; track $index) {
+                    <i class="block">“{{ q.text }}”</i>
+                  }
+                </td>
+                <td>
+                  @for (q of row.elsewhere; track $index) {
+                    <i>“{{ q.text }}”</i> <span class="mono sub">{{ q.slug }}</span>
+                  } @empty {
+                    <span class="sub">—</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </mat-card>
+    }
+
     <mat-card class="section">
       <mat-tab-group animationDuration="0">
         <mat-tab [label]="'Agent findings · ' + findings().open.length">

@@ -1,0 +1,331 @@
+<div class="hop-page page">
+  @if (view(); as v) {
+    <a class="back" [routerLink]="['/audits', v.run.id]">
+      <mat-icon>arrow_back</mat-icon>{{ v.run.site_name }} · Audit #{{ v.run.number }}
+    </a>
+
+    <header class="page-header">
+      <div>
+        <div class="title-row">
+          <h1>Content integrity findings</h1>
+          <span class="hop-status-chip" [class]="chips[v.triage.status].cls">{{
+            chips[v.triage.status].label
+          }}</span>
+        </div>
+        <span class="sub">
+          {{ v.run.started_at ?? v.run.created_at | date: 'MMM d, y' }} ·
+          {{ articles() | number }} articles in {{ v.help_centers.length }} help center{{
+            v.help_centers.length === 1 ? '' : 's'
+          }}
+          ({{ v.help_centers.map((c) => c.name).join(', ') }}) ·
+          {{ findings()[0]?.agent_name ?? 'The reviewer' }} found
+          {{ counts().candidates | number }} candidates. Decide what counts before anything is
+          built; your call wins.
+        </span>
+      </div>
+      <div class="page-actions">
+        <button mat-stroked-button (click)="exportCsv()">
+          <mat-icon>download</mat-icon>Export findings (CSV)
+        </button>
+        <button
+          mat-flat-button
+          color="primary"
+          (click)="confirm()"
+          [disabled]="confirming() || !findings().length || v.triage.status === 'confirmed'"
+        >
+          <mat-icon>check</mat-icon>Confirm triage
+        </button>
+      </div>
+    </header>
+
+    @if (v.triage.status === 'confirmed') {
+      <div class="hop-status-message success" role="status">
+        Confirmed by {{ v.triage.confirmed_by
+        }}{{
+          v.triage.confirmed_at ? ' on ' + (v.triage.confirmed_at | date: 'MMM d, HH:mm') : ''
+        }}. These counts now show on the dashboard and in history. Changing a tier reopens the
+        triage.
+        @if (v.purpose === 'prospect') {
+          Deliverables for this prospect review are built from these calls.
+        }
+      </div>
+    }
+    @if (v.resolved.length) {
+      <div class="callout">
+        <mat-icon>task_alt</mat-icon>Resolved since the previous audit: {{ v.resolved.join(', ') }}
+      </div>
+    }
+
+    <div class="layout">
+      <mat-card class="list-card">
+        <div class="toolbar">
+          <mat-form-field class="grow" subscriptSizing="dynamic">
+            <mat-icon matPrefix>search</mat-icon>
+            <mat-label>Filter by ID, text or slug</mat-label>
+            <input
+              matInput
+              [ngModel]="filters().query"
+              (ngModelChange)="filter({ query: $event })"
+            />
+          </mat-form-field>
+          <mat-form-field subscriptSizing="dynamic">
+            <mat-label>Category</mat-label>
+            <mat-select
+              [value]="filters().category"
+              (selectionChange)="filter({ category: $event.value })"
+            >
+              <mat-option value="">All {{ categories.length }}</mat-option>
+              @for (c of categories; track c.code) {
+                <mat-option [value]="c.code">{{ c.code }} · {{ names[c.code] }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field subscriptSizing="dynamic">
+            <mat-label>Tier</mat-label>
+            <mat-select [value]="filters().tier" (selectionChange)="filter({ tier: $event.value })">
+              <mat-option value="">All</mat-option>
+              <mat-option value="firm">Firm</mat-option>
+              <mat-option value="review">For review</mat-option>
+              <mat-option value="drop">Dropped</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field subscriptSizing="dynamic">
+            <mat-label>Severity</mat-label>
+            <mat-select
+              [value]="filters().severity"
+              (selectionChange)="filter({ severity: $event.value })"
+            >
+              <mat-option value="">All</mat-option>
+              <mat-option value="High">High</mat-option>
+              <mat-option value="Medium">Medium</mat-option>
+              <mat-option value="Low">Low</mat-option>
+            </mat-select>
+          </mat-form-field>
+          <span class="sub">Showing {{ page().length }} of {{ shown().length }}</span>
+        </div>
+
+        @for (f of page(); track f.id) {
+          <div
+            class="finding"
+            [class.dropped]="f.tier === 'drop'"
+            [class.review]="f.tier === 'review'"
+          >
+            <div class="id">
+              <span class="mono strong">{{ f.code }}</span>
+              <span class="sub">{{ f.locale }}</span>
+              @if (f.first_seen < v.run.number) {
+                <span class="sub">since #{{ f.first_seen }}</span>
+              }
+            </div>
+            <div>
+              <span
+                class="sev"
+                [class.error]="f.severity === 'High'"
+                [class.warn]="f.severity === 'Medium'"
+                >{{ f.severity }}</span
+              >
+            </div>
+            <div class="body">
+              <div class="title">
+                <strong>{{ f.title }}</strong>
+                <span class="sub">{{ f.category }} · {{ names[f.category] }}</span>
+              </div>
+              @for (q of f.quotes; track $index) {
+                <div class="quote">
+                  <span>
+                    @if (q.label) {
+                      <strong>{{ q.label }}</strong>
+                    }
+                    <i>“{{ q.text }}”</i>
+                    @if (q.note) {
+                      <span class="sub">{{ q.note }}</span>
+                    }
+                    @if (!q.verified) {
+                      <span
+                        class="sev warn"
+                        matTooltip="Not found on the page as crawled; check it in a browser"
+                        >Unverified</span
+                      >
+                    }
+                  </span>
+                  <span class="mono sub">{{ q.slug }}</span>
+                </div>
+              }
+              @if (f.why) {
+                <span>{{ f.why }}</span>
+              }
+              @if (editing() === f.id) {
+                <mat-form-field subscriptSizing="dynamic">
+                  <mat-label>Triage note</mat-label>
+                  <textarea
+                    matInput
+                    rows="2"
+                    #note
+                    [value]="f.triage_note"
+                    (blur)="saveNote(f, note.value)"
+                  ></textarea>
+                </mat-form-field>
+              } @else if (f.triage_note) {
+                <span class="note">
+                  <strong>Triage note:</strong> {{ f.triage_note }}
+                  @if (f.carried_from) {
+                    <span class="sub">(your call in #{{ f.carried_from }})</span>
+                  }
+                  <button mat-button class="small" (click)="editing.set(f.id)">Edit</button>
+                </span>
+              } @else {
+                <button mat-button class="small start" (click)="editing.set(f.id)">
+                  Add a triage note
+                </button>
+              }
+            </div>
+            <div class="actions">
+              <mat-button-toggle-group
+                [value]="f.tier"
+                (change)="setTier(f, $event.value)"
+                [attr.aria-label]="'Tier for ' + f.code"
+              >
+                <mat-button-toggle value="firm">Firm</mat-button-toggle>
+                <mat-button-toggle value="review">For review</mat-button-toggle>
+                <mat-button-toggle value="drop">Drop</mat-button-toggle>
+              </mat-button-toggle-group>
+              <button
+                mat-button
+                [class.on]="f.example_rank !== null"
+                [disabled]="f.tier !== 'firm'"
+                (click)="toggleExample(f)"
+                [matTooltip]="
+                  f.tier === 'firm' ? '' : 'Only firm findings can be one-sheet examples'
+                "
+              >
+                <mat-icon>{{ f.example_rank !== null ? 'star' : 'star_outline' }}</mat-icon>
+                {{ f.example_rank !== null ? 'One-sheet example' : 'Use as example' }}
+              </button>
+              @if (f.quotes[0]?.page_id; as pageId) {
+                <a [routerLink]="['/audits', v.run.id, 'pages', pageId]">Open article</a>
+              }
+            </div>
+          </div>
+        } @empty {
+          <p class="sub empty">
+            {{ findings().length ? 'No findings match.' : 'The reviewer found no candidates.' }}
+          </p>
+        }
+        <div class="footer">
+          <span class="sub">
+            Firm = counted everywhere. For review = listed separately, not counted (depends on
+            policy you can't see). Drop = petty or not an error.
+          </span>
+          @if (shown().length > page().length) {
+            <button mat-stroked-button (click)="limit.set(limit() + 25)">
+              Show
+              {{ shown().length - page().length > 25 ? 25 : shown().length - page().length }} more
+            </button>
+          }
+        </div>
+      </mat-card>
+
+      <aside class="column">
+        <mat-card class="section">
+          <div class="card-title">
+            <h2>Recount</h2>
+            <span class="sub"
+              >Updates as you triage. Firm + review + dropped =
+              {{ counts().candidates }} candidates.</span
+            >
+          </div>
+          <div class="tiers">
+            <div>
+              <b>{{ counts().firm }}</b
+              ><span class="sub">Confirmed</span>
+            </div>
+            <div>
+              <b>{{ counts().review }}</b
+              ><span class="sub">For review</span>
+            </div>
+            <div>
+              <b>{{ counts().drop }}</b
+              ><span class="sub">Dropped</span>
+            </div>
+          </div>
+          <div>
+            <div class="row between">
+              <span>Severity of confirmed issues</span>
+              <span class="sub"
+                >{{ counts().high }} High · {{ counts().medium }} Medium ·
+                {{ counts().low }} Low</span
+              >
+            </div>
+            <div
+              class="sevbar"
+              role="img"
+              [attr.aria-label]="
+                counts().high + ' High, ' + counts().medium + ' Medium, ' + counts().low + ' Low'
+              "
+            >
+              <span class="high" [style.width.%]="pct(counts().high)"></span>
+              <span class="medium" [style.width.%]="pct(counts().medium)"></span>
+              <span class="low" [style.width.%]="pct(counts().low)"></span>
+            </div>
+            <span class="sub">
+              High: a customer could act on wrong information, or compliance-sensitive. Medium:
+              confusing, conflicting or outdated. Low: cosmetic or structural.
+            </span>
+          </div>
+          <div>
+            <h3>By category (confirmed)</h3>
+            @for (c of counts().categories; track c.code) {
+              <div class="cat">
+                <div class="row between">
+                  <span>{{ c.label }}</span
+                  ><strong>{{ c.n }}</strong>
+                </div>
+                <div class="bar"><span [style.width.%]="(100 * c.n) / maxCategory()"></span></div>
+              </div>
+            } @empty {
+              <span class="sub">None confirmed yet.</span>
+            }
+          </div>
+          <div class="centers">
+            @for (c of v.help_centers; track c.id) {
+              <div class="row between">
+                <span>{{ c.name }}</span>
+                <span class="sub"
+                  >{{ c.articles | number }} articles{{
+                    c.pages !== c.articles ? ' · ' + (c.pages | number) + ' pages' : ''
+                  }}</span
+                >
+              </div>
+            }
+          </div>
+        </mat-card>
+
+        <mat-card class="section">
+          <div class="card-title">
+            <h2>One-sheet examples</h2>
+            <span class="sub">
+              Pick three a stranger can grasp in five seconds, plus a backup: a customer-impact
+              reversal, something concrete and checkable, and one a documentation head will feel.
+            </span>
+          </div>
+          <div class="row">
+            <b>{{ picked().length }} picked</b><span class="sub">{{ hint() }}</span>
+          </div>
+          @for (e of picked(); track e.id; let i = $index) {
+            <div class="example">
+              <span class="mono strong">{{ e.code }}</span>
+              <span class="grow">{{ e.title }}</span>
+              <span class="sub">{{ i < 3 ? '#' + (i + 1) : 'backup' }}</span>
+            </div>
+          }
+          <span class="sub"
+            >Nothing from the review tier, nothing that needs policy knowledge, nothing fixable in
+            minutes.</span
+          >
+        </mat-card>
+      </aside>
+    </div>
+  } @else if (error(); as message) {
+    <div class="hop-status-message error" role="alert">{{ message }}</div>
+  }
+</div>

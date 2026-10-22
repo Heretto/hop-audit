@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from schemas.integrity import IntegrityRow
 from schemas.run import RunDetail, RunSummary
 
 
@@ -101,6 +102,7 @@ class PageDetail(PageRow):
     previous_score: int | None
     previous_run_number: int | None
     agent_findings: list[FindingOut] = []  # this page's, and link findings for targets it links to
+    integrity_findings: list[IntegrityRow] = []  # quoting this page, dropped ones left out
 
 
 class CompareRow(BaseModel):

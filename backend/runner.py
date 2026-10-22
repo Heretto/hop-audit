@@ -16,12 +16,13 @@ from urllib.parse import urlsplit
 from uuid import UUID
 
 from hop_core.db import get_session_factory
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 import analysis
 import crawler
 import discovery
-from models import ACTIVE_STATUSES, AuditRun, HelpCenter, Page, RunLogEntry
+from models import ACTIVE_STATUSES, AuditRun, HelpCenter, IntegrityFinding, Page, RunLogEntry
 from schemas.site import CrawlRules
 from scope import Root
 
@@ -73,11 +74,14 @@ async def reanalyze(run_id: UUID, control: crawler.Control, http=None) -> None:
     http = http or discovery.client()
     try:
         run.status = "running"
+        # An integrity review would replace the findings someone may have triaged.
+        integrity_review = not db.scalar(select(IntegrityFinding.id).where(IntegrityFinding.run_id == run.id).limit(1))
+        redo = set(MECHANICAL) | ({"content_integrity"} if integrity_review else set())
         for stage in run.stages:
-            if stage["key"] in MECHANICAL:
+            if stage["key"] in redo:
                 rec.stage(stage["key"], status="pending", done=0, total=0, detail="")
         rec.log("run", "info", "Analyzing the stored pages again; nothing is re-crawled.")
-        await analysis.analyze(db, run, rec, http, control.checkpoint)
+        await analysis.analyze(db, run, rec, http, control.checkpoint, integrity_review)
         rec.log("run", "info", "Analysis complete.")
     except crawler.Cancelled:
         db.rollback()

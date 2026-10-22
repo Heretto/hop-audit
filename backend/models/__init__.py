@@ -6,7 +6,16 @@ this package has imported.
 
 from hop_core.db import Base
 
-from models.run import ACTIVE_STATUSES, AgentFinding, AuditRun, LinkCache, LinkResult, Page, RunLogEntry
+from models.run import (
+    ACTIVE_STATUSES,
+    AgentFinding,
+    AuditRun,
+    IntegrityFinding,
+    LinkCache,
+    LinkResult,
+    Page,
+    RunLogEntry,
+)
 from models.setup import OrgSetup
 from models.site import HelpCenter, Site
 
@@ -15,6 +24,7 @@ __all__ = [
     "AgentFinding",
     "AuditRun",
     "HelpCenter",
+    "IntegrityFinding",
     "LinkCache",
     "LinkResult",
     "OrgSetup",

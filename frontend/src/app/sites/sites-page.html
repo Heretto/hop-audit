@@ -67,7 +67,20 @@
               <span class="sub">—</span>
             }
           </ng-template>
-          <ng-template hopCell="integrity"><span class="sub">—</span></ng-template>
+          <ng-template hopCell="integrity" let-s>
+            @if (integrity(s); as i) {
+              @if (i.confirmed) {
+                <a [routerLink]="['/audits', s.last_completed.id, 'findings']">{{ i.firm }}</a>
+                <span class="sub"> · {{ i.high }} High</span>
+              } @else {
+                <a class="sub" [routerLink]="['/audits', s.last_completed.id, 'findings']"
+                  >Triage pending</a
+                >
+              }
+            } @else {
+              <span class="sub">—</span>
+            }
+          </ng-template>
           <ng-template hopCell="broken" let-s>
             @if (s.last_completed?.metrics.broken ?? null; as broken) {
               {{ broken | number }}
@@ -157,8 +170,10 @@
       <mat-card class="hop-stat-card">
         <span class="hop-icon-badge error"><mat-icon>link_off</mat-icon></span>
         <div>
-          <span class="hop-stat-value">—</span>
-          <span class="hop-stat-label">Confirmed integrity issues, after triage</span>
+          <span class="hop-stat-value">{{ confirmed().firm | number }}</span>
+          <span class="hop-stat-label"
+            >Confirmed integrity issues, {{ confirmed().high }} High</span
+          >
         </div>
       </mat-card>
       <mat-card class="hop-stat-card">

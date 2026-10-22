@@ -6,6 +6,8 @@ import {
   Comparison,
   Dashboard,
   Finding,
+  IntegrityRow,
+  IntegrityView,
   LogEntry,
   PageDetail,
   PageRow,
@@ -13,6 +15,7 @@ import {
   RunDetail,
   RunInput,
   RunListItem,
+  Tier,
 } from './run.model';
 
 @Injectable({ providedIn: 'root' })
@@ -69,6 +72,25 @@ export class RunsService {
   /** Dismiss (with a reason the agent learns from) or restore a finding. */
   updateFinding(id: string, dismissed: boolean, reason = ''): Observable<Finding> {
     return this.http.patch<Finding>(`${this.api}/findings/${id}`, { dismissed, reason });
+  }
+
+  integrity(runId: string): Observable<IntegrityView> {
+    return this.http.get<IntegrityView>(`${this.api}/runs/${runId}/integrity`);
+  }
+
+  updateIntegrity(
+    id: string,
+    change: { tier?: Tier; triage_note?: string; example?: boolean },
+  ): Observable<IntegrityRow> {
+    return this.http.patch<IntegrityRow>(`${this.api}/integrity-findings/${id}`, change);
+  }
+
+  confirmTriage(runId: string): Observable<IntegrityView> {
+    return this.http.post<IntegrityView>(`${this.api}/runs/${runId}/triage/confirm`, {});
+  }
+
+  integrityCsv(runId: string): Observable<Blob> {
+    return this.http.get(`${this.api}/runs/${runId}/integrity.csv`, { responseType: 'blob' });
   }
 
   compare(a: string, b: string): Observable<Comparison> {

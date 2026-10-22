@@ -44,6 +44,10 @@ export const routes: Routes = [
         loadComponent: () => import('./runs/audit/audit-page').then((m) => m.AuditPage),
       },
       {
+        path: 'audits/:runId/findings',
+        loadComponent: () => import('./runs/findings/findings-page').then((m) => m.FindingsPage),
+      },
+      {
         path: 'audits/:runId/pages/:pageId',
         loadComponent: () => import('./runs/page-detail/page-detail').then((m) => m.PageDetailPage),
       },

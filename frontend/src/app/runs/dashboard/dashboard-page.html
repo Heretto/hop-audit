@@ -66,7 +66,13 @@
           >
           <div class="kpi-text">
             <span class="hop-stat-value">{{ k.value }}</span>
-            <span class="hop-stat-label">{{ k.label }}</span>
+            @if (k.link) {
+              <a class="hop-stat-label" [routerLink]="['/audits', d.run.id, 'findings']">{{
+                k.label
+              }}</a>
+            } @else {
+              <span class="hop-stat-label">{{ k.label }}</span>
+            }
             @if (k.delta) {
               <span class="delta" [class]="k.deltaClass">{{ k.delta }}</span>
             }
@@ -74,6 +80,58 @@
         </mat-card>
       }
     </div>
+
+    @if (integrity()?.candidates; as candidates) {
+      <mat-card class="section integrity">
+        <div class="row between">
+          <div class="card-title">
+            <h2>Content integrity</h2>
+            <span class="sub">
+              Content that is wrong, conflicting, outdated, or missing its scope.
+              {{ candidates }} candidates from the reviewer;
+              @if (integrity()!.confirmed) {
+                {{ integrity()!.firm }} confirmed, {{ integrity()!.review }} for review,
+                {{ integrity()!.drop }} dropped in triage.
+              } @else {
+                nothing counts until you confirm the triage.
+              }
+            </span>
+          </div>
+          <a mat-stroked-button [routerLink]="['/audits', d.run.id, 'findings']"
+            ><mat-icon>rule</mat-icon>Findings and triage</a
+          >
+        </div>
+        @if (integrity()!.confirmed) {
+          <div class="cats">
+            @for (c of categoryRows(); track c.code) {
+              <div>
+                <div class="row between">
+                  <span>{{ c.label }}</span
+                  ><strong>{{ c.n }}</strong>
+                </div>
+                <div class="bar"><span [style.width.%]="(100 * c.n) / maxCategory()"></span></div>
+              </div>
+            }
+          </div>
+          <div class="row">
+            <span
+              ><strong class="high">{{ integrity()!.high }}</strong> High</span
+            >
+            <span
+              ><strong>{{ integrity()!.medium }}</strong> Medium</span
+            >
+            <span
+              ><strong>{{ integrity()!.low }}</strong> Low</span
+            >
+            @if (integrity()!.resolved.length) {
+              <span class="sub"
+                >· {{ integrity()!.resolved.length }} resolved since the previous audit</span
+              >
+            }
+          </div>
+        }
+      </mat-card>
+    }
 
     <mat-card class="tree-card">
       <div class="toolbar">

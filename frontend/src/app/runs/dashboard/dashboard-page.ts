@@ -29,7 +29,14 @@ import {
   signed,
   tokens,
 } from '../run-format';
-import { ACTIVE, Dashboard, PageRow, RunMetrics } from '../run.model';
+import {
+  ACTIVE,
+  CATEGORY_NAMES,
+  Dashboard,
+  IntegrityMetrics,
+  PageRow,
+  RunMetrics,
+} from '../run.model';
 import { RunsService } from '../runs.service';
 import { buildTree, findingsLabel, isFiltering, TreeState } from './tree';
 
@@ -40,6 +47,7 @@ interface Kpi {
   label: string;
   delta: string | null;
   deltaClass: string;
+  link?: boolean; // opens Findings and triage
 }
 
 @Component({
@@ -166,8 +174,63 @@ export class DashboardPage implements OnInit {
         label: 'SEO issues',
         ...change('seo_issues', 'down'),
       },
+      this.integrityKpi(),
     ];
   });
+
+  /** Integrity counts: only once triage is confirmed. */
+  readonly integrity = computed(
+    () => (this.data()?.run.metrics.integrity ?? null) as IntegrityMetrics | null,
+  );
+  readonly categoryRows = computed(() => {
+    const counts = this.integrity()?.by_category ?? {};
+    const rows = Object.entries(counts).map(([code, n]) => ({
+      code,
+      label: CATEGORY_NAMES[code] ?? code,
+      n,
+    }));
+    return rows.sort((a, b) => b.n - a.n);
+  });
+  readonly maxCategory = computed(() => Math.max(1, ...this.categoryRows().map((r) => r.n)));
+
+  private integrityKpi(): Kpi & { link?: boolean } {
+    const i = this.integrity();
+    const before = (this.data()?.compared?.metrics.integrity ?? null) as IntegrityMetrics | null;
+    if (!i?.candidates) {
+      return {
+        icon: 'rule',
+        badge: '',
+        value: '—',
+        label: 'Confirmed integrity issues',
+        delta: null,
+        deltaClass: 'flat',
+      };
+    }
+    if (!i.confirmed) {
+      const delta = `${i.candidates} candidates to triage`;
+      return {
+        icon: 'rule',
+        badge: '',
+        value: '—',
+        label: 'Confirmed integrity issues',
+        delta,
+        deltaClass: 'flat',
+        link: true,
+      };
+    }
+    const vs = before?.confirmed
+      ? ` · ${signed(i.firm - before.firm)} vs #${this.data()!.compared!.number}`
+      : '';
+    return {
+      icon: 'rule',
+      badge: '',
+      value: `${i.firm}`,
+      label: 'Confirmed integrity issues',
+      delta: `${i.high} High${vs}`,
+      deltaClass: before?.confirmed ? deltaClass(i.firm - before.firm, 'down') : 'flat',
+      link: true,
+    };
+  }
 
   ngOnInit(): void {
     const id = this.runId();

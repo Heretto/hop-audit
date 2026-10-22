@@ -1,6 +1,8 @@
 import {
   Dashboard,
   Finding,
+  IntegrityRow,
+  IntegrityView,
   PageDetail,
   PageRow,
   Preview,
@@ -235,6 +237,7 @@ export function samplePageDetail(overrides: Partial<PageDetail> = {}): PageDetai
     previous_score: 64,
     previous_run_number: 14,
     agent_findings: [],
+    integrity_findings: [],
     ...overrides,
   };
 }
@@ -260,6 +263,110 @@ export function sampleFinding(overrides: Partial<Finding> = {}): Finding {
     page_count: 1,
     dismissed: false,
     dismissed_reason: '',
+    ...overrides,
+  };
+}
+
+export function sampleIntegrity(overrides: Partial<IntegrityRow> = {}): IntegrityRow {
+  return {
+    id: 'c1',
+    code: 'C-01',
+    category: 'C',
+    severity: 'High',
+    locale: 'US English',
+    help_center_ids: ['hc-en'],
+    title: 'Credit reporting: "may lower your score" vs. "not reported"',
+    quotes: [
+      {
+        label: 'A',
+        text: 'Late payments may lower your score.',
+        slug: 'late-payments',
+        note: '',
+        page_id: 'p1',
+        verified: true,
+      },
+      {
+        label: 'B',
+        text: 'Loans are not reported at this time.',
+        slug: 'credit-faq',
+        note: '',
+        page_id: 'p2',
+        verified: true,
+      },
+    ],
+    why: 'A customer reads opposite answers.',
+    proposed_tier: 'firm',
+    proposed_reason: '',
+    tier: 'firm',
+    triage_note: '',
+    example_rank: null,
+    first_seen: 15,
+    carried_from: null,
+    agent_name: 'Content Integrity Reviewer',
+    ...overrides,
+  };
+}
+
+export function sampleIntegrityView(overrides: Partial<IntegrityView> = {}): IntegrityView {
+  return {
+    run: sampleRun({ status: 'completed', progress: 100 }),
+    purpose: 'prospect',
+    triage: { status: 'pending' },
+    findings: [
+      sampleIntegrity(),
+      sampleIntegrity({
+        id: 't3',
+        code: 'T-03',
+        category: 'T',
+        title: 'French reverses AutoPay',
+        locale: 'Français vs. US English',
+      }),
+      sampleIntegrity({
+        id: 'o4',
+        code: 'O-04',
+        category: 'O',
+        severity: 'Medium',
+        title: 'Future tense for a shipped feature',
+      }),
+      sampleIntegrity({
+        id: 'd1',
+        code: 'D-01',
+        category: 'D',
+        severity: 'Medium',
+        tier: 'review',
+        proposed_tier: 'review',
+        triage_note: 'Likely rounding.',
+        title: 'APR stated two ways',
+      }),
+      sampleIntegrity({
+        id: 'o6',
+        code: 'O-06',
+        category: 'O',
+        severity: 'Low',
+        tier: 'drop',
+        proposed_tier: 'drop',
+        title: 'Promotion ended two days ago',
+      }),
+    ],
+    help_centers: [
+      {
+        id: 'hc-en',
+        name: 'US English',
+        language: 'en',
+        is_primary: true,
+        articles: 142,
+        pages: 142,
+      },
+      {
+        id: 'hc-fr',
+        name: 'Français',
+        language: 'fr',
+        is_primary: false,
+        articles: 91,
+        pages: 103,
+      },
+    ],
+    resolved: [],
     ...overrides,
   };
 }

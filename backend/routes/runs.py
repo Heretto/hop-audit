@@ -193,8 +193,8 @@ async def analyze(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Dep
     run = get_run(db, ctx, run_id)
     if run.status != "completed":
         raise HTTPException(status.HTTP_409_CONFLICT, "Only a completed audit can be analyzed again")
-    if not set(run.analyses) & set(runner.MECHANICAL):
-        raise HTTPException(status.HTTP_409_CONFLICT, "This audit didn't include readability, SEO or links")
+    if not set(run.analyses) & {*runner.MECHANICAL, "content_integrity"}:
+        raise HTTPException(status.HTTP_409_CONFLICT, "This audit didn't include an analysis to repeat")
     run.status = "running"
     log(db, run, f"Analysis requested by {ctx.user.email}.")
     db.commit()

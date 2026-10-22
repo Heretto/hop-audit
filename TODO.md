@@ -193,9 +193,44 @@ re-read this file before starting the next.
       tokens, errors and findings; history compare rows
 - [x] Frontend tests; checks green; smoke test with a fake model; commit
 
+## Milestone 6: content integrity, findings and triage
+
+- [x] Model + migration: `IntegrityFinding` (run, site, stable code, category,
+      severity, help centers, locale label, title, quotes `[{label, text,
+      slug, note, page_id, verified}]`, why, proposed tier + reason, tier,
+      triage note, example rank, first seen run, carried from, agent);
+      run `triage` (status, confirmed at / by)
+- [x] `integrity.py`: batches per help center by section (character
+      budget), translation pairs (non-primary vs primary by relative path;
+      two versions of one language with each other), the site's enabled
+      categories and both focuses, JSON parsed and validated, quotes checked
+      against their pages (an unverified quote sends the finding to review
+      with a note), duplicates merged, articles in only one language listed
+      mechanically (for review)
+- [x] Stable IDs: match a candidate to the last run's findings by category
+      and a shared quote; keep the code and first-seen run; carry tier and
+      note from a confirmed triage; new codes continue the site's numbering;
+      unmatched earlier findings on reviewed pages are resolved
+- [x] Triage routes: list (with recount and help-center article counts),
+      update tier / note / example (examples only from firm; leaving firm
+      clears it; any change reopens a confirmed triage), confirm (feedback
+      memory gets every tier the user changed), CSV
+- [x] Metrics: confirmed, High/Medium/Low, for review, dropped, candidates,
+      by category, resolved; shown only once triage is confirmed (Dashboard,
+      Sites list, History compare)
+- [x] Backend tests (fake model): batching, pairing, verification, IDs
+      across runs, carry-over, resolve, triage rules, confirm and memory
+- [x] Frontend: Findings and triage page (`/audits/:runId/findings`) per
+      `Findings.dc.html`: filters, tier toggle, example star, triage note,
+      live recount, severity bar, by category, articles per help center,
+      one-sheet examples with hints, export CSV, confirm
+- [x] Frontend: Dashboard integrity KPI and card; Page detail "Content
+      integrity findings involving this page"; Sites list integrity column;
+      progress card candidates count
+- [x] Frontend tests; checks green; smoke test with a fake model; commit
+
 ## Later milestones (from the handoff)
 
-- [ ] 6 Content integrity reviewer, findings, triage screen
 - [ ] 7 Full findings report + exports
 - [ ] 8 Deliverables (one-sheets, overflow check, hand-off)
 - [ ] 9 Scheduling, rerun subsets, polish

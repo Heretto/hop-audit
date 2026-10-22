@@ -66,6 +66,49 @@ describe('DashboardPage', () => {
     expect(el.textContent).toContain('compared with #14');
   });
 
+  it('shows integrity counts only once triage is confirmed', () => {
+    const pending = sampleDashboard();
+    pending.run.metrics.integrity = {
+      candidates: 27,
+      firm: 21,
+      review: 3,
+      drop: 3,
+      high: 2,
+      medium: 15,
+      low: 4,
+      by_category: { C: 7, T: 6 },
+      resolved: [],
+      confirmed: false,
+    };
+    let { page, el } = render(pending);
+    let kpi = page.kpis().find((k) => k.label === 'Confirmed integrity issues')!;
+    expect(kpi.value).toBe('—');
+    expect(kpi.delta).toBe('27 candidates to triage');
+    expect(el.textContent).toContain('nothing counts until you confirm the triage');
+
+    TestBed.resetTestingModule();
+    const confirmed = sampleDashboard();
+    confirmed.run.metrics.integrity = {
+      ...pending.run.metrics.integrity!,
+      confirmed: true,
+      resolved: ['X-01'],
+    };
+    confirmed.compared!.metrics.integrity = {
+      ...pending.run.metrics.integrity!,
+      firm: 24,
+      confirmed: true,
+    };
+    ({ page, el } = render(confirmed));
+    kpi = page.kpis().find((k) => k.label === 'Confirmed integrity issues')!;
+    expect(kpi).toMatchObject({ value: '21', delta: '2 High · −3 vs #14', deltaClass: 'good' });
+    expect(page.categoryRows().map((r) => r.label)).toEqual([
+      'Contradictions',
+      'Translation defects',
+    ]);
+    expect(el.textContent).toContain('21 confirmed, 3 for review, 3 dropped');
+    expect(el.textContent).toContain('1 resolved since the previous audit');
+  });
+
   it('lists sections and opens them to their pages, with language tags', () => {
     const { fixture, page, el } = render();
     expect(el.textContent).toContain('/authoring');

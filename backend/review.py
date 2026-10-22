@@ -37,7 +37,12 @@ RETRYABLE = {429, 500, 502, 503, 504, 529}
 RETRIES = 2
 RETRY_DELAY = 12.0  # seconds, times the attempt; tests shorten it
 MAX_FAILED_BATCHES = 3
-LABELS = {"readability": "readability", "seo": "SEO and metadata", "links": "links"}
+LABELS = {
+    "readability": "readability",
+    "seo": "SEO and metadata",
+    "links": "links",
+    "content_integrity": "content integrity",
+}
 
 
 class AgentUnavailable(Exception):
@@ -163,8 +168,10 @@ TASK = {
 }
 
 
-def instructions(analysis: str, site_focus: str, run_focus: str) -> str:
-    parts = [TASK[analysis]]
+def instructions(
+    analysis: str, site_focus: str, run_focus: str, task: str | None = None, fmt: str | None = None
+) -> str:
+    parts = [task or TASK[analysis]]
     if site_focus.strip():
         parts.append(f"Focus for this site (applies to every page):\n{site_focus.strip()}")
     if run_focus.strip():
@@ -173,7 +180,7 @@ def instructions(analysis: str, site_focus: str, run_focus: str) -> str:
         "Mark a finding on_focus when it is something the focus asked for. Quote exactly; never invent or "
         "paraphrase text inside a quote. Report only real problems: return [] when nothing needs fixing."
     )
-    parts.append(f"Answer with a JSON array and nothing else, one object per finding:\n[{FORMAT[analysis]}]")
+    parts.append(f"Answer with a JSON array and nothing else, one object per finding:\n[{fmt or FORMAT[analysis]}]")
     return "\n\n".join(parts)
 
 
@@ -315,17 +322,19 @@ class Review:
         self.db, self.run, self.analysis, self.agent = db, run, analysis, agent
         self.log, self.progress, self.checkpoint = log, progress, checkpoint
         self.key = review_key(agent, run.site.focus or "", run.focus or "")
-        self.instructions = instructions(analysis, run.site.focus or "", run.focus or "")
+        self.instructions = instructions(analysis, run.site.focus or "", run.focus or "") if analysis in TASK else ""
         self.tally = Tally()
         self.runner = AgentRunner(agent.service)
 
-    async def ask(self, batch_no: int, material: str) -> list[dict] | None:
+    async def ask(self, batch_no: int, material: str, task: str | None = None) -> list[dict] | None:
         """One batch: the parsed findings, or None when the batch failed.
 
+        ``task`` replaces the analysis's usual instructions for this batch.
         Rate limits and server errors are retried with backoff; a reply that
         isn't JSON is asked for again once. The two don't share a budget.
         """
-        instructions, retries, reasked = self.instructions, 0, False
+        base = task or self.instructions
+        instructions, retries, reasked = base, 0, False
         while True:
             await self.checkpoint()
             request = AgentRequest(
@@ -355,7 +364,7 @@ class Review:
                 return None
             reasked = True
             self.log(self.analysis, "warn", f"{self.agent.name}, batch {batch_no}: reply wasn't JSON; asked again.")
-            instructions = self.instructions + "\n\nYour last reply wasn't a JSON array. Reply with the array only."
+            instructions = base + "\n\nYour last reply wasn't a JSON array. Reply with the array only."
 
     def failed(self) -> bool:
         """Record a failed batch; True when the agent should stop."""

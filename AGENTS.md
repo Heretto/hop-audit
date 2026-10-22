@@ -75,9 +75,19 @@ Read those instead of inferring from this project's code. Do not copy them here.
   Dismissing a finding appends to the agent's feedback memory in hop-core's
   `### heading` format. Tests register a fake provider in
   `AiProviderRegistry` (see `tests/test_review.py`).
+- **Content integrity** (`backend/integrity.py`): the reviewer reads each
+  reviewed help center a section at a time (character budget) and
+  translations as (original, translation) pairs; quotes must be on their
+  page or the finding goes to review; articles in only one language are
+  found mechanically. Codes are stable per site: a candidate sharing a
+  category and a quote with the previous run's finding keeps its code and,
+  if that triage was confirmed, its tier. Integrity counts show anywhere
+  only once `run.triage.status == "confirmed"`; any change reopens it.
+  Re-analysis never re-runs the integrity review over an existing triage.
 - **Routes in the UI**: `/audits/:runId` is the dashboard (active runs
   redirect to `/audits/:runId/progress`), pages are
-  `/audits/:runId/pages/:pageId`, `/sites/:id` opens the latest dashboard.
+  `/audits/:runId/pages/:pageId`, triage is `/audits/:runId/findings`,
+  `/sites/:id` opens the latest dashboard.
 - **Timestamps**: use `models.types.UTCDateTime`, not `DateTime`. SQLite
   drops offsets, and naive values compare and serialize as local time.
 - **Platform-specific installs**: the checkout may be shared between a Mac

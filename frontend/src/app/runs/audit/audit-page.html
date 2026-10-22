@@ -130,6 +130,15 @@
             <span class="value">{{ r.page_count | number }}</span
             ><span class="sub">Pages read</span>
           </div>
+          @if (r.metrics.integrity?.candidates; as candidates) {
+            <div>
+              <span class="value">{{ candidates | number }}</span>
+              <span class="sub"
+                >Integrity candidates ·
+                <a [routerLink]="['/audits', r.id, 'findings']">triage</a></span
+              >
+            </div>
+          }
         </div>
       </mat-card>
     </div>

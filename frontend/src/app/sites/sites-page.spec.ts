@@ -98,6 +98,36 @@ describe('SitesPage', () => {
     expect(el.querySelector('a.site-name')?.getAttribute('href')).toBe('/sites/1');
   });
 
+  it('shows confirmed integrity counts, or that triage is pending', () => {
+    const integrity = {
+      candidates: 5,
+      firm: 3,
+      review: 1,
+      drop: 1,
+      high: 2,
+      medium: 1,
+      low: 0,
+      by_category: {},
+      resolved: [],
+      confirmed: true,
+    };
+    const { el } = render([
+      summary('1', 'Confirmed', {
+        last_completed: sampleRun({ id: 'r1', status: 'completed', metrics: { integrity } }),
+      }),
+      summary('2', 'Pending', {
+        last_completed: sampleRun({
+          id: 'r2',
+          status: 'completed',
+          metrics: { integrity: { ...integrity, confirmed: false } },
+        }),
+      }),
+    ]);
+    expect(el.querySelector('a[href="/audits/r1/findings"]')?.textContent?.trim()).toBe('3');
+    expect(el.textContent).toContain('Triage pending');
+    expect(el.textContent).toMatch(/3\s*Confirmed integrity issues, 2 High/);
+  });
+
   it('shows the empty state', () => {
     const { el } = render([]);
     expect(el.textContent).toContain('No sites yet');

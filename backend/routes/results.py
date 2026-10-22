@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from analysis import comparable_run
-from models import AgentFinding, AuditRun, HelpCenter, LinkResult, Page
+from models import AgentFinding, AuditRun, HelpCenter, IntegrityFinding, LinkResult, Page
 from routes.runs import detail, get_run
 from schemas.results import (
     ChangedPage,
@@ -43,12 +43,23 @@ COMPARED = (
     ("redirects", "Redirected links", "down"),
     ("anchors", "Anchors not found", "down"),
     ("seo_issues", "SEO issues", "down"),
+    ("integrity_firm", "Confirmed integrity issues", "down"),
+    ("integrity_high", "High severity", "down"),
+    ("integrity_review", "Items for review", "flat"),
     ("agent_findings", "Agent findings", "down"),
     ("focus_findings", "Focus findings", "down"),
     ("tokens", "Tokens", "flat"),
 )
 CSV_COLUMNS = ("url", "title", "section", "http_status", "score", "flesch", "broken_links", "redirects",
                "anchor_issues", "seo_issues", "word_count", "error")  # fmt: skip
+
+
+def metric(run: AuditRun, key: str):
+    """A run metric; integrity_* ones only once the run's triage is confirmed."""
+    if key.startswith("integrity_"):
+        counts = (run.metrics or {}).get("integrity") or {}
+        return counts.get(key.removeprefix("integrity_")) if counts.get("confirmed") else None
+    return (run.metrics or {}).get(key)
 
 
 def _pages(db: Session, run_id: UUID) -> list[Page]:
@@ -152,12 +163,17 @@ def update_finding(finding_id: UUID, body: FindingUpdate, ctx: CurrentUserContex
 @router.get("/runs/{run_id}/pages.csv")
 def pages_csv(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
     run = get_run(db, ctx, run_id)
+    rows = (["" if getattr(page, c) is None else getattr(page, c) for c in CSV_COLUMNS] for page in _pages(db, run.id))
+    return csv_response(run, "pages", CSV_COLUMNS, rows)
+
+
+def csv_response(run: AuditRun, what: str, header, rows) -> Response:
+    """A CSV download named <site>-audit-<n>-<what>.csv."""
     out = io.StringIO()
     writer = csv.writer(out)
-    writer.writerow(CSV_COLUMNS)
-    for page in _pages(db, run.id):
-        writer.writerow(["" if getattr(page, c) is None else getattr(page, c) for c in CSV_COLUMNS])
-    name = f"{run.site.name}-audit-{run.number}-pages.csv".replace(" ", "-").lower()
+    writer.writerow(header)
+    writer.writerows(rows)
+    name = f"{run.site.name}-audit-{run.number}-{what}.csv".replace(" ", "-").lower()
     return Response(
         out.getvalue(), media_type="text/csv", headers={"Content-Disposition": f'attachment; filename="{name}"'}
     )
@@ -189,6 +205,11 @@ def page_detail(page_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depe
             "previous_score": before.score if before else None,
             "previous_run_number": previous.number if before else None,
             "agent_findings": [_finding_out(f) for f in _findings(db, run.id) if _belongs(f, page.id)],
+            "integrity_findings": [
+                f
+                for f in db.scalars(select(IntegrityFinding).where(IntegrityFinding.run_id == run.id))
+                if f.tier != "drop" and any(q.get("page_id") == str(page.id) for q in f.quotes)
+            ],
         }
     )
 
@@ -201,7 +222,7 @@ def compare(a: UUID, b: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depen
         raise HTTPException(422, "Compare two audits of the same site")
     rows = []
     for key, label, better in COMPARED:
-        va, vb = run_a.metrics.get(key), run_b.metrics.get(key)
+        va, vb = metric(run_a, key), metric(run_b, key)
         delta = round(vb - va, 1) if va is not None and vb is not None else None
         rows.append(CompareRow(key=key, label=label, a=va, b=vb, delta=delta, better=better))
     scores_a = {p.url: p.score for p in _pages(db, run_a.id) if p.score is not None}

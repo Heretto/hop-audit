@@ -68,6 +68,16 @@ export class SitesPage implements OnInit {
   readonly pageCount = computed(() =>
     (this.rows() ?? []).reduce((n, s) => n + (s.last_run?.page_count ?? 0), 0),
   );
+  /** Confirmed content-integrity issues across sites' last completed audits. */
+  readonly confirmed = computed(() =>
+    (this.rows() ?? []).reduce(
+      (t, s) => {
+        const i = s.last_completed?.metrics.integrity;
+        return i?.confirmed ? { firm: t.firm + i.firm, high: t.high + i.high } : t;
+      },
+      { firm: 0, high: 0 },
+    ),
+  );
   /** The most recent audit to finish in the last day, for the banner. */
   readonly justFinished = computed(() => {
     const day = Date.now() - 24 * 3600 * 1000;
@@ -110,6 +120,11 @@ export class SitesPage implements OnInit {
   readonly chip = (s: SiteSummary) => statusChip(s.last_run ?? null);
   readonly scope = scopeLabel;
   readonly scoreClass = scoreClass;
+  /** The last completed audit's content-integrity counts, when it had candidates. */
+  readonly integrity = (s: SiteSummary) => {
+    const i = s.last_completed?.metrics.integrity;
+    return i?.candidates ? i : null;
+  };
   readonly duration = duration;
   readonly isActive = (s: SiteSummary) => !!s.last_run && ACTIVE.includes(s.last_run.status);
 

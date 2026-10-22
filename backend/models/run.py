@@ -39,6 +39,8 @@ class AuditRun(Base):
     metrics = Column(JSON, nullable=False, default=dict, server_default="{}")  # see scoring.run_metrics
     # agent id -> {name, model, tokens, findings, errors, retries, status, note}
     agent_stats = Column(JSON, nullable=False, default=dict, server_default="{}")
+    # Content-integrity triage: {status: pending | in_progress | confirmed, confirmed_at, confirmed_by}
+    triage = Column(JSON, nullable=False, default=dict, server_default="{}")
     error = Column(Text, nullable=True)
     created_at = Column(UTCDateTime, server_default=func.now())
     started_at = Column(UTCDateTime, nullable=True)
@@ -160,3 +162,36 @@ class AgentFinding(Base):
     review_key = Column(String(64), nullable=False, default="")  # agent + focus, for reuse
     dismissed = Column(Boolean, nullable=False, default=False)
     dismissed_reason = Column(Text, nullable=False, default="")
+
+
+class IntegrityFinding(Base):
+    """A content-integrity candidate from the Content Integrity Reviewer.
+
+    ``code`` (C-01, TM-03) is stable across a site's runs: a candidate that
+    matches an earlier finding keeps its code. Nothing is counted until a
+    person confirms the run's triage; ``tier`` is theirs to set, starting
+    from the agent's ``proposed_tier``.
+    """
+
+    __tablename__ = "integrity_findings"
+
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4)
+    run_id = Column(Uuid, ForeignKey("audit_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    site_id = Column(Uuid, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False, index=True)
+    code = Column(String(16), nullable=False)
+    category = Column(String(4), nullable=False)  # catalog.CATEGORY_CODES
+    severity = Column(String(8), nullable=False)  # High | Medium | Low
+    help_center_ids = Column(JSON, nullable=False, default=list)
+    locale = Column(String(255), nullable=False, default="")  # "US English", "Deutsch vs. US English"
+    title = Column(Text, nullable=False)
+    quotes = Column(JSON, nullable=False, default=list)  # [{label, text, slug, note, page_id, verified}]
+    why = Column(Text, nullable=False, default="")
+    proposed_tier = Column(String(8), nullable=False)  # firm | review | drop
+    proposed_reason = Column(Text, nullable=False, default="")
+    tier = Column(String(8), nullable=False)
+    triage_note = Column(Text, nullable=False, default="")
+    example_rank = Column(Integer, nullable=True)  # order picked as a one-sheet example; None when not one
+    first_seen = Column(Integer, nullable=False)  # run number
+    carried_from = Column(Integer, nullable=True)  # run number whose confirmed triage set the tier
+    agent_id = Column(Uuid, nullable=True)
+    agent_name = Column(String(255), nullable=False, default="")

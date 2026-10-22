@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { RunsService } from '../runs.service';
-import { sampleFinding, samplePageDetail } from '../testing';
+import { sampleFinding, sampleIntegrity, samplePageDetail } from '../testing';
 import { PageDetailPage, readabilityBand } from './page-detail';
 
 describe('PageDetailPage', () => {
@@ -71,6 +71,22 @@ describe('PageDetailPage', () => {
     page.replace(sampleFinding({ id: 'low', severity: 'Low', dismissed: true }));
     fixture.detectChanges();
     expect(page.findings().open).toHaveLength(2);
+  });
+
+  it('shows content-integrity findings that quote this page', () => {
+    const { page, el } = render(
+      samplePageDetail({
+        integrity_findings: [
+          sampleIntegrity(),
+          sampleIntegrity({ id: 'd', code: 'D-01', tier: 'review' }),
+        ],
+      }),
+    );
+    const [row] = page.integrity();
+    expect(row.here.map((q) => q.slug)).toEqual(['late-payments']);
+    expect(row.elsewhere.map((q) => q.slug)).toEqual(['credit-faq']);
+    expect(el.textContent).toContain('Content integrity findings involving this page (2)');
+    expect(el.textContent).toContain('For review');
   });
 
   it('explains pages that could not be scored or read', () => {

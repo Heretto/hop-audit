@@ -53,8 +53,23 @@ export interface RunMetrics {
   agent_findings: number;
   focus_findings: number;
   tokens: number;
+  integrity: IntegrityMetrics;
   compared_with: number | null;
   analyzed_at: string;
+}
+
+/** Content-integrity counts (backend integrity.metrics); shown only once confirmed. */
+export interface IntegrityMetrics {
+  candidates: number;
+  firm: number;
+  review: number;
+  drop: number;
+  high: number;
+  medium: number;
+  low: number;
+  by_category: Record<string, number>;
+  resolved: string[];
+  confirmed: boolean;
 }
 
 /** One agent's work in a run (backend analysis._review). */
@@ -229,6 +244,7 @@ export interface PageDetail extends PageRow {
   previous_score: number | null;
   previous_run_number: number | null;
   agent_findings: Finding[];
+  integrity_findings: IntegrityRow[];
 }
 
 export interface CompareRow {
@@ -253,3 +269,70 @@ export interface Comparison {
     delta: number;
   }[];
 }
+
+export type Tier = 'firm' | 'review' | 'drop';
+
+export interface Quote {
+  label: string;
+  text: string;
+  slug: string;
+  note: string;
+  page_id: string | null;
+  verified: boolean;
+}
+
+export interface IntegrityRow {
+  id: string;
+  code: string;
+  category: string;
+  severity: 'High' | 'Medium' | 'Low';
+  locale: string;
+  help_center_ids: string[];
+  title: string;
+  quotes: Quote[];
+  why: string;
+  proposed_tier: Tier;
+  proposed_reason: string;
+  tier: Tier;
+  triage_note: string;
+  example_rank: number | null;
+  first_seen: number;
+  carried_from: number | null;
+  agent_name: string;
+}
+
+export interface Triage {
+  status: 'pending' | 'in_progress' | 'confirmed';
+  confirmed_at?: string | null;
+  confirmed_by?: string;
+}
+
+export interface IntegrityView {
+  run: RunDetail;
+  purpose: 'own' | 'prospect';
+  triage: Triage;
+  findings: IntegrityRow[];
+  help_centers: {
+    id: string;
+    name: string;
+    language: string;
+    is_primary: boolean;
+    articles: number;
+    pages: number;
+  }[];
+  resolved: string[];
+}
+
+/** Short category names for counts (backend catalog.INTEGRITY_CATEGORIES). */
+export const CATEGORY_NAMES: Record<string, string> = {
+  C: 'Contradictions',
+  U: "Instructions that don't match",
+  T: 'Translation defects',
+  TM: 'Terminology inconsistency',
+  D: 'Disclosure and legal text',
+  L: 'Retired products',
+  S: 'Scope errors',
+  O: 'Outdated content',
+  N: 'Links and duplicates',
+  X: 'Structure and publishing errors',
+};

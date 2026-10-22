@@ -14,6 +14,7 @@ import httpx
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+import integrity
 import links as link_checks
 import readability
 import review
@@ -38,8 +39,11 @@ def comparable_run(db: Session, run: AuditRun) -> AuditRun | None:
     return None
 
 
-async def analyze(db: Session, run: AuditRun, rec, http: httpx.AsyncClient, checkpoint) -> None:
-    """``rec`` is the runner's Recorder (stages and log); ``checkpoint`` honors pause and cancel."""
+async def analyze(
+    db: Session, run: AuditRun, rec, http: httpx.AsyncClient, checkpoint, integrity_review: bool = True
+) -> None:
+    """``rec`` is the runner's Recorder (stages and log); ``checkpoint`` honors pause and cancel.
+    ``integrity_review`` is off when analyzing again would replace a triage."""
     pages = db.scalars(select(Page).where(Page.run_id == run.id)).all()
     readable = [p for p in pages if p.http_status == 200 and p.content]
     centers = select(HelpCenter.id, HelpCenter.language).where(HelpCenter.site_id == run.site_id)
@@ -86,6 +90,9 @@ async def analyze(db: Session, run: AuditRun, rec, http: httpx.AsyncClient, chec
         groups = review.link_groups(rows, {p.id: p for p in pages})
         await _review(db, run, rec, "links", groups, detail, checkpoint)
 
+    if "content_integrity" in keys and integrity_review:
+        await integrity.run_review(db, run, rec, checkpoint, lambda agent, tally: record_stats(run, agent, tally))
+
     for page in pages:
         page.score = page_score(
             page.http_status,
@@ -104,6 +111,7 @@ async def analyze(db: Session, run: AuditRun, rec, http: httpx.AsyncClient, chec
         select(AgentFinding).where(AgentFinding.run_id == run.id, AgentFinding.dismissed.is_(False))
     ).all()
     run.metrics = {
+        **({"integrity": run.metrics["integrity"]} if (run.metrics or {}).get("integrity") else {}),
         **run_metrics(pages, new, link_counts),
         "agent_findings": len(findings),
         "focus_findings": sum(1 for f in findings if f.on_focus),
@@ -216,6 +224,24 @@ async def _review(db: Session, run: AuditRun, rec, analysis: str, items: list, m
     reviewer = review.Review(db, run, analysis, agent, rec.log, progress, checkpoint)
     tally = await (reviewer.links(items) if analysis == "links" else reviewer.pages(items, languages or {}))
 
+    record_stats(run, agent, tally)
+    plural = "" if tally.findings == 1 else "s"
+    parts = [f"{agent.name}: {tally.findings:,} finding{plural} ({tally.on_focus:,} on focus)"]
+    if tally.reused:
+        parts.append(f"{tally.reused:,} unchanged pages' findings reused")
+    if tally.quotes_removed:
+        parts.append(f"{tally.quotes_removed:,} quotes not on the page removed")
+    if tally.errors:
+        parts.append(f"{tally.errors:,} failed batches")
+    if tally.note:
+        parts.append(tally.note)
+    rec.stage(analysis, status="done", detail=f"{mechanical} · " + ", ".join(parts))
+    rec.log(analysis, "info", f"{', '.join(parts)}; {tally.tokens:,} tokens.")
+    db.commit()
+
+
+def record_stats(run: AuditRun, agent, tally) -> None:
+    """Add an agent's tokens and counts for one analysis to the run."""
     key = str(agent.id)
     before = (run.agent_stats or {}).get(key, {})
     run.agent_stats = {
@@ -232,16 +258,3 @@ async def _review(db: Session, run: AuditRun, rec, analysis: str, items: list, m
         },
     }
     run.tokens = {**(run.tokens or {}), key: run.agent_stats[key]["tokens"]}
-    plural = "" if tally.findings == 1 else "s"
-    parts = [f"{agent.name}: {tally.findings:,} finding{plural} ({tally.on_focus:,} on focus)"]
-    if tally.reused:
-        parts.append(f"{tally.reused:,} unchanged pages' findings reused")
-    if tally.quotes_removed:
-        parts.append(f"{tally.quotes_removed:,} quotes not on the page removed")
-    if tally.errors:
-        parts.append(f"{tally.errors:,} failed batches")
-    if tally.note:
-        parts.append(tally.note)
-    rec.stage(analysis, status="done", detail=f"{mechanical} · " + ", ".join(parts))
-    rec.log(analysis, "info", f"{', '.join(parts)}; {tally.tokens:,} tokens.")
-    db.commit()

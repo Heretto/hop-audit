@@ -89,6 +89,18 @@ export class PageDetailPage implements OnInit {
   readonly seoIssues = computed(
     () => (this.page()?.seo ?? []).filter((c) => c.status !== 'ok').length,
   );
+  /** Content-integrity findings quoting this page, split into this page's quotes and the others. */
+  readonly integrity = computed(() => {
+    const p = this.page();
+    if (!p) return [];
+    return p.integrity_findings.map((f) => ({
+      finding: f,
+      here: f.quotes.filter((q) => q.page_id === p.id),
+      elsewhere: f.quotes.filter((q) => q.page_id !== p.id),
+    }));
+  });
+  readonly tierLabels: Record<string, string> = { firm: '', review: 'For review', drop: 'Dropped' };
+
   /** Open findings, worst first; dismissed ones after. */
   readonly findings = computed(() => {
     const order = { High: 0, Medium: 1, Low: 2 };
