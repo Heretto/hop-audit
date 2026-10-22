@@ -4,7 +4,8 @@ import { RunSummary } from '../runs/run.model';
 
 export type Purpose = 'own' | 'prospect';
 export type AnalysisKey = 'readability' | 'links' | 'seo' | 'content_integrity' | 'summary';
-export type AssignmentKey = AnalysisKey | 'deliverables';
+/** Analyses an agent runs; links are checked by HOP Audit itself. */
+export type AssignmentKey = Exclude<AnalysisKey, 'links'> | 'deliverables';
 
 export interface HelpCenter {
   id?: string;
@@ -130,7 +131,6 @@ export const ANALYSES: { key: AnalysisKey; label: string; description: string }[
 
 export const ASSIGNMENTS: { key: AssignmentKey; label: string }[] = [
   { key: 'readability', label: 'Readability' },
-  { key: 'links', label: 'Links' },
   { key: 'seo', label: 'SEO and metadata' },
   { key: 'content_integrity', label: 'Content integrity' },
   { key: 'summary', label: 'Summary report' },

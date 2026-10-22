@@ -206,6 +206,8 @@ export function samplePageDetail(overrides: Partial<PageDetail> = {}): PageDetai
         status: 200,
         final_url: null,
         note: '',
+        fix: '',
+        suggestion: '',
       },
       {
         url: 'https://help.heretto.com/authoring/reuse/conref-push',
@@ -215,6 +217,8 @@ export function samplePageDetail(overrides: Partial<PageDetail> = {}): PageDetai
         status: 404,
         final_url: null,
         note: 'HTTP 404',
+        fix: 'relink',
+        suggestion: 'Relink to /authoring/reuse/conref-push-and-pull.',
       },
       {
         url: 'https://help.heretto.com/publishing/presets#filters',
@@ -224,6 +228,8 @@ export function samplePageDetail(overrides: Partial<PageDetail> = {}): PageDetai
         status: 200,
         final_url: null,
         note: '#filters not found on the target page',
+        fix: 'anchor',
+        suggestion: 'Link to #filters-and-presets.',
       },
       {
         url: 'https://docs.oasis-open.org/dita',
@@ -233,6 +239,8 @@ export function samplePageDetail(overrides: Partial<PageDetail> = {}): PageDetai
         status: 410,
         final_url: null,
         note: 'HTTP 410',
+        fix: 'remove',
+        suggestion: 'The external page is gone: link to its replacement, or remove the link.',
       },
     ],
     section_flesch: 55.7,

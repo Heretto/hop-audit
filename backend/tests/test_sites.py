@@ -172,8 +172,8 @@ def test_content_integrity_off_allows_no_categories(client, user):
 
 def test_agent_assignments(client, user):
     agents = client.post("/api/v1/setup", headers=user["headers"]).json()["seeded_agents"]
-    site = create(client, user, agent_assignments={"seo": agents["seo"], "links": None})
-    assert site["agent_assignments"] == {"seo": agents["seo"], "links": None}
+    site = create(client, user, agent_assignments={"seo": agents["seo"], "summary": None, "links": agents["seo"]})
+    assert site["agent_assignments"] == {"seo": agents["seo"], "summary": None}  # links have no agent
 
     other = make_user(client)
     foreign = client.post("/api/v1/setup", headers=other["headers"]).json()["seeded_agents"]

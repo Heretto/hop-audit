@@ -40,7 +40,6 @@ describe('site form', () => {
     expect(body.integrity_categories).toEqual(['C', 'U', 'T']);
     expect(body.agent_assignments).toEqual({
       readability: null,
-      links: null,
       seo: 'agent-seo',
       content_integrity: null,
       summary: null,

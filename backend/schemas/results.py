@@ -77,6 +77,8 @@ class LinkRow(BaseModel):
     status: int | None
     final_url: str | None
     note: str
+    fix: str = ""  # relink | anchor | restore | remove
+    suggestion: str = ""
 
 
 class PageDetail(PageRow):

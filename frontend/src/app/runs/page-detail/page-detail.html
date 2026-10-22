@@ -137,6 +137,9 @@
                   <td>
                     <span class="mono wrap">{{ target(l) }}</span>
                     <span class="sub block">{{ l.note || 'anchor text "' + l.text + '"' }}</span>
+                    @if (l.suggestion) {
+                      <span class="fix block"><strong>Fix:</strong> {{ l.suggestion }}</span>
+                    }
                   </td>
                   <td>
                     <span class="sev" [class]="outcomes[l.outcome].sev">{{

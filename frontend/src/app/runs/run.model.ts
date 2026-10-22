@@ -206,6 +206,8 @@ export interface LinkRow {
   status: number | null;
   final_url: string | null;
   note: string;
+  fix: '' | 'relink' | 'anchor' | 'restore' | 'remove';
+  suggestion: string;
 }
 
 export interface PageContent {

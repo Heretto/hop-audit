@@ -11,7 +11,7 @@ from hop_core.models.agent import Agent
 
 import review
 from models import AgentFinding, AuditRun, Page
-from review import FindingIn, instructions, link_groups, parse_findings, quote_found
+from review import FindingIn, instructions, parse_findings, quote_found
 from tests.fake_site import BASE, page, serve
 from tests.test_runs import add_run, execute, fast_retries, make_site  # noqa: F401
 
@@ -19,7 +19,7 @@ QUOTE = "Steady useful documentation words."
 
 
 class FakeModel:
-    """Answers each kind of batch; scripted failures go first."""
+    """Answers readability and SEO requests; scripted failures go first."""
 
     def __init__(self):
         self.calls: list[str] = []
@@ -50,29 +50,17 @@ class FakeModel:
                     "suggestion": "Useful words.",
                     "on_focus": True,
                 },
-                {"page": "P2", "severity": "Low", "title": "Invented quote", "quote": "Not on the page at all"},
+                {"page": "P1", "severity": "Low", "title": "Invented quote", "quote": "Not on the page at all"},
                 {"page": "P99", "severity": "Low", "title": "Unknown page"},
                 {"page": "P1", "severity": "Critical", "title": "Bad severity"},
             ]
-        elif "SEO and metadata" in prompt:
+        else:  # SEO and metadata
             findings = [
                 {
                     "page": "P1",
                     "severity": "Medium",
                     "title": "Description too short",
                     "suggestion": "A longer description that fits.",
-                }
-            ]
-        else:
-            target = next(line[4:] for line in prompt.splitlines() if line.startswith("### "))
-            findings = [
-                {
-                    "target": target,
-                    "severity": "High",
-                    "title": "Broken link",
-                    "body": "Restore it.",
-                    "fix": "restore",
-                    "suggestion": "",
                 }
             ]
         reply = "Here you go:\n```json\n" + json.dumps(findings) + "\n```"
@@ -97,7 +85,7 @@ def mock():
 
 
 def configured_site(client, user, focus="Flag repetition."):
-    """A site whose readability, SEO and link agents run on the fake model."""
+    """A site whose Readability Reviewer and SEO Analyst run on the fake model."""
     h = user["headers"]
     agents = client.post("/api/v1/setup", headers=h).json()["seeded_agents"]
     cred = client.post(
@@ -106,7 +94,7 @@ def configured_site(client, user, focus="Flag repetition."):
         headers=h,
     )
     assert cred.status_code in (200, 201), cred.text
-    for key in ("readability", "seo", "links"):
+    for key in ("readability", "seo"):
         r = client.put(f"/api/v1/agents/{agents[key]}", json={"ai_configuration_id": cred.json()["id"]}, headers=h)
         assert r.status_code == 200, r.text
     site = make_site(client, user)
@@ -150,45 +138,6 @@ def test_finding_validation():
         FindingIn.model_validate({"severity": "Critical", "title": "x"})
 
 
-def test_link_groups():
-    from types import SimpleNamespace
-    from uuid import uuid4
-
-    a, b = uuid4(), uuid4()
-    pages = {
-        a: SimpleNamespace(path="/authoring/reuse", http_status=200),
-        b: SimpleNamespace(path="/authoring/keys-and-keydefs", http_status=200),
-    }
-    rows = [
-        SimpleNamespace(
-            url=f"{BASE}authoring/keys",
-            outcome="broken",
-            status=404,
-            note="HTTP 404",
-            internal=True,
-            page_id=a,
-            text="keys",
-        ),
-        SimpleNamespace(
-            url=f"{BASE}authoring/keys",
-            outcome="broken",
-            status=404,
-            note="HTTP 404",
-            internal=True,
-            page_id=b,
-            text="keys",
-        ),
-        SimpleNamespace(
-            url="https://x.org/", outcome="redirect", status=200, note="", internal=False, page_id=a, text=""
-        ),
-        SimpleNamespace(url="https://y.org/", outcome="ok", status=200, note="", internal=False, page_id=a, text=""),
-    ]
-    groups = link_groups(rows, pages)
-    assert [g.target for g in groups] == [f"{BASE}authoring/keys", "https://x.org/"]
-    assert groups[0].page_ids == [a, b] and groups[0].texts == ["keys"]
-    assert groups[0].candidates[0] == "/authoring/keys-and-keydefs"  # closest path first
-
-
 def test_unavailable_agents(client, user, db):
     agents = client.post("/api/v1/setup", headers=user["headers"]).json()["seeded_agents"]
     org = db.get(Agent, UUID(agents["seo"])).organization_id
@@ -203,7 +152,7 @@ def test_unavailable_agents(client, user, db):
 
 # ── A run with agents ─────────────────────────────────────────────────────────
 
-ANALYSES = ["readability", "seo", "links"]
+ANALYSES = ["readability", "seo", "links"]  # links: checked by code, no agent
 
 
 async def test_run_with_agent_review(client, user, db, mock, model):
@@ -219,7 +168,13 @@ async def test_run_with_agent_review(client, user, db, mock, model):
     assert "Readability Reviewer: " in stages["readability"]["detail"]
     assert "quotes not on the page removed" in stages["readability"]["detail"]
     assert "SEO Analyst: " in stages["seo"]["detail"]
-    assert "Link Validator: 1 finding (0 on focus)" in stages["links"]["detail"]
+    assert stages["links"]["status"] == "done" and "1 broken" in stages["links"]["detail"]
+
+    # One page per request; links never reach a model.
+    readability_calls = [c for c in model.calls if "for readability" in c]
+    assert len(readability_calls) == 7
+    assert all(c.count("### P1") == 1 and "### P2" not in c for c in model.calls)
+    assert not any("nowhere" in c and "### P1" not in c for c in model.calls)
 
     # No temperature is sent: newer models reject the parameter.
     assert model.temperatures and set(model.temperatures) == {None}
@@ -239,26 +194,25 @@ async def test_run_with_agent_review(client, user, db, mock, model):
     assert kept.quote == QUOTE and kept.on_focus and kept.agent_name == "Readability Reviewer"
     assert kept.model == "claude-test" and kept.page_id is not None
     assert by_title["Invented quote"].quote == ""  # not on the page: removed
-    link = by_title["Broken link"]
-    assert link.page_id is None and link.target == f"{BASE}nowhere" and link.suggestion == "restore"
-    assert len(link.page_ids) == 1
 
     stats = run.agent_stats[agents["readability"]]
     assert stats["name"] == "Readability Reviewer" and stats["tokens"] > 0 and stats["errors"] == 0
     assert run.tokens[agents["readability"]] == stats["tokens"]
-    assert run.metrics["agent_findings"] == len(findings) and run.metrics["focus_findings"] == 1
+    assert run.metrics["agent_findings"] == len(findings)
+    assert run.metrics["focus_findings"] == 7  # the fake flags one focus item on every page
     assert run.metrics["tokens"] == sum(run.tokens.values())
 
     detail_api = client.get(f"/api/v1/runs/{run.id}", headers=user["headers"]).json()
     assert detail_api["agent_stats"][agents["readability"]]["name"] == "Readability Reviewer"
 
-    # Routes: the page list counts findings; page detail lists them, link findings included.
+    # Routes: the page list counts findings; page detail lists them, and its broken link's code-made fix.
     rows = client.get(f"/api/v1/runs/{run.id}/pages", headers=user["headers"]).json()
     a = next(r for r in rows if r["path"] == "/authoring/a")
     detail = client.get(f"/api/v1/pages/{a['id']}", headers=user["headers"]).json()
-    titles = {f["title"] for f in detail["agent_findings"]}
-    assert "Broken link" in titles
+    assert {f["title"] for f in detail["agent_findings"]} >= {"Repetitive sentences", "Description too short"}
     assert a["findings"] == len(detail["agent_findings"])
+    nowhere = next(link for link in detail["links"] if link["url"].endswith("/nowhere"))
+    assert nowhere["outcome"] == "broken" and nowhere["fix"] in ("relink", "restore") and nowhere["suggestion"]
 
 
 async def test_unchanged_checksum_keeps_readability_and_seo(client, user, db, mock, model):
@@ -277,7 +231,7 @@ async def test_unchanged_checksum_keeps_readability_and_seo(client, user, db, mo
     body["focus"] = "Something else."
     client.put(f"/api/v1/sites/{site['id']}", json=body, headers=user["headers"])
     second = await execute(db, add_run(db, site, user, number=2, analyses=analyses, reuse_crawl=False))
-    assert len(model.calls) == calls  # fetched again, same checksum: no new batches
+    assert len(model.calls) == calls  # fetched again, same checksum: no new requests
     assert db.query(AgentFinding).filter(AgentFinding.run_id == second.id).count() == first_count
     stages = {s["key"]: s["detail"] for s in second.stages}
     assert (
@@ -311,20 +265,20 @@ async def test_retries_rate_limits_and_asks_again_for_json(client, user, db, moc
     stats = next(iter(run.agent_stats.values()))
     assert stats["retries"] == 1 and stats["errors"] == 0 and stats["findings"] > 0
     messages = [e.message for e in run.log]
-    assert any("anthropic returned 429 on batch 1; retried after 0 s." in m for m in messages)
+    assert any("anthropic returned 429 on /" in m and "retried after 0 s." in m for m in messages)
     assert any("reply wasn't JSON; asked again" in m for m in messages)
 
 
-async def test_agent_stops_after_three_failed_batches(client, user, db, mock, model, monkeypatch):
+async def test_agent_stops_after_three_failed_requests(client, user, db, mock, model, monkeypatch):
     serve(mock)
-    monkeypatch.setitem(review.BATCH_SIZE, "readability", 1)
+    monkeypatch.setattr(review, "AGENT_CONCURRENCY", 1)  # one page at a time, so the count is exact
     site, _ = configured_site(client, user)
     model.failures = [AiProviderError("bad request", status_code=400)] * 10
     run = await execute(db, add_run(db, site, user, analyses=["readability"]))
     assert run.status == "completed"  # metrics still stand
     stats = next(iter(run.agent_stats.values()))
-    assert stats["errors"] == 3 and stats["status"] == "stopped"
-    assert "stopped after 3 failed batches in a row" in run.stages[2]["detail"]
+    assert stats["errors"] == 3 and stats["status"] == "stopped" and len(model.calls) == 3
+    assert "stopped after 3 failed requests in a row" in run.stages[2]["detail"]
     assert run.stages[2]["status"] == "failed" and "analyze again" in run.stages[2]["detail"]
     assert db.query(Page).filter(Page.run_id == run.id, Page.flesch.isnot(None)).count() > 0
 
@@ -387,13 +341,15 @@ def out_of_room(budget):
     )
 
 
-async def test_reply_that_runs_out_of_room_is_asked_again_with_more(client, user, db, mock, model):
+async def test_reply_that_runs_out_of_room_is_asked_again_with_more(client, user, db, mock, model, monkeypatch):
     serve(mock)
+    monkeypatch.setattr(review, "AGENT_CONCURRENCY", 1)
     site, _ = configured_site(client, user)
     cut = GenerationResponse(content='[{"page": "P1", "severity": "Hi', stop_reason="max_tokens", output_tokens=16384)
     model.failures = [out_of_room(8192), cut]
     run = await execute(db, add_run(db, site, user, analyses=["readability"]))
     assert model.budgets[:3] == [8192, 16384, 32768]  # no text, then cut off mid-JSON, then it fits
+    assert set(model.budgets[3:]) == {32768}  # the budget that worked carries on
     stats = next(iter(run.agent_stats.values()))
     assert stats["errors"] == 0 and stats["findings"] > 0
     messages = [e.message for e in run.log]
@@ -401,17 +357,18 @@ async def test_reply_that_runs_out_of_room_is_asked_again_with_more(client, user
     assert not any("wasn't JSON" in m for m in messages)  # a cut-off reply isn't asked for "JSON only"
 
 
-async def test_reply_that_never_fits_fails_the_batch(client, user, db, mock, model, monkeypatch):
+async def test_reply_that_never_fits_skips_the_page(client, user, db, mock, model, monkeypatch):
     serve(mock)
-    monkeypatch.setitem(review.BATCH_SIZE, "readability", 100)  # one batch
+    monkeypatch.setattr(review, "AGENT_CONCURRENCY", 1)
     site, _ = configured_site(client, user)
     model.failures = [out_of_room(b) for b in (8192, 16384, 32768, 65536)]
     run = await execute(db, add_run(db, site, user, analyses=["readability"]))
-    assert model.budgets == [8192, 16384, 32768, 65536]
+    assert model.budgets[:4] == [8192, 16384, 32768, 65536]
     errors = [e.message for e in run.log if e.level == "error"]
     assert any("didn't fit even in 65,536 tokens; skipped" in m for m in errors)
     assert not any("Raise max_tokens" in m for m in errors)  # nothing the user can raise
-    assert run.stages[2]["status"] == "failed"
+    stage = run.stages[2]
+    assert stage["status"] == "done" and "1 failed requests" in stage["detail"]  # the other pages were reviewed
 
 
 def test_budgets_start_by_analysis():

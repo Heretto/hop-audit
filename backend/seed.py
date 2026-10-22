@@ -1,4 +1,5 @@
-"""The six analysis agents every organization starts with.
+"""The analysis agents every organization starts with: one per analysis that
+needs judgement. Links don't (``links.py`` checks them and proposes fixes).
 
 They are ordinary hop-core agents: people edit, duplicate, or delete them on
 the Agents page. Seeding happens once per organization (``OrgSetup``), so an
@@ -32,13 +33,6 @@ AGENT_SEEDS = (
         "Readability Reviewer",
         "readability",
         "Explains low Flesch scores and proposes concrete rewrites; applies the site's readability focus.",
-    ),
-    AgentSeed(
-        "link-validator",
-        "Link Validator",
-        "links",
-        "Classifies broken and redirected links, groups them by target "
-        "and suggests the fix (redirect, restore, relink).",
     ),
     AgentSeed(
         "seo-analyst",

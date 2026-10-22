@@ -11,6 +11,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 import discovery
+from catalog import AGENT_ANALYSES
 from models import AuditRun, HelpCenter, OrgSetup, Site
 from schemas.run import RunSummary, SiteListItem
 from schemas.site import DetectRequest, SiteIn, SiteOut, SiteSummary
@@ -99,9 +100,8 @@ def defaults(ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)) -> di
     setup = db.get(OrgSetup, ctx.organization_id)
     seeded = {k: UUID(v) for k, v in (setup.seeded_agents if setup else {}).items()}
     live = {row.id for row in db.query(Agent.id).filter(Agent.organization_id == ctx.organization_id)}
-    draft = SiteIn.model_construct(
-        name="", start_url="", help_centers=[], agent_assignments={k: v for k, v in seeded.items() if v in live}
-    )
+    assignments = {k: v for k, v in seeded.items() if v in live and k in AGENT_ANALYSES}
+    draft = SiteIn.model_construct(name="", start_url="", help_centers=[], agent_assignments=assignments)
     return draft.model_dump(mode="json")
 
 

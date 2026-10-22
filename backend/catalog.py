@@ -20,6 +20,8 @@ ANALYSES = (
     Analysis("deliverables", "Prospect deliverables"),
 )
 ANALYSIS_KEYS = tuple(a.key for a in ANALYSES)
+# Analyses an agent runs. Links are checked by HOP Audit itself (links.py).
+AGENT_ANALYSES = tuple(k for k in ANALYSIS_KEYS if k != "links")
 
 
 class Category(NamedTuple):

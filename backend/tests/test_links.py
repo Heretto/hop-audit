@@ -112,3 +112,36 @@ async def test_check_run(mock):
     async with discovery.client() as http:
         rows, _ = await check(http, pages[:1], {"help.x.com"}, known, cache, True)
     assert cached.called  # re-check asked for
+
+
+def test_relink_candidates_weight_the_last_segment():
+    from links import relink_candidates
+
+    paths = ["/authoring/reuse", "/authoring/keys-and-keydefs", "/api/keys"]
+    assert relink_candidates("/authoring/keys", paths)[0] == "/authoring/keys-and-keydefs"
+    assert relink_candidates("/zzz/qqq", paths) == []
+
+
+def test_fixes_are_proposed_without_a_model():
+    from links import LinkRow, propose_fix
+
+    def row(url, outcome, internal=True, final_url=None):
+        return LinkRow("p", url, "", internal, outcome, 200, final_url, "")
+
+    known = {f"{BASE}/b": Known(200, None, ["limits", "filters-and-presets"])}
+    paths = ["/authoring/keys-and-keydefs", "/b"]
+    assert propose_fix(row(f"{BASE}/old", "redirect", final_url=f"{BASE}/new"), known, paths) == (
+        "relink",
+        f"Link to {BASE}/new directly.",
+    )
+    fix, text = propose_fix(row(f"{BASE}/b#filters", "anchor"), known, paths)
+    assert fix == "anchor" and "#filters-and-presets" in text
+    fix, text = propose_fix(row(f"{BASE}/b#zzz", "anchor"), known, paths)
+    assert fix == "anchor" and 'id="zzz"' in text
+    assert propose_fix(row(f"{BASE}/authoring/keys", "broken"), known, paths)[1].startswith(
+        "Relink to /authoring/keys-and-keydefs"
+    )
+    assert propose_fix(row(f"{BASE}/qqq/zzz", "broken"), known, paths)[0] == "restore"
+    assert propose_fix(row("https://x.org/gone", "broken", internal=False), known, paths)[0] == "remove"
+    assert propose_fix(row(f"{BASE}/b", "ok"), known, paths) == ("", "")
+    assert propose_fix(row("https://x.org/", "blocked", internal=False), known, paths) == ("", "")

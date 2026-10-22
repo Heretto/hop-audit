@@ -72,19 +72,22 @@ Read those instead of inferring from this project's code. Do not copy them here.
   `run.force_reevaluate` (Run audit toggle, dashboard "Re-evaluate
   everything") evaluates them again. Links and content integrity always run.
   Add a field to `CHECKSUM_FIELDS` when an analysis starts reading it.
-- **Agent review** (`backend/review.py`): each analysis's agent is built
-  from its hop-core row and AI configuration the way hop-core's chat route
-  does; pages go in batches with the site's and the run's focus; replies
-  must be a JSON array (asked again once); a reply that runs out of
-  `max_tokens` (reasoning models think inside it) is asked again with double
-  the budget up to 65,536 (`review.REPLY_BUDGET`); quotes not found on the page are
-  removed, 429/5xx are retried, three failed batches in a row stop the
-  agent. Unchanged pages reviewed with the same review key (agent, model,
-  system prompt, focus) copy their findings instead of asking again. With
-  no usable agent the stage keeps HOP Audit's metrics and says why.
-  Dismissing a finding appends to the agent's feedback memory in hop-core's
-  `### heading` format. Tests register a fake provider in
+- **Agent review** (`backend/review.py`): the Readability Reviewer and SEO
+  Analyst review one page per request, `AGENT_CONCURRENCY` at a time, with
+  the site's and the run's focus. Each agent is built from its hop-core row
+  and AI configuration the way hop-core's chat route does. Replies must be a
+  JSON array (asked again once); a reply that runs out of `max_tokens`
+  (reasoning models think inside it) is asked again with double the budget
+  up to 65,536 (`REPLY_BUDGET`); quotes not found on the page are removed;
+  429/5xx are retried; three failed requests in a row stop the agent and
+  fail its stage. With no usable agent the stage keeps HOP Audit's metrics
+  and says why. Dismissing a finding appends to the agent's feedback memory
+  in hop-core's `### heading` format. Tests register a fake provider in
   `AiProviderRegistry` (see `tests/test_review.py`).
+- **Links have no agent.** `links.py` checks every target (HTTP, redirects,
+  fragment ids) and `propose_fix` writes the fix (relink, anchor, restore,
+  remove) from the crawl. Organizations seeded before this keep a Link
+  Validator agent that nothing uses; it can be deleted.
 - **Content integrity** (`backend/integrity.py`): the reviewer reads each
   reviewed help center a section at a time (character budget) and
   translations as (original, translation) pairs; quotes must be on their
@@ -100,9 +103,10 @@ Read those instead of inferring from this project's code. Do not copy them here.
   `/sites/:id` opens the latest dashboard.
 - **Timestamps**: use `models.types.UTCDateTime`, not `DateTime`. SQLite
   drops offsets, and naive values compare and serialize as local time.
-- **Frontend tests** run Vitest in worker threads (`frontend/vitest.config.ts`,
-  wired via `runnerConfig`): forked workers were occasionally killed with
-  SIGTERM at shutdown under load, failing green runs.
+- **Frontend tests** run Vitest in worker threads (`frontend/vitest.config.mts`,
+  wired via `runnerConfig`). If `ng test` ends with "Worker exited
+  unexpectedly … during stopping state" and no summary, a test probably
+  failed and its report was lost: run again and read the full output.
 - **Platform-specific installs**: the checkout may be shared between a Mac
   and a Linux container. Each platform has its own venv
   (`backend/.venv-<os>-<cpu>`); `frontend/node_modules` swaps its native

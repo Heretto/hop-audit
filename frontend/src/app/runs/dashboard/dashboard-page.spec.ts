@@ -178,9 +178,12 @@ describe('DashboardPage', () => {
   it('exports the pages as CSV', () => {
     URL.createObjectURL = vi.fn(() => 'blob:x');
     URL.revokeObjectURL = vi.fn();
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {}); // jsdom can't navigate
     const { page, runs } = render();
     page.exportCsv();
     expect(runs.pagesCsv).toHaveBeenCalledWith('r1');
     expect(URL.createObjectURL).toHaveBeenCalled();
+    expect(click).toHaveBeenCalled();
+    click.mockRestore();
   });
 });

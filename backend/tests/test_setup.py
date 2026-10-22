@@ -2,7 +2,7 @@
 
 import pytest
 
-from catalog import ANALYSIS_KEYS
+from catalog import AGENT_ANALYSES
 from seed import AGENT_SEEDS, context_files
 from tests.conftest import make_user
 
@@ -17,7 +17,7 @@ def test_setup_seeds_six_agents(client, user):
     r = client.post("/api/v1/setup", headers=user["headers"])
     assert r.status_code == 200
     body = r.json()
-    assert set(body["seeded_agents"]) == set(ANALYSIS_KEYS)
+    assert set(body["seeded_agents"]) == set(AGENT_ANALYSES)  # no Link Validator: links need no agent
 
     listed = agents(client, user)
     assert sorted(a["name"] for a in listed) == sorted(s.name for s in AGENT_SEEDS)

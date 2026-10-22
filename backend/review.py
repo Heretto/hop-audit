@@ -1,23 +1,24 @@
-"""Agent review: the analysis agents read the pages in batches and report
-findings. HOP Audit's own checks (``analysis.py``) give them the numbers; the
-agents explain them and propose fixes, and apply the site's focus.
+"""Agent review: the Readability Reviewer and SEO Analyst read each page on
+its own and report findings. HOP Audit's own checks (``analysis.py``) give
+them the numbers; the agents explain them, propose fixes and apply the
+site's focus. Links need no agent: ``links.py`` checks them and proposes the
+fix. Content integrity (``integrity.py``) uses the same call machinery with
+batches, since it compares articles with each other.
 
 Each agent is a hop-core agent: its context files, references and feedback
 memory form the system prompt, its AI configuration (a credential) the model.
-Every batch carries the site's standing focus and the run's focus. Agents
+Every request carries the site's standing focus and the run's focus. Agents
 answer in JSON; findings are validated, and a quote that isn't on the page is
 removed rather than shown, because a wrong quote costs more than none.
 """
 
 import asyncio
-import difflib
 import hashlib
 import json
 import re
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
-from urllib.parse import urlsplit
 from uuid import UUID
 
 from hop_core.agents import AgentDefinition, AgentRequest, AgentRunner, AiProviderError, CredentialAiService
@@ -27,28 +28,23 @@ from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from models import AgentFinding, AuditRun, LinkResult, Page
+from models import AgentFinding, AuditRun, Page
 
-BATCH_SIZE = {"readability": 12, "seo": 20, "links": 25}
-TEXT_LIMIT = 6000  # characters of page text per page in a readability batch
+AGENT_CONCURRENCY = 4  # pages under review at once, per agent
+TEXT_LIMIT = 12000  # characters of page text sent for readability review
 SEO_TEXT_LIMIT = 1200  # enough to draft a description from
 # Reply budgets (max_tokens). Reasoning models think inside this budget, so it
 # must cover thinking as well as the JSON. A reply that runs out of room is
 # asked again with double the budget, up to the ceiling; the agent keeps the
 # budget that worked for the rest of the run. max_tokens is a cap, not a charge.
-REPLY_BUDGET = {"readability": 8192, "seo": 8192, "links": 8192, "content_integrity": 16384}
+REPLY_BUDGET = {"readability": 8192, "seo": 8192, "content_integrity": 16384}
 MAX_REPLY_BUDGET = 65536
 CUT_OFF = {"max_tokens", "length", "MAX_TOKENS"}  # what providers report when the budget ran out
 RETRYABLE = {429, 500, 502, 503, 504, 529}
 RETRIES = 2
 RETRY_DELAY = 12.0  # seconds, times the attempt; tests shorten it
-MAX_FAILED_BATCHES = 3
-LABELS = {
-    "readability": "readability",
-    "seo": "SEO and metadata",
-    "links": "links",
-    "content_integrity": "content integrity",
-}
+MAX_FAILED = 3  # failed requests in a row before an agent stops
+LABELS = {"readability": "readability", "seo": "SEO and metadata", "content_integrity": "content integrity"}
 
 
 class AgentUnavailable(Exception):
@@ -58,14 +54,12 @@ class AgentUnavailable(Exception):
 class FindingIn(BaseModel):
     """One finding as an agent returns it."""
 
-    page: str | None = None  # "P3" for page findings
-    target: str | None = None  # the link target, for link findings
+    page: str | None = None  # "P1"
     severity: Literal["High", "Medium", "Low"]
     title: str = Field(min_length=1, max_length=300)
     body: str = ""
     quote: str = ""
     suggestion: str = ""
-    fix: str = ""  # links: relink | redirect | restore | remove
     on_focus: bool = False
 
 
@@ -90,8 +84,8 @@ class Tally:
     reused: int = 0
     status: str = "done"
     note: str = ""
-    failing: int = 0  # failed batches in a row
-    answered: int = 0  # batches the agent answered
+    failing: int = 0  # failed requests in a row
+    answered: int = 0  # requests the agent answered
 
     @property
     def failed(self) -> bool:
@@ -154,28 +148,16 @@ FORMAT = {
         '"body": "what is wrong and why it matters", "quote": "the current title, description or heading, '
         'or empty", "suggestion": "a replacement within the limits, or empty", "on_focus": true|false}'
     ),
-    "links": (
-        '{"target": "the target URL exactly as given", "severity": "High|Medium|Low", '
-        '"title": "under 90 characters", "body": "what happened and what to do", '
-        '"fix": "relink|redirect|restore|remove", "suggestion": "the URL to link to instead, or empty", '
-        '"on_focus": true|false}'
-    ),
 }
 
 TASK = {
     "readability": (
-        "Review these pages for readability, following your context files. HOP Audit measured each page; "
-        "don't recompute the numbers, explain them and propose concrete rewrites. Flag what the focus asks for "
-        "on any page."
+        "Review this page (P1) for readability, following your context files. HOP Audit measured it; don't "
+        "recompute the numbers, explain them and propose concrete rewrites. Flag anything the focus asks for."
     ),
     "seo": (
-        "Review these pages' SEO and metadata, following your context files. HOP Audit's checks found the "
-        "problems listed with each page; explain what matters and draft replacements that fit the limits."
-    ),
-    "links": (
-        "Classify these problem links and propose the fix for each target, following your context files. "
-        "Each target lists the pages that link to it and, for broken internal links, pages on the site with "
-        "similar paths that may be where the content moved."
+        "Review this page's (P1) SEO and metadata, following your context files. HOP Audit's checks found the "
+        "problems listed; explain what matters and draft replacements that fit the limits."
     ),
 }
 
@@ -224,69 +206,6 @@ def page_input(ref: str, page: Page, language: str, analysis: str) -> str:
         f"Problems:\n{problems}\nHeadings:\n{headings or '(none)'}\n"
         f"Opening text:\n{content.get('text', '')[:SEO_TEXT_LIMIT]}"
     )
-
-
-@dataclass
-class LinkGroup:
-    target: str
-    outcome: str
-    status: int | None
-    note: str
-    internal: bool
-    page_ids: list[UUID]
-    pages: list[str]  # paths, for the prompt
-    texts: list[str]  # anchor texts
-    candidates: list[str] = field(default_factory=list)
-
-
-def relink_candidates(missing: str, paths: list[str], limit: int = 5) -> list[str]:
-    """Pages on the site whose path looks like where a missing page went: the
-    last segment matters most (keys -> keys-and-keydefs), then the folder."""
-    leaf = missing.rstrip("/").rsplit("/", 1)[-1].lower()
-
-    def score(path: str) -> float:
-        other = path.rstrip("/").rsplit("/", 1)[-1].lower()
-        leaf_score = 1.0 if leaf and leaf in other else difflib.SequenceMatcher(None, leaf, other).ratio()
-        return 0.7 * leaf_score + 0.3 * difflib.SequenceMatcher(None, missing, path).ratio()
-
-    ranked = sorted(((score(p), p) for p in paths if p != missing), reverse=True)
-    return [p for s, p in ranked if s >= 0.6][:limit]
-
-
-def link_groups(rows: list[LinkResult], pages: dict[UUID, Page]) -> list[LinkGroup]:
-    """Problem links grouped by target, worst first, with relink candidates."""
-    groups: dict[str, LinkGroup] = {}
-    for r in rows:
-        if r.outcome not in ("broken", "anchor", "redirect"):
-            continue
-        g = groups.get(r.url)
-        if g is None:
-            g = groups[r.url] = LinkGroup(r.url, r.outcome, r.status, r.note, r.internal, [], [], [])
-        if r.page_id not in g.page_ids:
-            g.page_ids.append(r.page_id)
-            g.pages.append(pages[r.page_id].path)
-        if r.text and r.text not in g.texts:
-            g.texts.append(r.text)
-    paths = sorted({p.path for p in pages.values() if p.http_status == 200})
-    for g in groups.values():
-        if g.outcome == "broken" and g.internal:
-            g.candidates = relink_candidates(urlsplit(g.target).path, paths)
-    order = {"broken": 0, "anchor": 1, "redirect": 2}
-    return sorted(groups.values(), key=lambda g: (order[g.outcome], -len(g.page_ids), g.target))
-
-
-def link_input(group: LinkGroup) -> str:
-    lines = [
-        f"### {group.target}",
-        f"{group.outcome} · {group.note or group.status} · {'internal' if group.internal else 'external'}",
-        f"Linked from {len(group.pages)} page(s): {', '.join(group.pages[:5])}"
-        + (" …" if len(group.pages) > 5 else ""),
-    ]
-    if group.texts:
-        lines.append("Anchor text: " + "; ".join(f'"{t}"' for t in group.texts[:5]))
-    if group.candidates:
-        lines.append("Similar pages on the site: " + ", ".join(group.candidates))
-    return "\n".join(lines)
 
 
 # ── Answers ───────────────────────────────────────────────────────────────────
@@ -345,10 +264,11 @@ class Review:
         self.runner = AgentRunner(agent.service)
         self.budget = REPLY_BUDGET.get(analysis, 8192)
 
-    async def ask(self, batch_no: int, material: str, task: str | None = None) -> list[dict] | None:
-        """One batch: the parsed findings, or None when the batch failed.
+    async def ask(self, where: str, material: str, task: str | None = None) -> list[dict] | None:
+        """One request: the parsed findings, or None when it failed. ``where``
+        names it in the log (a page path, or "batch 3").
 
-        ``task`` replaces the analysis's usual instructions for this batch.
+        ``task`` replaces the analysis's usual instructions for this request.
         Rate limits and server errors are retried with backoff; a reply that
         ran out of room is asked again with a bigger budget; a reply that
         isn't JSON is asked for again once. None of these share a count.
@@ -364,40 +284,38 @@ class Review:
                 result = await self.runner.run(self.agent.definition, request)
             except AiProviderError as exc:
                 if out_of_room(exc):
-                    if self.grow(batch_no):
+                    if self.grow(where):
                         continue
-                    self.log(self.analysis, "error", f"{self.agent.name}, batch {batch_no}: {self.too_long()}")
+                    self.log(self.analysis, "error", f"{self.agent.name}, {where}: {self.too_long()}")
                     return None
                 if exc.status_code in RETRYABLE and retries < RETRIES:
                     retries += 1
                     wait = RETRY_DELAY * retries
                     self.tally.retries += 1
-                    message = f"returned {exc.status_code} on batch {batch_no}; retried after {wait:g} s."
+                    message = f"returned {exc.status_code} on {where}; retried after {wait:g} s."
                     self.log(self.analysis, "warn", f"{self.agent.provider} {message}")
                     await asyncio.sleep(wait)
                     continue
-                self.log(self.analysis, "error", f"{self.agent.name}, batch {batch_no}: {exc.message}")
+                self.log(self.analysis, "error", f"{self.agent.name}, {where}: {exc.message}")
                 return None
             self.tally.tokens += (result.input_tokens or 0) + (result.output_tokens or 0)
             if result.stop_reason in CUT_OFF:  # the JSON was cut off mid-reply
-                if self.grow(batch_no):
+                if self.grow(where):
                     continue
-                self.log(self.analysis, "error", f"{self.agent.name}, batch {batch_no}: {self.too_long()}")
+                self.log(self.analysis, "error", f"{self.agent.name}, {where}: {self.too_long()}")
                 return None
             found = parse_findings(result.output)
             if found is not None:
                 self.tally.answered += 1
                 return found
             if reasked:
-                self.log(
-                    self.analysis, "error", f"{self.agent.name}, batch {batch_no}: reply wasn't JSON twice; skipped."
-                )
+                self.log(self.analysis, "error", f"{self.agent.name}, {where}: reply wasn't JSON twice; skipped.")
                 return None
             reasked = True
-            self.log(self.analysis, "warn", f"{self.agent.name}, batch {batch_no}: reply wasn't JSON; asked again.")
+            self.log(self.analysis, "warn", f"{self.agent.name}, {where}: reply wasn't JSON; asked again.")
             instructions = base + "\n\nYour last reply wasn't a JSON array. Reply with the array only."
 
-    def grow(self, batch_no: int) -> bool:
+    def grow(self, where: str) -> bool:
         """Double the reply budget after a reply ran out of room; False at the ceiling."""
         if self.budget >= MAX_REPLY_BUDGET:
             return False
@@ -405,32 +323,30 @@ class Review:
         self.log(
             self.analysis,
             "warn",
-            f"{self.agent.name}, batch {batch_no}: the reply didn't fit in {before:,} tokens (thinking included); "
+            f"{self.agent.name}, {where}: the reply didn't fit in {before:,} tokens (thinking included); "
             f"asked again with {self.budget:,}.",
         )
         return True
 
     def too_long(self) -> str:
-        return f"the reply didn't fit even in {MAX_REPLY_BUDGET:,} tokens; skipped. Smaller batches would help."
+        return f"the reply didn't fit even in {MAX_REPLY_BUDGET:,} tokens; skipped."
 
     def failed(self) -> bool:
-        """Record a failed batch; True when the agent should stop."""
+        """Record a failed request; True when the agent should stop."""
         self.tally.errors += 1
         self.tally.failing += 1
-        if self.tally.failing >= MAX_FAILED_BATCHES:
+        if self.tally.failing >= MAX_FAILED and self.tally.status != "stopped":
             self.tally.status = "stopped"
-            self.tally.note = f"stopped after {MAX_FAILED_BATCHES} failed batches in a row"
+            self.tally.note = f"stopped after {MAX_FAILED} failed requests in a row"
             self.log(self.analysis, "error", f"{self.agent.name} {self.tally.note}; the rest keep HOP Audit's metrics.")
             return True
         return False
 
-    def add(self, finding: FindingIn, page_id: UUID | None, page_ids: list, target: str | None) -> None:
+    def add(self, finding: FindingIn, page_id: UUID) -> None:
         self.db.add(
             AgentFinding(
                 run_id=self.run.id,
                 page_id=page_id,
-                page_ids=[str(i) for i in page_ids],
-                target=target,
                 analysis=self.analysis,
                 agent_id=self.agent.id,
                 agent_name=self.agent.name,
@@ -439,8 +355,7 @@ class Review:
                 title=finding.title.strip(),
                 body=finding.body.strip(),
                 quote=finding.quote.strip(),
-                suggestion=(f"{finding.fix}: " if finding.fix and finding.suggestion else finding.fix)
-                + finding.suggestion.strip(),
+                suggestion=finding.suggestion.strip(),
                 on_focus=finding.on_focus,
                 review_key=self.key,
             )
@@ -490,59 +405,47 @@ class Review:
             page.reviews = {**(page.reviews or {}), self.analysis: self.key}
 
     async def pages(self, pages: list[Page], languages: dict[UUID, str], unchanged: dict | None = None) -> Tally:
+        """Each page on its own request, a few at a time. Unchanged pages keep
+        their findings (``reuse``); the rest are reviewed until the agent stops."""
         todo = self.reuse(pages, unchanged or {})
-        size = BATCH_SIZE[self.analysis]
         done = len(pages) - len(todo)
         self.progress(done, len(pages))
-        for batch_no, start in enumerate(range(0, len(todo), size), 1):
-            batch = todo[start : start + size]
-            refs = {f"P{i}": p for i, p in enumerate(batch, 1)}
-            material = "\n\n".join(page_input(ref, p, languages.get(p.help_center_id, "en"), self.analysis)
-                                   for ref, p in refs.items())  # fmt: skip
-            raw = await self.ask(batch_no, material)
-            if raw is None:
-                if self.failed():
-                    break
-            else:
-                self.tally.failing = 0
-                for finding in self.valid(raw):
-                    page = refs.get(finding.page or "")
-                    if page is None:
-                        continue
-                    content = page.content or {}
-                    if not quote_found(finding.quote, content.get("text", ""), content.get("title", ""),
-                                       content.get("description") or ""):  # fmt: skip
-                        finding.quote = ""
-                        self.tally.quotes_removed += 1
-                    self.add(finding, page.id, [], None)
-                self.mark_reviewed(batch)
-            done += len(batch)
-            self.progress(done, len(pages))
-            self.db.commit()
+        limit = asyncio.Semaphore(AGENT_CONCURRENCY)
+
+        async def one(page: Page) -> None:
+            nonlocal done
+            async with limit:
+                if self.tally.status == "stopped":
+                    return
+                language = languages.get(page.help_center_id, "en")
+                raw = await self.ask(page.path, page_input("P1", page, language, self.analysis))
+                if raw is None:
+                    self.failed()
+                else:
+                    self.tally.failing = 0
+                    self.record(page, raw)
+                done += 1
+                self.progress(done, len(pages))
+                self.db.commit()
+
+        tasks = [asyncio.create_task(one(p)) for p in todo]
+        try:
+            await asyncio.gather(*tasks)
+        except BaseException:  # cancelled or paused-then-cancelled: stop the other pages too
+            for task in tasks:
+                task.cancel()
+            raise
         return self.tally
 
-    # ── Link targets ──
-
-    async def links(self, groups: list[LinkGroup]) -> Tally:
-        size = BATCH_SIZE["links"]
-        done = 0
-        self.progress(0, len(groups))
-        for batch_no, start in enumerate(range(0, len(groups), size), 1):
-            batch = groups[start : start + size]
-            by_target = {g.target: g for g in batch}
-            raw = await self.ask(batch_no, "\n\n".join(link_input(g) for g in batch))
-            if raw is None:
-                if self.failed():
-                    break
-            else:
-                self.tally.failing = 0
-                for finding in self.valid(raw):
-                    group = by_target.get(finding.target or "")
-                    if group is None:
-                        continue
-                    finding.quote = ""
-                    self.add(finding, None, group.page_ids, group.target)
-            done += len(batch)
-            self.progress(done, len(groups))
-            self.db.commit()
-        return self.tally
+    def record(self, page: Page, raw: list[dict]) -> None:
+        """Keep a page's valid findings; drop quotes that aren't on the page."""
+        content = page.content or {}
+        sources = (content.get("text", ""), content.get("title", ""), content.get("description") or "")
+        for finding in self.valid(raw):
+            if finding.page not in (None, "P1"):
+                continue
+            if not quote_found(finding.quote, *sources):
+                finding.quote = ""
+                self.tally.quotes_removed += 1
+            self.add(finding, page.id)
+        self.mark_reviewed([page])

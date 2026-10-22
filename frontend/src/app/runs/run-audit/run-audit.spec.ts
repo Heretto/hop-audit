@@ -14,7 +14,6 @@ describe('RunAudit', () => {
       ...sampleSite({
         agent_assignments: {
           readability: 'a1',
-          links: 'a2',
           seo: 'a2',
           content_integrity: 'a3',
           summary: 'a1',
@@ -78,6 +77,7 @@ describe('RunAudit', () => {
     expect(page.agentCount()).toBe(3);
     expect(el.textContent).toContain('Run audit: Heretto Help Center');
     expect(el.textContent).toMatch(/Readability\s*· Readability Reviewer/);
+    expect(el.textContent).toMatch(/Links\s*· checked by HOP Audit/);
     expect(el.textContent).toContain('blocked: help.x.com refused (HTTP 403)');
   });
 

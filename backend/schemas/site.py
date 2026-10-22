@@ -13,7 +13,7 @@ from zoneinfo import available_timezones
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from catalog import ANALYSIS_KEYS, CATEGORY_CODES
+from catalog import AGENT_ANALYSES, ANALYSIS_KEYS, CATEGORY_CODES
 
 # Analyses a site can switch on; prospect deliverables follow from the purpose.
 SITE_ANALYSES = tuple(k for k in ANALYSIS_KEYS if k != "deliverables")
@@ -161,7 +161,8 @@ class SiteIn(BaseModel):
         unknown = set(v) - set(ANALYSIS_KEYS)
         if unknown:
             raise ValueError(f"unknown analyses: {', '.join(sorted(unknown))}")
-        return v
+        # Links have no agent any more; an assignment saved before that is dropped.
+        return {k: a for k, a in v.items() if k in AGENT_ANALYSES}
 
     @model_validator(mode="after")
     def _consistent(self):

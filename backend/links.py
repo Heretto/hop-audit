@@ -1,4 +1,6 @@
-"""Check every link in a run's main content, once per target.
+"""Check every link in a run's main content, once per target, and propose
+the fix for each problem. No model is involved: this is plain HTTP and
+string matching.
 
 Targets the crawl already read take its result: its HTTP status, its
 redirect, and its element ids for #fragment checks. Other targets get a
@@ -9,6 +11,7 @@ organization for a week unless the run asks to re-check them.
 """
 
 import asyncio
+import difflib
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -169,3 +172,46 @@ async def check(
 
 def _host(url: str) -> str:
     return (urlsplit(url).hostname or "").lower()
+
+
+# ── Fixes ─────────────────────────────────────────────────────────────────────
+
+
+def relink_candidates(missing: str, paths: list[str], limit: int = 5) -> list[str]:
+    """Pages on the site whose path looks like where a missing page went: the
+    last segment matters most (keys -> keys-and-keydefs), then the folder."""
+    leaf = missing.rstrip("/").rsplit("/", 1)[-1].lower()
+
+    def score(path: str) -> float:
+        other = path.rstrip("/").rsplit("/", 1)[-1].lower()
+        leaf_score = 1.0 if leaf and leaf in other else difflib.SequenceMatcher(None, leaf, other).ratio()
+        return 0.7 * leaf_score + 0.3 * difflib.SequenceMatcher(None, missing, path).ratio()
+
+    ranked = sorted(((score(p), p) for p in paths if p != missing), reverse=True)
+    return [p for s, p in ranked if s >= 0.6][:limit]
+
+
+def propose_fix(row: LinkRow, known: dict[str, Known], paths: list[str]) -> tuple[str, str]:
+    """(fix, suggestion) for a problem link: relink | anchor | restore | remove.
+    Links that work, or couldn't be checked, get ("", "")."""
+    url, fragment = urldefrag(row.url)
+    if row.outcome == "redirect":
+        return "relink", f"Link to {row.final_url} directly."
+    if row.outcome == "anchor":
+        target = known.get(url)
+        anchors = (target and target.anchors) or []
+        # An anchor that contains the missing one (filters -> filters-and-presets), else the closest spelling.
+        close = [a for a in anchors if fragment and fragment.lower() in a.lower()][:1]
+        close = close or difflib.get_close_matches(fragment, anchors, n=1, cutoff=0.6)
+        if close:
+            return "anchor", f'Link to #{close[0]}, the closest anchor on the target, or add id="{fragment}" there.'
+        return "anchor", f'Add an element with id="{fragment}" to the target page, or drop #{fragment} from the link.'
+    if row.outcome == "broken" and row.internal:
+        candidates = relink_candidates(urlsplit(url).path, paths)
+        if candidates:
+            others = f" (or {', '.join(candidates[1:3])})" if len(candidates) > 1 else ""
+            return "relink", f"Relink to {candidates[0]}{others}."
+        return "restore", "No similar page on the site: restore the target, or remove the link."
+    if row.outcome == "broken":
+        return "remove", "The external page is gone: link to its replacement, or remove the link."
+    return "", ""

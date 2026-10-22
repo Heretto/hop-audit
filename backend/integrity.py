@@ -444,7 +444,7 @@ async def run_review(db: Session, run: AuditRun, rec, checkpoint, record_stats) 
     malformed = 0
     reviewed: set[str] = set()  # pages in batches the reviewer answered
     for n, (task, material, refs) in enumerate(jobs, 1):
-        raw = await reviewer.ask(n, material, task)
+        raw = await reviewer.ask(f"batch {n}", material, task)
         if raw is None:
             if reviewer.failed():
                 break

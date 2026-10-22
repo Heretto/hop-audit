@@ -53,6 +53,7 @@ describe('PageDetailPage', () => {
     expect(page.links().map((l) => l.outcome)).toEqual(['broken', 'broken', 'anchor']);
     expect(page.target(page.links()[0])).toBe('/authoring/reuse/conref-push');
     expect(el.textContent).toContain('2 broken');
+    expect(el.textContent).toContain('Fix: Relink to /authoring/reuse/conref-push-and-pull.');
     page.allLinks.set(true);
     fixture.detectChanges();
     expect(page.links()).toHaveLength(4);

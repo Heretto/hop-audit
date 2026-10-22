@@ -102,7 +102,8 @@ async def test_run_crawls_and_records_stages_log_and_pages(client, user, db, moc
     assert log[0].startswith("Read https://help.x.com/sitemap.xml: 7 URLs")
     assert any("Crawl complete: 7 pages" in m for m in log)
     assert any(m.startswith("Link check complete") for m in log)
-    assert log[-1] == "No agent review of links: no agent is assigned in site settings."
+    assert log[-1].startswith("Link check complete")  # links need no agent
+    assert "No agent review of readability: no agent is assigned in site settings." in log
     assert "metrics only: no agent is assigned" in stages["readability"]["detail"]
 
 

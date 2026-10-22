@@ -144,7 +144,8 @@ export class RunAudit implements OnInit {
   /** Distinct agents behind the chosen analyses. */
   readonly agentCount = computed(() => {
     const assigned = this.site()?.agent_assignments ?? {};
-    return new Set([...this.analyses()].map((a) => assigned[a]).filter(Boolean)).size;
+    const byAgent = [...this.analyses()].filter((a) => a !== 'links').map((a) => assigned[a]);
+    return new Set(byAgent.filter(Boolean)).size;
   });
 
   readonly canStart = computed(
@@ -181,6 +182,7 @@ export class RunAudit implements OnInit {
   }
 
   agentName(analysis: AnalysisKey): string {
+    if (analysis === 'links') return 'checked by HOP Audit';
     const id = this.site()?.agent_assignments[analysis];
     return this.agents().find((a) => a.id === id)?.name ?? 'no agent assigned';
   }

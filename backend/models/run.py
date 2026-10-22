@@ -123,6 +123,8 @@ class LinkResult(Base):
     status = Column(Integer, nullable=True)
     final_url = Column(String(2048), nullable=True)
     note = Column(Text, nullable=False, default="")
+    fix = Column(String(16), nullable=False, default="", server_default="")  # relink | anchor | restore | remove
+    suggestion = Column(Text, nullable=False, default="", server_default="")
 
 
 class LinkCache(Base):

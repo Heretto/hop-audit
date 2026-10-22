@@ -112,7 +112,7 @@ export class AuditPage implements OnInit {
     const order: Stage['status'][] = ['running', 'failed', 'pending', 'done', 'skipped'];
     const cards = new Map<string, { stage: Stage; id: string }>();
     for (const stage of run.stages) {
-      const id = assigned[stage.key];
+      const id = stage.key === 'links' ? null : assigned[stage.key]; // links need no agent
       if (!id) continue;
       const seen = cards.get(id);
       if (!seen || order.indexOf(stage.status) < order.indexOf(seen.stage.status))

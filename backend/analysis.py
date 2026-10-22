@@ -107,10 +107,7 @@ async def analyze(
 
     link_counts: Counter = Counter()
     if "links" in keys:
-        link_counts, detail = await _links(db, run, rec, http, pages, readable, checkpoint)
-        rows = db.scalars(select(LinkResult).where(LinkResult.run_id == run.id)).all()
-        groups = review.link_groups(rows, {p.id: p for p in pages})
-        await _review(db, run, rec, "links", groups, detail, checkpoint)
+        link_counts = await _links(db, run, rec, http, pages, readable, checkpoint)
 
     if "content_integrity" in keys and integrity_review:
         await integrity.run_review(db, run, rec, checkpoint, lambda agent, tally: record_stats(run, agent, tally))
@@ -188,7 +185,9 @@ async def _links(db, run, rec, http, pages, readable, checkpoint) -> Counter:
             )
         )
     by_page: dict = {}
+    paths = sorted({p.path for p in pages if p.http_status == 200})
     for row in rows:
+        fix, suggestion = link_checks.propose_fix(row, known, paths)
         db.add(
             LinkResult(
                 run_id=run.id,
@@ -200,6 +199,8 @@ async def _links(db, run, rec, http, pages, readable, checkpoint) -> Counter:
                 status=row.status,
                 final_url=row.final_url,
                 note=row.note,
+                fix=fix,
+                suggestion=suggestion,
             )
         )
         by_page.setdefault(row.page_id, []).append(row)
@@ -218,14 +219,15 @@ async def _links(db, run, rec, http, pages, readable, checkpoint) -> Counter:
     )
     if counts["blocked"]:
         detail += f", {counts['blocked']:,} couldn't be checked"
+    rec.stage("links", status="done", detail=detail)
     rec.log("links", "info", f"Link check complete: {detail}.")
     db.commit()
-    return counts, detail
+    return counts
 
 
-async def _review(db: Session, run: AuditRun, rec, analysis: str, items: list, mechanical: str, checkpoint,
-                  languages: dict | None = None, unchanged: dict | None = None) -> None:  # fmt: skip
-    """The analysis's agent reviews ``items`` (pages, or link groups); the stage ends here."""
+async def _review(db: Session, run: AuditRun, rec, analysis: str, items: list[Page], mechanical: str, checkpoint,
+                  languages: dict, unchanged: dict) -> None:  # fmt: skip
+    """The analysis's agent reviews ``items``, one page at a time; the stage ends here."""
     db.execute(delete(AgentFinding).where(AgentFinding.run_id == run.id, AgentFinding.analysis == analysis))
     try:
         agent = review.load_agent(db, run.organization_id, (run.site.agent_assignments or {}).get(analysis))
@@ -236,18 +238,19 @@ async def _review(db: Session, run: AuditRun, rec, analysis: str, items: list, m
     if not items:
         rec.stage(analysis, status="done", detail=f"{mechanical} · nothing for {agent.name} to review")
         return
-    size = review.BATCH_SIZE[analysis]
     rec.stage(analysis, status="running", done=0, total=len(items), detail=f"{agent.name} · {agent.model}")
-    rec.log(analysis, "info", f"{agent.name} started on {len(items):,} items, batches of {size}, focus attached.")
+    rec.log(
+        analysis,
+        "info",
+        f"{agent.name} started on {len(items):,} pages, one page per request, "
+        f"{review.AGENT_CONCURRENCY} at a time, focus attached.",
+    )
 
     def progress(done: int, total: int) -> None:
         rec.stage(analysis, done=done, total=total)
 
     reviewer = review.Review(db, run, analysis, agent, rec.log, progress, checkpoint)
-    if analysis == "links":
-        tally = await reviewer.links(items)
-    else:
-        tally = await reviewer.pages(items, languages or {}, unchanged or {})
+    tally = await reviewer.pages(items, languages, unchanged)
 
     record_stats(run, agent, tally)
     plural = "" if tally.findings == 1 else "s"
@@ -257,7 +260,7 @@ async def _review(db: Session, run: AuditRun, rec, analysis: str, items: list, m
     if tally.quotes_removed:
         parts.append(f"{tally.quotes_removed:,} quotes not on the page removed")
     if tally.errors:
-        parts.append(f"{tally.errors:,} failed batches")
+        parts.append(f"{tally.errors:,} failed requests")
     if tally.note:
         parts.append(tally.note)
     if tally.failed:

@@ -77,6 +77,8 @@ async def test_page_detail(client, user, two_runs):
             "status": 404,
             "final_url": None,
             "note": "HTTP 404",
+            "fix": "restore",
+            "suggestion": "No similar page on the site: restore the target, or remove the link.",
         }
     ]
     assert p["previous_run_number"] == 1 and p["previous_score"] > p["score"]
