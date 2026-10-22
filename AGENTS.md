@@ -75,7 +75,9 @@ Read those instead of inferring from this project's code. Do not copy them here.
 - **Agent review** (`backend/review.py`): each analysis's agent is built
   from its hop-core row and AI configuration the way hop-core's chat route
   does; pages go in batches with the site's and the run's focus; replies
-  must be a JSON array (asked again once), quotes not found on the page are
+  must be a JSON array (asked again once); a reply that runs out of
+  `max_tokens` (reasoning models think inside it) is asked again with double
+  the budget up to 65,536 (`review.REPLY_BUDGET`); quotes not found on the page are
   removed, 429/5xx are retried, three failed batches in a row stop the
   agent. Unchanged pages reviewed with the same review key (agent, model,
   system prompt, focus) copy their findings instead of asking again. With

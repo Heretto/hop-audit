@@ -32,7 +32,13 @@ from models import AgentFinding, AuditRun, LinkResult, Page
 BATCH_SIZE = {"readability": 12, "seo": 20, "links": 25}
 TEXT_LIMIT = 6000  # characters of page text per page in a readability batch
 SEO_TEXT_LIMIT = 1200  # enough to draft a description from
-MAX_OUTPUT_TOKENS = 4096
+# Reply budgets (max_tokens). Reasoning models think inside this budget, so it
+# must cover thinking as well as the JSON. A reply that runs out of room is
+# asked again with double the budget, up to the ceiling; the agent keeps the
+# budget that worked for the rest of the run. max_tokens is a cap, not a charge.
+REPLY_BUDGET = {"readability": 8192, "seo": 8192, "links": 8192, "content_integrity": 16384}
+MAX_REPLY_BUDGET = 65536
+CUT_OFF = {"max_tokens", "length", "MAX_TOKENS"}  # what providers report when the budget ran out
 RETRYABLE = {429, 500, 502, 503, 504, 529}
 RETRIES = 2
 RETRY_DELAY = 12.0  # seconds, times the attempt; tests shorten it
@@ -286,6 +292,12 @@ def link_input(group: LinkGroup) -> str:
 # ── Answers ───────────────────────────────────────────────────────────────────
 
 
+def out_of_room(exc: AiProviderError) -> bool:
+    """hop-core's error for a reply with no text because max_tokens ran out
+    (typically all spent thinking)."""
+    return exc.status_code is None and "max_tokens budget was used up" in exc.message
+
+
 def parse_findings(output: str) -> list[dict] | None:
     """The JSON array in an agent's reply, tolerating code fences and prose."""
     text = re.sub(r"```(?:json)?", "", output).strip()
@@ -331,13 +343,15 @@ class Review:
         self.instructions = instructions(analysis, run.site.focus or "", run.focus or "") if analysis in TASK else ""
         self.tally = Tally()
         self.runner = AgentRunner(agent.service)
+        self.budget = REPLY_BUDGET.get(analysis, 8192)
 
     async def ask(self, batch_no: int, material: str, task: str | None = None) -> list[dict] | None:
         """One batch: the parsed findings, or None when the batch failed.
 
         ``task`` replaces the analysis's usual instructions for this batch.
         Rate limits and server errors are retried with backoff; a reply that
-        isn't JSON is asked for again once. The two don't share a budget.
+        ran out of room is asked again with a bigger budget; a reply that
+        isn't JSON is asked for again once. None of these share a count.
         """
         base = task or self.instructions
         instructions, retries, reasked = base, 0, False
@@ -345,10 +359,15 @@ class Review:
             await self.checkpoint()
             # No temperature: newer models reject it (Anthropic answers 400
             # "temperature is deprecated"), and hop-core omits it when unset.
-            request = AgentRequest(instructions=instructions, input=material, max_tokens=MAX_OUTPUT_TOKENS)
+            request = AgentRequest(instructions=instructions, input=material, max_tokens=self.budget)
             try:
                 result = await self.runner.run(self.agent.definition, request)
             except AiProviderError as exc:
+                if out_of_room(exc):
+                    if self.grow(batch_no):
+                        continue
+                    self.log(self.analysis, "error", f"{self.agent.name}, batch {batch_no}: {self.too_long()}")
+                    return None
                 if exc.status_code in RETRYABLE and retries < RETRIES:
                     retries += 1
                     wait = RETRY_DELAY * retries
@@ -360,6 +379,11 @@ class Review:
                 self.log(self.analysis, "error", f"{self.agent.name}, batch {batch_no}: {exc.message}")
                 return None
             self.tally.tokens += (result.input_tokens or 0) + (result.output_tokens or 0)
+            if result.stop_reason in CUT_OFF:  # the JSON was cut off mid-reply
+                if self.grow(batch_no):
+                    continue
+                self.log(self.analysis, "error", f"{self.agent.name}, batch {batch_no}: {self.too_long()}")
+                return None
             found = parse_findings(result.output)
             if found is not None:
                 self.tally.answered += 1
@@ -372,6 +396,22 @@ class Review:
             reasked = True
             self.log(self.analysis, "warn", f"{self.agent.name}, batch {batch_no}: reply wasn't JSON; asked again.")
             instructions = base + "\n\nYour last reply wasn't a JSON array. Reply with the array only."
+
+    def grow(self, batch_no: int) -> bool:
+        """Double the reply budget after a reply ran out of room; False at the ceiling."""
+        if self.budget >= MAX_REPLY_BUDGET:
+            return False
+        before, self.budget = self.budget, min(self.budget * 2, MAX_REPLY_BUDGET)
+        self.log(
+            self.analysis,
+            "warn",
+            f"{self.agent.name}, batch {batch_no}: the reply didn't fit in {before:,} tokens (thinking included); "
+            f"asked again with {self.budget:,}.",
+        )
+        return True
+
+    def too_long(self) -> str:
+        return f"the reply didn't fit even in {MAX_REPLY_BUDGET:,} tokens; skipped. Smaller batches would help."
 
     def failed(self) -> bool:
         """Record a failed batch; True when the agent should stop."""

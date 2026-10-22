@@ -24,16 +24,20 @@ class FakeModel:
     def __init__(self):
         self.calls: list[str] = []
         self.temperatures: list = []
+        self.budgets: list = []
         self.failures: list = []  # AiProviderError or a raw reply, consumed in order
 
     async def __call__(self, api_key, model, request):
         prompt = request.user_prompt
         self.calls.append(prompt)
         self.temperatures.append(request.temperature)
+        self.budgets.append(request.max_tokens)
         if self.failures:
             failure = self.failures.pop(0)
             if isinstance(failure, Exception):
                 raise failure
+            if isinstance(failure, GenerationResponse):
+                return failure
             return GenerationResponse(content=failure, input_tokens=10, output_tokens=1)
         if "for readability" in prompt:
             findings = [
@@ -373,3 +377,42 @@ async def test_reanalysis_replaces_findings(client, user, db, mock, model):
     db.expire_all()
     assert db.query(AgentFinding).filter(AgentFinding.run_id == run.id).count() == before
     assert db.get(AuditRun, run.id).status == "completed"
+
+
+def out_of_room(budget):
+    """hop-core's error when thinking used up max_tokens before any text."""
+    return AiProviderError(
+        f"Anthropic ran out of room before writing a reply: the {budget:,}-token max_tokens budget was used up, "
+        f"{budget:,} of them thinking. Raise max_tokens."
+    )
+
+
+async def test_reply_that_runs_out_of_room_is_asked_again_with_more(client, user, db, mock, model):
+    serve(mock)
+    site, _ = configured_site(client, user)
+    cut = GenerationResponse(content='[{"page": "P1", "severity": "Hi', stop_reason="max_tokens", output_tokens=16384)
+    model.failures = [out_of_room(8192), cut]
+    run = await execute(db, add_run(db, site, user, analyses=["readability"]))
+    assert model.budgets[:3] == [8192, 16384, 32768]  # no text, then cut off mid-JSON, then it fits
+    stats = next(iter(run.agent_stats.values()))
+    assert stats["errors"] == 0 and stats["findings"] > 0
+    messages = [e.message for e in run.log]
+    assert sum("didn't fit in" in m for m in messages) == 2
+    assert not any("wasn't JSON" in m for m in messages)  # a cut-off reply isn't asked for "JSON only"
+
+
+async def test_reply_that_never_fits_fails_the_batch(client, user, db, mock, model, monkeypatch):
+    serve(mock)
+    monkeypatch.setitem(review.BATCH_SIZE, "readability", 100)  # one batch
+    site, _ = configured_site(client, user)
+    model.failures = [out_of_room(b) for b in (8192, 16384, 32768, 65536)]
+    run = await execute(db, add_run(db, site, user, analyses=["readability"]))
+    assert model.budgets == [8192, 16384, 32768, 65536]
+    errors = [e.message for e in run.log if e.level == "error"]
+    assert any("didn't fit even in 65,536 tokens; skipped" in m for m in errors)
+    assert not any("Raise max_tokens" in m for m in errors)  # nothing the user can raise
+    assert run.stages[2]["status"] == "failed"
+
+
+def test_budgets_start_by_analysis():
+    assert review.REPLY_BUDGET["content_integrity"] > review.REPLY_BUDGET["readability"] >= 8192
