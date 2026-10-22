@@ -23,11 +23,13 @@ class FakeModel:
 
     def __init__(self):
         self.calls: list[str] = []
+        self.temperatures: list = []
         self.failures: list = []  # AiProviderError or a raw reply, consumed in order
 
     async def __call__(self, api_key, model, request):
         prompt = request.user_prompt
         self.calls.append(prompt)
+        self.temperatures.append(request.temperature)
         if self.failures:
             failure = self.failures.pop(0)
             if isinstance(failure, Exception):
@@ -214,6 +216,9 @@ async def test_run_with_agent_review(client, user, db, mock, model):
     assert "quotes not on the page removed" in stages["readability"]["detail"]
     assert "SEO Analyst: " in stages["seo"]["detail"]
     assert "Link Validator: 1 finding (0 on focus)" in stages["links"]["detail"]
+
+    # No temperature is sent: newer models reject the parameter.
+    assert model.temperatures and set(model.temperatures) == {None}
 
     # The focus and the page text reach the agent.
     readability_prompt = next(c for c in model.calls if "for readability" in c)

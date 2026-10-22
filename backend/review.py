@@ -337,9 +337,9 @@ class Review:
         instructions, retries, reasked = base, 0, False
         while True:
             await self.checkpoint()
-            request = AgentRequest(
-                instructions=instructions, input=material, max_tokens=MAX_OUTPUT_TOKENS, temperature=0.2
-            )
+            # No temperature: newer models reject it (Anthropic answers 400
+            # "temperature is deprecated"), and hop-core omits it when unset.
+            request = AgentRequest(instructions=instructions, input=material, max_tokens=MAX_OUTPUT_TOKENS)
             try:
                 result = await self.runner.run(self.agent.definition, request)
             except AiProviderError as exc:
