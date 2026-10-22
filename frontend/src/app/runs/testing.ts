@@ -1,4 +1,12 @@
-import { Dashboard, PageDetail, PageRow, Preview, RunDetail, RunListItem } from './run.model';
+import {
+  Dashboard,
+  Finding,
+  PageDetail,
+  PageRow,
+  Preview,
+  RunDetail,
+  RunListItem,
+} from './run.model';
 
 export function sampleRun(overrides: Partial<RunDetail> = {}): RunDetail {
   return {
@@ -42,6 +50,7 @@ export function sampleRun(overrides: Partial<RunDetail> = {}): RunDetail {
     recheck_external: false,
     focus: '',
     tokens: {},
+    agent_stats: {},
     error: null,
     ...overrides,
   };
@@ -108,6 +117,8 @@ export function samplePage(overrides: Partial<PageRow> = {}): PageRow {
     anchor_issues: 1,
     seo_issues: 3,
     score: 61,
+    findings: 0,
+    focus_findings: 0,
     ...overrides,
   };
 }
@@ -223,10 +234,32 @@ export function samplePageDetail(overrides: Partial<PageDetail> = {}): PageDetai
     section_flesch: 55.7,
     previous_score: 64,
     previous_run_number: 14,
+    agent_findings: [],
     ...overrides,
   };
 }
 
 export function listItem(overrides: Partial<RunListItem>): RunListItem {
   return sampleRun({ status: 'completed', progress: 100, ...overrides });
+}
+
+export function sampleFinding(overrides: Partial<Finding> = {}): Finding {
+  return {
+    id: 'f1',
+    analysis: 'readability',
+    agent_id: 'a1',
+    agent_name: 'Readability Reviewer',
+    model: 'claude-sonnet-4-5',
+    severity: 'High',
+    title: 'Three sentences over 45 words',
+    body: 'Split each into the action, then a note.',
+    quote: 'If the target element is inside a map that has been branched…',
+    suggestion: 'Push the conref. If the branch is locked, the push is rejected.',
+    on_focus: false,
+    target: null,
+    page_count: 1,
+    dismissed: false,
+    dismissed_reason: '',
+    ...overrides,
+  };
 }

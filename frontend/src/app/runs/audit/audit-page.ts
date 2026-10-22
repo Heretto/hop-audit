@@ -26,7 +26,7 @@ import { filter, forkJoin, switchMap } from 'rxjs';
 import { Site } from '../../sites/site.model';
 import { apiErrors, SitesService } from '../../sites/sites.service';
 import { duration, estimate, scopeLabel, statusChip, tokens } from '../run-format';
-import { ACTIVE, LogEntry, RunDetail, Stage } from '../run.model';
+import { ACTIVE, AgentStats, LogEntry, RunDetail, Stage } from '../run.model';
 import { RunsService } from '../runs.service';
 
 export const POLL_MS = 2000;
@@ -43,7 +43,7 @@ const AGENT_CHIPS: Record<Stage['status'], { cls: string; label: string }> = {
   pending: { cls: 'hop-status-chip-pending', label: 'Pending' },
   running: { cls: 'hop-status-chip-running', label: 'Running' },
   done: { cls: 'hop-status-chip-completed', label: 'Completed' },
-  failed: { cls: 'hop-status-chip-failed', label: 'Failed' },
+  failed: { cls: 'hop-status-chip-failed', label: 'Stopped' },
   skipped: { cls: '', label: 'Not run' },
 };
 
@@ -104,27 +104,48 @@ export class AuditPage implements OnInit {
     tokens(Object.values(this.run()?.tokens ?? {}).reduce((a, b) => a + b, 0)),
   );
 
-  /** Agents assigned to this run's analyses, with the status of their stage. */
+  /** Agents on this run's analyses, one card each, with their stage's status and their stats. */
   readonly runAgents = computed(() => {
     const run = this.run();
-    const assigned = this.site()?.agent_assignments ?? {};
+    const assigned = (this.site()?.agent_assignments ?? {}) as Record<string, string | null>;
     if (!run) return [];
-    return run.stages
-      .filter((s) => assigned[s.key as keyof typeof assigned])
-      .map((stage) => {
-        const agent = this.agents().find(
-          (a) => a.id === assigned[stage.key as keyof typeof assigned],
-        );
-        return {
-          stage,
-          name: agent?.name ?? 'Unknown agent',
-          model: agent?.ai_configuration
+    const order: Stage['status'][] = ['running', 'failed', 'pending', 'done', 'skipped'];
+    const cards = new Map<string, { stage: Stage; id: string }>();
+    for (const stage of run.stages) {
+      const id = assigned[stage.key];
+      if (!id) continue;
+      const seen = cards.get(id);
+      if (!seen || order.indexOf(stage.status) < order.indexOf(seen.stage.status))
+        cards.set(id, { stage, id });
+    }
+    return [...cards.values()].map(({ stage, id }) => {
+      const agent = this.agents().find((a) => a.id === id);
+      const stats = run.agent_stats?.[id];
+      return {
+        id,
+        stage: stats?.status === 'stopped' ? { ...stage, status: 'failed' as const } : stage,
+        name: stats?.name ?? agent?.name ?? 'Unknown agent',
+        model: stats
+          ? `${stats.model} · ${stats.provider}`
+          : agent?.ai_configuration
             ? `${agent.ai_configuration.model} · ${agent.ai_configuration.name}`
             : 'No AI configuration',
-          tokens: run.tokens[agent?.id ?? ''] ?? 0,
-        };
-      });
+        stats,
+      };
+    });
   });
+
+  /** "612k tokens · 0 errors · 14 findings" */
+  agentLine(stats: AgentStats | undefined): string {
+    if (!stats) return '—';
+    const parts = [
+      `${tokens(stats.tokens)} tokens`,
+      `${stats.errors} error${stats.errors === 1 ? '' : 's'}`,
+    ];
+    if (stats.retries) parts.push(`${stats.retries} retr${stats.retries === 1 ? 'y' : 'ies'}`);
+    parts.push(`${stats.findings} findings`);
+    return parts.join(' · ');
+  }
 
   ngOnInit(): void {
     this.agentService.listAgents().subscribe({ next: (a) => this.agents.set(a), error: () => {} });

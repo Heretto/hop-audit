@@ -105,7 +105,7 @@
 
       <mat-card class="section">
         <div class="card-title"><h2>Agents in this run</h2></div>
-        @for (a of runAgents(); track a.stage.key) {
+        @for (a of runAgents(); track a.id) {
           <div class="row between agent">
             <div class="stage-text">
               <strong>{{ a.name }}</strong>
@@ -115,7 +115,7 @@
               <span class="hop-status-chip" [class]="agentChip(a.stage).cls">{{
                 agentChip(a.stage).label
               }}</span>
-              <span class="sub">{{ a.tokens ? (a.tokens | number) + ' tokens' : '—' }}</span>
+              <span class="sub">{{ agentLine(a.stats) }}</span>
             </div>
           </div>
         } @empty {

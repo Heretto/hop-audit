@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from schemas.run import RunDetail, RunSummary
 
@@ -39,6 +39,32 @@ class PageRow(BaseModel):
     anchor_issues: int | None
     seo_issues: int | None
     score: int | None
+    findings: int = 0  # agent findings, not dismissed
+    focus_findings: int = 0
+
+
+class FindingOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    analysis: str
+    agent_id: UUID | None
+    agent_name: str
+    model: str
+    severity: str
+    title: str
+    body: str
+    quote: str
+    suggestion: str
+    on_focus: bool
+    target: str | None
+    page_count: int = 1  # link findings: pages linking to the target
+    dismissed: bool
+    dismissed_reason: str
+
+
+class FindingUpdate(BaseModel):
+    dismissed: bool
+    reason: str = Field("", max_length=2000)
 
 
 class LinkRow(BaseModel):
@@ -74,14 +100,15 @@ class PageDetail(PageRow):
     section_flesch: float | None
     previous_score: int | None
     previous_run_number: int | None
+    agent_findings: list[FindingOut] = []  # this page's, and link findings for targets it links to
 
 
 class CompareRow(BaseModel):
     key: str
     label: str
-    a: float | None
-    b: float | None
-    delta: float | None
+    a: int | float | None  # int first, so counts stay counts
+    b: int | float | None
+    delta: int | float | None
     better: str  # up | down | flat: which direction is good for this metric
 
 

@@ -167,6 +167,18 @@ export class HistoryPage implements OnInit {
     download(new Blob([csv], { type: 'text/csv' }), `compare-${c.a.number}-${c.b.number}.csv`);
   }
 
+  /** A compared value: tokens as "1.8M", the rest as numbers. */
+  metric(key: string, value: number | null): string {
+    if (value === null) return '—';
+    return key === 'tokens' ? tokens(value) : value.toLocaleString('en-US');
+  }
+
+  change(key: string, delta: number | null): string {
+    if (delta === null) return '—';
+    if (key === 'tokens') return `${delta < 0 ? '−' : '+'}${tokens(Math.abs(delta))}`;
+    return signed(delta, key === 'flesch' ? 1 : 0) ?? '—';
+  }
+
   barHeight(score: number): number {
     return Math.max(4, score);
   }

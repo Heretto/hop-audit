@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { RunsService } from '../runs.service';
-import { samplePageDetail } from '../testing';
+import { sampleFinding, samplePageDetail } from '../testing';
 import { PageDetailPage, readabilityBand } from './page-detail';
 
 describe('PageDetailPage', () => {
@@ -52,6 +52,25 @@ describe('PageDetailPage', () => {
     expect(page.seoIssues()).toBe(2);
     expect(el.textContent).toContain('Missing');
     expect(el.textContent).toContain('71 chars (aim for 30–60)');
+  });
+
+  it('lists open findings worst first, dismissed ones apart, and updates in place', () => {
+    const { fixture, page, el } = render(
+      samplePageDetail({
+        agent_findings: [
+          sampleFinding({ id: 'low', severity: 'Low', title: 'Low one' }),
+          sampleFinding({ id: 'gone', dismissed: true, title: 'Dismissed one' }),
+          sampleFinding({ id: 'high', severity: 'High', title: 'High one' }),
+          sampleFinding({ id: 'focus', severity: 'Low', on_focus: true, title: 'Focus one' }),
+        ],
+      }),
+    );
+    expect(page.findings().open.map((f) => f.id)).toEqual(['high', 'focus', 'low']);
+    expect(page.findings().dismissed.map((f) => f.id)).toEqual(['gone']);
+    expect(el.textContent).toContain('Agent findings · 3');
+    page.replace(sampleFinding({ id: 'low', severity: 'Low', dismissed: true }));
+    fixture.detectChanges();
+    expect(page.findings().open).toHaveLength(2);
   });
 
   it('explains pages that could not be scored or read', () => {

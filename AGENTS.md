@@ -64,6 +64,17 @@ Read those instead of inferring from this project's code. Do not copy them here.
   stored pages, so `POST /runs/{id}/analyze` can redo them without a crawl.
   Scores and run metrics are in `scoring.py`; the dashboard footnote states
   the same scoring rules, so change both together.
+- **Agent review** (`backend/review.py`): each analysis's agent is built
+  from its hop-core row and AI configuration the way hop-core's chat route
+  does; pages go in batches with the site's and the run's focus; replies
+  must be a JSON array (asked again once), quotes not found on the page are
+  removed, 429/5xx are retried, three failed batches in a row stop the
+  agent. Unchanged pages reviewed with the same review key (agent, model,
+  system prompt, focus) copy their findings instead of asking again. With
+  no usable agent the stage keeps HOP Audit's metrics and says why.
+  Dismissing a finding appends to the agent's feedback memory in hop-core's
+  `### heading` format. Tests register a fake provider in
+  `AiProviderRegistry` (see `tests/test_review.py`).
 - **Routes in the UI**: `/audits/:runId` is the dashboard (active runs
   redirect to `/audits/:runId/progress`), pages are
   `/audits/:runId/pages/:pageId`, `/sites/:id` opens the latest dashboard.

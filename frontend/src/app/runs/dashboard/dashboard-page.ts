@@ -20,10 +20,18 @@ import { Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { Site } from '../../sites/site.model';
 import { apiErrors, SitesService } from '../../sites/sites.service';
-import { deltaClass, download, duration, scopeLabel, scoreClass, signed } from '../run-format';
+import {
+  deltaClass,
+  download,
+  duration,
+  scopeLabel,
+  scoreClass,
+  signed,
+  tokens,
+} from '../run-format';
 import { ACTIVE, Dashboard, PageRow, RunMetrics } from '../run.model';
 import { RunsService } from '../runs.service';
-import { buildTree, isFiltering, TreeState } from './tree';
+import { buildTree, findingsLabel, isFiltering, TreeState } from './tree';
 
 interface Kpi {
   icon: string;
@@ -85,6 +93,8 @@ export class DashboardPage implements OnInit {
   );
 
   readonly scoreClass = scoreClass;
+  readonly findingsLabel = findingsLabel;
+  readonly tokens = tokens;
   readonly duration = duration;
   readonly scopeLabel = scopeLabel;
 

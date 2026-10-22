@@ -50,8 +50,23 @@ export interface RunMetrics {
   blocked_links: number;
   links: number;
   seo_issues: number;
+  agent_findings: number;
+  focus_findings: number;
+  tokens: number;
   compared_with: number | null;
   analyzed_at: string;
+}
+
+/** One agent's work in a run (backend analysis._review). */
+export interface AgentStats {
+  name: string;
+  model: string;
+  provider: string;
+  tokens: number;
+  findings: number;
+  errors: number;
+  retries: number;
+  status: 'done' | 'stopped';
 }
 
 export interface RunListItem extends RunSummary {
@@ -64,6 +79,7 @@ export interface RunDetail extends RunListItem {
   recheck_external: boolean;
   focus: string;
   tokens: Record<string, number>;
+  agent_stats: Record<string, AgentStats>;
   error: string | null;
 }
 
@@ -136,6 +152,26 @@ export interface PageRow {
   anchor_issues: number | null;
   seo_issues: number | null;
   score: number | null;
+  findings: number;
+  focus_findings: number;
+}
+
+export interface Finding {
+  id: string;
+  analysis: 'readability' | 'seo' | 'links';
+  agent_id: string | null;
+  agent_name: string;
+  model: string;
+  severity: 'High' | 'Medium' | 'Low';
+  title: string;
+  body: string;
+  quote: string;
+  suggestion: string;
+  on_focus: boolean;
+  target: string | null;
+  page_count: number;
+  dismissed: boolean;
+  dismissed_reason: string;
 }
 
 export interface SeoCheck {
@@ -192,6 +228,7 @@ export interface PageDetail extends PageRow {
   section_flesch: number | null;
   previous_score: number | null;
   previous_run_number: number | null;
+  agent_findings: Finding[];
 }
 
 export interface CompareRow {

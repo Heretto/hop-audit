@@ -1,5 +1,6 @@
-"""The mechanical analyses of a run's pages: readability, SEO, links, and
-the scores and metrics built from them. Agent review joins in milestone 5.
+"""The analyses of a run's pages: HOP Audit's own readability, SEO and link
+checks, each followed by its agent's review (``review.py``), then the scores
+and metrics built from them.
 
 ``analyze`` works on the pages already stored, so it serves both a run
 straight after its crawl and a finished run analyzed again.
@@ -15,8 +16,9 @@ from sqlalchemy.orm import Session
 
 import links as link_checks
 import readability
+import review
 import seo
-from models import AuditRun, HelpCenter, LinkCache, LinkResult, Page
+from models import AgentFinding, AuditRun, HelpCenter, LinkCache, LinkResult, Page
 from scoring import page_score, run_metrics
 
 PROGRESS_EVERY = 25  # pages between stage progress writes
@@ -59,8 +61,9 @@ async def analyze(db: Session, run: AuditRun, rec, http: httpx.AsyncClient, chec
             if scored
             else "No page had enough text in a measurable language"
         )
-        rec.stage("readability", status="done", done=len(readable), detail=detail)
         rec.log("readability", "info", f"{len(scored):,} of {len(readable):,} pages scored. {detail}.")
+        reviewable = [p for p in readable if p.word_count >= readability.MIN_WORDS]
+        await _review(db, run, rec, "readability", reviewable, detail, checkpoint, languages)
 
     if "seo" in keys:
         rec.stage("seo", status="running", done=0, total=len(readable), detail="")
@@ -72,13 +75,16 @@ async def analyze(db: Session, run: AuditRun, rec, http: httpx.AsyncClient, chec
         issues = sum(p.seo_issues for p in readable)
         affected = sum(1 for p in readable if p.seo_issues)
         detail = f"{issues:,} issues on {affected:,} pages"
-        rec.stage("seo", status="done", done=len(readable), detail=detail)
         rec.log("seo", "info", f"SEO checks complete: {detail}.")
+        await _review(db, run, rec, "seo", [p for p in readable if p.seo_issues], detail, checkpoint, languages)
     await checkpoint()
 
     link_counts: Counter = Counter()
     if "links" in keys:
-        link_counts = await _links(db, run, rec, http, pages, readable, checkpoint)
+        link_counts, detail = await _links(db, run, rec, http, pages, readable, checkpoint)
+        rows = db.scalars(select(LinkResult).where(LinkResult.run_id == run.id)).all()
+        groups = review.link_groups(rows, {p.id: p for p in pages})
+        await _review(db, run, rec, "links", groups, detail, checkpoint)
 
     for page in pages:
         page.score = page_score(
@@ -94,8 +100,14 @@ async def analyze(db: Session, run: AuditRun, rec, http: httpx.AsyncClient, chec
     if previous:
         before = set(db.scalars(select(Page.url).where(Page.run_id == previous.id)))
         new = sum(1 for p in pages if p.url not in before)
+    findings = db.scalars(
+        select(AgentFinding).where(AgentFinding.run_id == run.id, AgentFinding.dismissed.is_(False))
+    ).all()
     run.metrics = {
         **run_metrics(pages, new, link_counts),
+        "agent_findings": len(findings),
+        "focus_findings": sum(1 for f in findings if f.on_focus),
+        "tokens": sum((run.tokens or {}).values()),
         "compared_with": previous.number if previous else None,
         "analyzed_at": datetime.now(UTC).isoformat(),
     }
@@ -176,7 +188,60 @@ async def _links(db, run, rec, http, pages, readable, checkpoint) -> Counter:
     )
     if counts["blocked"]:
         detail += f", {counts['blocked']:,} couldn't be checked"
-    rec.stage("links", status="done", detail=detail)
     rec.log("links", "info", f"Link check complete: {detail}.")
     db.commit()
-    return counts
+    return counts, detail
+
+
+async def _review(db: Session, run: AuditRun, rec, analysis: str, items: list, mechanical: str, checkpoint,
+                  languages: dict | None = None) -> None:  # fmt: skip
+    """The analysis's agent reviews ``items`` (pages, or link groups); the stage ends here."""
+    db.execute(delete(AgentFinding).where(AgentFinding.run_id == run.id, AgentFinding.analysis == analysis))
+    try:
+        agent = review.load_agent(db, run.organization_id, (run.site.agent_assignments or {}).get(analysis))
+    except review.AgentUnavailable as exc:
+        rec.stage(analysis, status="done", detail=f"{mechanical} · metrics only: {exc}")
+        rec.log(analysis, "warn", f"No agent review of {review.LABELS[analysis]}: {exc}.")
+        return
+    if not items:
+        rec.stage(analysis, status="done", detail=f"{mechanical} · nothing for {agent.name} to review")
+        return
+    size = review.BATCH_SIZE[analysis]
+    rec.stage(analysis, status="running", done=0, total=len(items), detail=f"{agent.name} · {agent.model}")
+    rec.log(analysis, "info", f"{agent.name} started on {len(items):,} items, batches of {size}, focus attached.")
+
+    def progress(done: int, total: int) -> None:
+        rec.stage(analysis, done=done, total=total)
+
+    reviewer = review.Review(db, run, analysis, agent, rec.log, progress, checkpoint)
+    tally = await (reviewer.links(items) if analysis == "links" else reviewer.pages(items, languages or {}))
+
+    key = str(agent.id)
+    before = (run.agent_stats or {}).get(key, {})
+    run.agent_stats = {
+        **(run.agent_stats or {}),
+        key: {
+            "name": agent.name,
+            "model": agent.model,
+            "provider": agent.provider,
+            "tokens": before.get("tokens", 0) + tally.tokens,
+            "findings": before.get("findings", 0) + tally.findings,
+            "errors": before.get("errors", 0) + tally.errors,
+            "retries": before.get("retries", 0) + tally.retries,
+            "status": "stopped" if "stopped" in (tally.status, before.get("status")) else "done",
+        },
+    }
+    run.tokens = {**(run.tokens or {}), key: run.agent_stats[key]["tokens"]}
+    plural = "" if tally.findings == 1 else "s"
+    parts = [f"{agent.name}: {tally.findings:,} finding{plural} ({tally.on_focus:,} on focus)"]
+    if tally.reused:
+        parts.append(f"{tally.reused:,} unchanged pages' findings reused")
+    if tally.quotes_removed:
+        parts.append(f"{tally.quotes_removed:,} quotes not on the page removed")
+    if tally.errors:
+        parts.append(f"{tally.errors:,} failed batches")
+    if tally.note:
+        parts.append(tally.note)
+    rec.stage(analysis, status="done", detail=f"{mechanical} · " + ", ".join(parts))
+    rec.log(analysis, "info", f"{', '.join(parts)}; {tally.tokens:,} tokens.")
+    db.commit()

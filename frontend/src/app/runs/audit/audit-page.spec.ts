@@ -127,6 +127,66 @@ describe('AuditPage', () => {
     expect(page.run()!.status).toBe('cancelled');
   });
 
+  it('shows one card per agent with its stats', () => {
+    const run = sampleRun({
+      stages: [
+        { key: 'readability', label: 'Readability', status: 'done', done: 1, total: 1, detail: '' },
+        {
+          key: 'summary',
+          label: 'Summary report',
+          status: 'running',
+          done: 0,
+          total: 1,
+          detail: '',
+        },
+      ],
+      agent_stats: {
+        a1: {
+          name: 'Readability Reviewer',
+          model: 'claude-sonnet-4-5',
+          provider: 'anthropic',
+          tokens: 612000,
+          findings: 14,
+          errors: 0,
+          retries: 2,
+          status: 'done',
+        },
+      },
+    });
+    const { page, el } = render(run);
+    // Readability and Summary share agent a1 in this site's assignments.
+    page.site.update((s) =>
+      s ? { ...s, agent_assignments: { readability: 'a1', summary: 'a1' } } : s,
+    );
+    expect(page.runAgents()).toHaveLength(1);
+    expect(page.runAgents()[0].stage.status).toBe('running');
+    expect(page.agentLine(page.runAgents()[0].stats)).toBe(
+      '612k tokens · 0 errors · 2 retries · 14 findings',
+    );
+    expect(page.agentLine(undefined)).toBe('—');
+    expect(el.textContent).toContain('Readability Reviewer');
+  });
+
+  it('marks an agent that stopped', () => {
+    const run = sampleRun({
+      agent_stats: {
+        a1: {
+          name: 'Readability Reviewer',
+          model: 'm',
+          provider: 'p',
+          tokens: 0,
+          findings: 0,
+          errors: 3,
+          retries: 0,
+          status: 'stopped',
+        },
+      },
+    });
+    const { page } = render(run);
+    expect(page.runAgents()[0].stage.status).toBe('failed');
+    expect(page.agentChip(page.runAgents()[0].stage).label).toBe('Stopped');
+  });
+
   it('hides the controls and shows the error for a failed run', () => {
     const { el } = render(
       sampleRun({

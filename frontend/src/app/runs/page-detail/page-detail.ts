@@ -15,7 +15,8 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { RouterLink } from '@angular/router';
 import { apiErrors } from '../../sites/sites.service';
 import { scoreClass, signed } from '../run-format';
-import { LinkRow, PageDetail } from '../run.model';
+import { Finding, LinkRow, PageDetail } from '../run.model';
+import { FindingCard } from './finding-card';
 import { RunsService } from '../runs.service';
 
 export const LINK_PREVIEW = 8; // problem links shown before "All N links"
@@ -48,6 +49,7 @@ export function readabilityBand(flesch: number | null): { label: string; sev: st
     MatCardModule,
     MatIconModule,
     MatTabsModule,
+    FindingCard,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './page-detail.html',
@@ -87,6 +89,14 @@ export class PageDetailPage implements OnInit {
   readonly seoIssues = computed(
     () => (this.page()?.seo ?? []).filter((c) => c.status !== 'ok').length,
   );
+  /** Open findings, worst first; dismissed ones after. */
+  readonly findings = computed(() => {
+    const order = { High: 0, Medium: 1, Low: 2 };
+    const all = [...(this.page()?.agent_findings ?? [])].sort(
+      (a, b) => order[a.severity] - order[b.severity] || Number(b.on_focus) - Number(a.on_focus),
+    );
+    return { open: all.filter((f) => !f.dismissed), dismissed: all.filter((f) => f.dismissed) };
+  });
   readonly meter = computed(() => Math.max(0, Math.min(100, this.page()?.flesch ?? 0)));
 
   ngOnInit(): void {
@@ -94,6 +104,14 @@ export class PageDetailPage implements OnInit {
       next: (p) => this.page.set(p),
       error: (e) => this.error.set(apiErrors(e).join(' ')),
     });
+  }
+
+  replace(updated: Finding): void {
+    this.page.update((p) =>
+      p
+        ? { ...p, agent_findings: p.agent_findings.map((f) => (f.id === updated.id ? updated : f)) }
+        : p,
+    );
   }
 
   /** Path for internal targets, full URL for external ones. */

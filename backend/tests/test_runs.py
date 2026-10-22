@@ -101,7 +101,9 @@ async def test_run_crawls_and_records_stages_log_and_pages(client, user, db, moc
     log = [e.message for e in db.query(RunLogEntry).filter(RunLogEntry.run_id == run.id).order_by(RunLogEntry.id)]
     assert log[0].startswith("Read https://help.x.com/sitemap.xml: 7 URLs")
     assert any("Crawl complete: 7 pages" in m for m in log)
-    assert log[-1].startswith("Link check complete")
+    assert any(m.startswith("Link check complete") for m in log)
+    assert log[-1] == "No agent review of links: no agent is assigned in site settings."
+    assert "metrics only: no agent is assigned" in stages["readability"]["detail"]
 
 
 async def test_second_run_reuses_and_reports_new_pages(client, user, db, mock):

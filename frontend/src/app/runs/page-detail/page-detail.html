@@ -182,6 +182,22 @@
 
     <mat-card class="section">
       <mat-tab-group animationDuration="0">
+        <mat-tab [label]="'Agent findings · ' + findings().open.length">
+          @for (f of findings().open; track f.id) {
+            <app-finding-card [finding]="f" (changed)="replace($event)" />
+          } @empty {
+            <p class="sub">
+              No agent findings for this page. Either the agents found nothing, or no agent reviewed
+              this audit (see its stages).
+            </p>
+          }
+          @if (findings().dismissed.length) {
+            <h3 class="sub">Dismissed ({{ findings().dismissed.length }})</h3>
+            @for (f of findings().dismissed; track f.id) {
+              <app-finding-card [finding]="f" (changed)="replace($event)" />
+            }
+          }
+        </mat-tab>
         <mat-tab label="Headings outline">
           <ol class="outline">
             @for (h of p.content.headings; track $index) {

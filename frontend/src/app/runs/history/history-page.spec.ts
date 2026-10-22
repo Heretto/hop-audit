@@ -85,6 +85,16 @@ describe('HistoryPage', () => {
     expect(page.selected()).toEqual(['r2']);
   });
 
+  it('formats compared values', () => {
+    const { page } = render();
+    expect(page.metric('tokens', 1_900_000)).toBe('1.90M');
+    expect(page.metric('broken', 1234)).toBe('1,234');
+    expect(page.metric('score', null)).toBe('—');
+    expect(page.change('tokens', -100_000)).toBe('−100k');
+    expect(page.change('flesch', 1.2)).toBe('+1.2');
+    expect(page.change('score', null)).toBe('—');
+  });
+
   it('switches site through the URL', () => {
     const { page } = render();
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);

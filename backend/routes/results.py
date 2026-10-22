@@ -2,23 +2,27 @@
 
 import csv
 import io
-from collections import defaultdict
+from collections import Counter, defaultdict
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from hop_core.api.dependencies import CurrentUserContext, get_current_active_user_with_org
 from hop_core.db import get_db
+from hop_core.models.agent import Agent
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from analysis import comparable_run
-from models import AuditRun, HelpCenter, LinkResult, Page
+from models import AgentFinding, AuditRun, HelpCenter, LinkResult, Page
 from routes.runs import detail, get_run
 from schemas.results import (
     ChangedPage,
     CompareRow,
     Comparison,
     Dashboard,
+    FindingOut,
+    FindingUpdate,
     PageDetail,
     PageRow,
     SectionRow,
@@ -39,6 +43,9 @@ COMPARED = (
     ("redirects", "Redirected links", "down"),
     ("anchors", "Anchors not found", "down"),
     ("seo_issues", "SEO issues", "down"),
+    ("agent_findings", "Agent findings", "down"),
+    ("focus_findings", "Focus findings", "down"),
+    ("tokens", "Tokens", "flat"),
 )
 CSV_COLUMNS = ("url", "title", "section", "http_status", "score", "flesch", "broken_links", "redirects",
                "anchor_issues", "seo_issues", "word_count", "error")  # fmt: skip
@@ -82,9 +89,64 @@ def dashboard(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends
     )
 
 
+def _findings(db: Session, run_id: UUID) -> list[AgentFinding]:
+    return db.scalars(
+        select(AgentFinding).where(AgentFinding.run_id == run_id).order_by(AgentFinding.severity, AgentFinding.title)
+    ).all()
+
+
+def _finding_out(f: AgentFinding) -> FindingOut:
+    out = FindingOut.model_validate(f)
+    out.page_count = len(f.page_ids) or 1
+    return out
+
+
+def _belongs(f: AgentFinding, page_id: UUID) -> bool:
+    return f.page_id == page_id or str(page_id) in (f.page_ids or [])
+
+
 @router.get("/runs/{run_id}/pages", response_model=list[PageRow])
 def pages(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
-    return _pages(db, get_run(db, ctx, run_id).id)
+    run = get_run(db, ctx, run_id)
+    counts: Counter = Counter()
+    focus: Counter = Counter()
+    for f in _findings(db, run.id):
+        if f.dismissed:
+            continue
+        for pid in [str(f.page_id)] if f.page_id else f.page_ids:
+            counts[pid] += 1
+            focus[pid] += f.on_focus
+    rows = []
+    for page in _pages(db, run.id):
+        row = PageRow.model_validate(page)
+        row.findings, row.focus_findings = counts[str(page.id)], focus[str(page.id)]
+        rows.append(row)
+    return rows
+
+
+@router.patch("/findings/{finding_id}", response_model=FindingOut)
+def update_finding(finding_id: UUID, body: FindingUpdate, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
+    """Dismiss (or restore) a finding. A dismissal's reason goes into the
+    agent's feedback memory, so the next run learns from it."""
+    finding = db.get(AgentFinding, finding_id)
+    if finding is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Finding not found")
+    run = get_run(db, ctx, finding.run_id)
+    if body.dismissed and not finding.dismissed and finding.agent_id:
+        agent = db.get(Agent, finding.agent_id)
+        if agent is not None and agent.organization_id == ctx.organization_id:
+            where = finding.target or (db.get(Page, finding.page_id).path if finding.page_id else run.site.name)
+            reason = body.reason.strip() or "no reason given"
+            entry = (
+                f"### Dismissed {datetime.now(UTC):%Y-%m-%d} by {ctx.user.email}\n\n"
+                f'"{finding.title}" ({finding.severity}, {where}) was not useful: {reason}'
+            )
+            existing = (agent.feedback_memory or "").rstrip()
+            agent.feedback_memory = f"{existing}\n\n{entry}" if existing else entry
+    finding.dismissed = body.dismissed
+    finding.dismissed_reason = body.reason.strip() if body.dismissed else ""
+    db.commit()
+    return _finding_out(finding)
 
 
 @router.get("/runs/{run_id}/pages.csv")
@@ -116,7 +178,7 @@ def page_detail(page_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depe
     links = db.scalars(select(LinkResult).where(LinkResult.page_id == page.id).order_by(LinkResult.id)).all()
     return PageDetail.model_validate(
         {
-            **{k: getattr(page, k) for k in PageDetail.model_fields if hasattr(page, k)},
+            **{k: getattr(page, k) for k in PageDetail.model_fields if hasattr(page, k) and k != "findings"},
             "run_number": run.number,
             "site_id": run.site_id,
             "site_name": run.site.name,
@@ -126,6 +188,7 @@ def page_detail(page_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depe
             "section_flesch": mean_of(section),
             "previous_score": before.score if before else None,
             "previous_run_number": previous.number if before else None,
+            "agent_findings": [_finding_out(f) for f in _findings(db, run.id) if _belongs(f, page.id)],
         }
     )
 

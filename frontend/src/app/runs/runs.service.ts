@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import {
   Comparison,
   Dashboard,
+  Finding,
   LogEntry,
   PageDetail,
   PageRow,
@@ -63,6 +64,11 @@ export class RunsService {
 
   page(pageId: string): Observable<PageDetail> {
     return this.http.get<PageDetail>(`${this.api}/pages/${pageId}`);
+  }
+
+  /** Dismiss (with a reason the agent learns from) or restore a finding. */
+  updateFinding(id: string, dismissed: boolean, reason = ''): Observable<Finding> {
+    return this.http.patch<Finding>(`${this.api}/findings/${id}`, { dismissed, reason });
   }
 
   compare(a: string, b: string): Observable<Comparison> {

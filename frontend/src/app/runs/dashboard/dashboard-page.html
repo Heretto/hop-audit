@@ -89,6 +89,8 @@
             <mat-option value="broken">Broken links</mat-option>
             <mat-option value="seo">SEO issues</mat-option>
             <mat-option value="flesch50">Flesch under 50</mat-option>
+            <mat-option value="findings">Agent findings</mat-option>
+            <mat-option value="focus">Focus findings</mat-option>
             <mat-option value="failed">Pages that couldn't be read</mat-option>
           </mat-select>
         </mat-form-field>
@@ -113,6 +115,7 @@
               <th class="num">Flesch</th>
               <th class="num">Broken links</th>
               <th class="num">SEO issues</th>
+              <th>Findings</th>
               <th class="num">Score</th>
             </tr>
           </thead>
@@ -140,6 +143,9 @@
                     <td class="num">{{ row.section.flesch ?? '—' }}</td>
                     <td class="num">{{ row.section.broken | number }}</td>
                     <td class="num">{{ row.section.seo_issues | number }}</td>
+                    <td>
+                      <span class="sub">{{ findingsLabel(row.findings, row.focus) }}</span>
+                    </td>
                     <td class="num">
                       <span class="score-chip" [class]="scoreClass(row.section.score)">{{
                         row.section.score ?? '—'
@@ -170,6 +176,11 @@
                     <td class="num">{{ row.page.flesch ?? '—' }}</td>
                     <td class="num">{{ row.page.broken_links ?? '—' }}</td>
                     <td class="num">{{ row.page.seo_issues ?? '—' }}</td>
+                    <td>
+                      <span class="sub">{{
+                        findingsLabel(row.page.findings, row.page.focus_findings)
+                      }}</span>
+                    </td>
                     <td class="num">
                       <span class="score-chip" [class]="scoreClass(row.page.score)">{{
                         row.page.score ?? '—'
@@ -179,7 +190,7 @@
                 }
                 @case ('more') {
                   <tr>
-                    <td colspan="6">
+                    <td colspan="7">
                       <button mat-button class="indent" (click)="showAll(row.section)">
                         Show {{ row.hidden | number }} more pages in {{ row.section }}
                       </button>
@@ -189,7 +200,7 @@
               }
             } @empty {
               <tr>
-                <td colspan="6" class="sub">
+                <td colspan="7" class="sub">
                   {{ filtering() ? 'No pages match.' : 'No pages in this audit.' }}
                 </td>
               </tr>

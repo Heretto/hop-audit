@@ -164,9 +164,37 @@ re-read this file before starting the next.
       latest dashboard
 - [x] Frontend tests; checks green; smoke test against a local site; commit
 
+## Milestone 5: agent review (readability, SEO, links)
+
+- [x] Model + migration: `AgentFinding` (run, page or pages, agent, model,
+      analysis, severity, title, body, quote, suggestion, on_focus,
+      review key, dismissed + reason); run `agent_stats` (tokens, errors,
+      retries, findings per agent)
+- [x] `review.py`: build the agent from its hop-core row and AI
+      configuration (as hop-core's chat route does), batches (readability
+      12 pages, SEO 20, link targets 25), the site's and the run's focus on
+      every batch, JSON output parsed and validated, quotes checked against
+      the page (unmatched quotes removed), retries on rate limits and
+      server errors, an agent stopped after 3 failed batches, tokens counted
+- [x] Reuse: a page unchanged since the last audit, reviewed by the same
+      agent with the same focus, copies its findings instead of asking again
+- [x] No agent assigned or no AI configuration: metrics only, said plainly
+      in the stage and log; the run still completes
+- [x] Link Validator gets targets grouped across pages, with candidate
+      replacement paths from the crawl for broken internal links
+- [x] Dismissing a finding (with a reason) appends to the agent's feedback
+      memory
+- [x] Routes: findings for a run and a page, dismiss; run metrics gain
+      agent and focus findings and tokens; compare rows for them
+- [x] Backend tests with a fake provider registered in hop-core's registry
+- [x] Frontend: Page detail "Agent findings" tab (severity, site focus tag,
+      agent · model, body, quote, suggestion, dismiss); dashboard findings
+      column and "Focus findings" filter; progress page agent cards with
+      tokens, errors and findings; history compare rows
+- [x] Frontend tests; checks green; smoke test with a fake model; commit
+
 ## Later milestones (from the handoff)
 
-- [ ] 5 Agent batching + Readability/SEO/Link agents
 - [ ] 6 Content integrity reviewer, findings, triage screen
 - [ ] 7 Full findings report + exports
 - [ ] 8 Deliverables (one-sheets, overflow check, hand-off)

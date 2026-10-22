@@ -177,11 +177,11 @@
                 @for (m of c.rows; track m.key) {
                   <tr>
                     <td>{{ m.label }}</td>
-                    <td class="num">{{ m.a ?? '—' }}</td>
-                    <td class="num">{{ m.b ?? '—' }}</td>
+                    <td class="num">{{ metric(m.key, m.a) }}</td>
+                    <td class="num">{{ metric(m.key, m.b) }}</td>
                     <td class="num">
                       <span class="delta" [class]="deltaClass(m.delta, m.better)">{{
-                        signed(m.delta, m.key === 'flesch' ? 1 : 0) ?? '—'
+                        change(m.key, m.delta)
                       }}</span>
                     </td>
                   </tr>

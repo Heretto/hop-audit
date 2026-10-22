@@ -1,5 +1,5 @@
 import { samplePage } from '../testing';
-import { buildTree, matches, PAGE_LIMIT, sortPages, TreeState } from './tree';
+import { buildTree, findingsLabel, matches, PAGE_LIMIT, sortPages, TreeState } from './tree';
 
 const sections = [
   { path: '/api', pages: 2, flesch: 50, broken: 1, seo_issues: 1, score: 70 },
@@ -79,6 +79,33 @@ describe('page tree', () => {
     ).toEqual(['/authoring']);
     expect(matches(pages[1], '', 'seo')).toBe(true);
     expect(matches(pages[0], '', 'flesch50')).toBe(true);
+  });
+
+  it('totals findings per section and filters on them', () => {
+    const withFindings = pages.map((p, i) => ({
+      ...p,
+      findings: i,
+      focus_findings: i === 3 ? 1 : 0,
+    }));
+    const rows = buildTree(sections, withFindings, state());
+    expect(rows.map((r) => (r.kind === 'section' ? [r.findings, r.focus] : null))).toEqual([
+      [1, 0],
+      [5, 1],
+    ]);
+    expect(kinds(buildTree(sections, withFindings, state({ show: 'focus' })))).toEqual([
+      '/authoring',
+      't2',
+    ]);
+    expect(kinds(buildTree(sections, withFindings, state({ show: 'findings' })))).toEqual([
+      '/api',
+      'a2',
+      '/authoring',
+      't1',
+      't2',
+    ]);
+    expect(findingsLabel(0, 0)).toBe('');
+    expect(findingsLabel(1, 0)).toBe('1 finding');
+    expect(findingsLabel(5, 1)).toBe('5 findings · 1 on focus');
   });
 
   it('sorts by score or issues', () => {

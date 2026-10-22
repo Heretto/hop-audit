@@ -37,6 +37,8 @@ class AuditRun(Base):
     tokens = Column(JSON, nullable=False, default=dict)
     page_count = Column(Integer, nullable=False, default=0)
     metrics = Column(JSON, nullable=False, default=dict, server_default="{}")  # see scoring.run_metrics
+    # agent id -> {name, model, tokens, findings, errors, retries, status, note}
+    agent_stats = Column(JSON, nullable=False, default=dict, server_default="{}")
     error = Column(Text, nullable=True)
     created_at = Column(UTCDateTime, server_default=func.now())
     started_at = Column(UTCDateTime, nullable=True)
@@ -99,6 +101,7 @@ class Page(Base):
     redirects = Column(Integer, nullable=True)
     anchor_issues = Column(Integer, nullable=True)
     score = Column(Integer, nullable=True)
+    reviews = Column(JSON, nullable=True)  # analysis -> review key: reviewed by an agent, findings or not
 
 
 class LinkResult(Base):
@@ -130,3 +133,30 @@ class LinkCache(Base):
     final_url = Column(String(2048), nullable=True)
     note = Column(Text, nullable=False, default="")
     checked_at = Column(UTCDateTime, nullable=False)
+
+
+class AgentFinding(Base):
+    """What an analysis agent said about a page (or, for links, a target
+    several pages share). Dismissing one teaches the agent: the reason goes
+    into its feedback memory."""
+
+    __tablename__ = "agent_findings"
+
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4)
+    run_id = Column(Uuid, ForeignKey("audit_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    page_id = Column(Uuid, ForeignKey("pages.id", ondelete="CASCADE"), nullable=True, index=True)
+    page_ids = Column(JSON, nullable=False, default=list)  # link findings: every page linking to the target
+    target = Column(String(2048), nullable=True)  # link findings
+    analysis = Column(String(32), nullable=False)  # readability | seo | links
+    agent_id = Column(Uuid, nullable=True)  # hop-core agent; kept when it's deleted
+    agent_name = Column(String(255), nullable=False)
+    model = Column(String(255), nullable=False, default="")
+    severity = Column(String(8), nullable=False)  # High | Medium | Low
+    title = Column(Text, nullable=False)
+    body = Column(Text, nullable=False, default="")
+    quote = Column(Text, nullable=False, default="")
+    suggestion = Column(Text, nullable=False, default="")
+    on_focus = Column(Boolean, nullable=False, default=False)
+    review_key = Column(String(64), nullable=False, default="")  # agent + focus, for reuse
+    dismissed = Column(Boolean, nullable=False, default=False)
+    dismissed_reason = Column(Text, nullable=False, default="")

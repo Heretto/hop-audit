@@ -85,6 +85,7 @@ class RunDetail(RunListItem):
     recheck_external: bool
     focus: str
     tokens: dict[str, int]
+    agent_stats: dict[str, dict]  # agent id -> name, model, provider, tokens, findings, errors, retries, status
     error: str | None
 
 
