@@ -298,6 +298,7 @@ async def test_agent_stops_after_three_failed_batches(client, user, db, mock, mo
     stats = next(iter(run.agent_stats.values()))
     assert stats["errors"] == 3 and stats["status"] == "stopped"
     assert "stopped after 3 failed batches in a row" in run.stages[2]["detail"]
+    assert run.stages[2]["status"] == "failed" and "analyze again" in run.stages[2]["detail"]
     assert db.query(Page).filter(Page.run_id == run.id, Page.flesch.isnot(None)).count() > 0
 
 

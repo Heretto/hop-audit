@@ -235,7 +235,9 @@ async def _review(db: Session, run: AuditRun, rec, analysis: str, items: list, m
         parts.append(f"{tally.errors:,} failed batches")
     if tally.note:
         parts.append(tally.note)
-    rec.stage(analysis, status="done", detail=f"{mechanical} · " + ", ".join(parts))
+    if tally.failed:
+        parts.append("see the run log, then analyze again")
+    rec.stage(analysis, status="failed" if tally.failed else "done", detail=f"{mechanical} · " + ", ".join(parts))
     rec.log(analysis, "info", f"{', '.join(parts)}; {tally.tokens:,} tokens.")
     db.commit()
 

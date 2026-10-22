@@ -139,6 +139,26 @@ describe('DashboardPage', () => {
     expect(navigate).toHaveBeenCalledWith(['/audits', 'r1', 'progress']);
   });
 
+  it('offers to analyze again when an agent review failed', () => {
+    const d = sampleDashboard();
+    d.run.stages = [
+      ...d.run.stages,
+      {
+        key: 'content_integrity',
+        label: 'Content integrity',
+        status: 'failed',
+        done: 3,
+        total: 4,
+        detail: '',
+      },
+    ];
+    const { page, runs, el } = render(d);
+    expect(page.failedStages()).toEqual(['Content integrity']);
+    expect(el.textContent).toContain("Content integrity didn't complete");
+    page.analyze();
+    expect(runs.control).toHaveBeenCalledWith('r1', 'analyze');
+  });
+
   it('sends active runs to their progress view', () => {
     const { navigate } = render(sampleDashboard({ run: sampleRun({ status: 'running' }) }));
     expect(navigate).toHaveBeenCalledWith(['/audits', 'r1', 'progress'], { replaceUrl: true });

@@ -72,6 +72,11 @@ export class FindingsPage implements OnInit {
   readonly chips = TRIAGE_CHIPS;
 
   readonly findings = computed(() => this.view()?.findings ?? []);
+  /** The integrity stage, when it failed: no answer isn't a clean result. */
+  readonly failure = computed(() => {
+    const stage = this.view()?.run.stages.find((s) => s.key === 'content_integrity');
+    return stage?.status === 'failed' ? stage.detail : null;
+  });
   readonly shown = computed(() => this.findings().filter((f) => matches(f, this.filters())));
   readonly page = computed(() => this.shown().slice(0, this.limit()));
   readonly counts = computed(() => recount(this.findings()));

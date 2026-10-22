@@ -344,3 +344,65 @@ async def test_reanalysis_keeps_a_triage(client, user, db, mock, model):
         await runner.reanalyze(run.id, crawler.Control(), http=http)
     db.expire_all()
     assert {f.id for f in findings(db, run).values()} == ids and len(model.calls) == calls
+
+
+async def test_failed_review_is_not_a_clean_result(client, user, db, mock, model, monkeypatch):
+    """Every batch failing (as with the 'temperature is deprecated' 400s) must not read as 'no issues'."""
+    from hop_core.agents import AiProviderError
+
+    import crawler
+    import discovery
+    import runner
+
+    serve(mock)
+    site, _ = integrity_site(client, user)
+    first = await run_integrity(db, site, user)  # X-01 and friends exist from a good run
+    client.post(f"/api/v1/runs/{first.id}/triage/confirm", headers=user["headers"])
+
+    async def always_400(api_key, model_name, request):
+        raise AiProviderError("Anthropic returned HTTP 400: `temperature` is deprecated for this model.", 400)
+
+    AiProviderRegistry.register("anthropic", always_400)
+    run = await run_integrity(db, site, user, number=2)
+    stage = next(s for s in run.stages if s["key"] == "content_integrity")
+    assert stage["status"] == "failed" and "didn't review this audit" in stage["detail"]
+    assert findings(db, run) == {}
+    assert "integrity" not in run.metrics  # no counts, no 'resolved'
+    assert (run.triage or {}).get("status") != "confirmed"
+    assert any(e.level == "error" and "temperature" in e.message for e in run.log)
+
+    # Fixed: analyzing again reviews it, since triage never started.
+    AiProviderRegistry.register("anthropic", model)
+    async with discovery.client() as http:
+        await runner.reanalyze(run.id, crawler.Control(), http=http)
+    db.expire_all()
+    run = db.get(AuditRun, run.id)
+    assert next(s for s in run.stages if s["key"] == "content_integrity")["status"] == "done"
+    assert "C-01" in findings(db, run) and run.metrics["integrity"]["candidates"] > 0
+
+
+async def test_partial_failure_never_confirms_itself(client, user, db, mock, monkeypatch):
+    from hop_core.agents import AiProviderError
+
+    calls = []
+
+    async def first_fails(api_key, model_name, request):
+        calls.append(1)
+        if len(calls) == 1:
+            raise AiProviderError("overloaded", 400)
+        return GenerationResponse(content="[]", input_tokens=1, output_tokens=1)
+
+    saved = AiProviderRegistry.get("anthropic")
+    AiProviderRegistry.register("anthropic", first_fails)
+    monkeypatch.setattr(review, "RETRY_DELAY", 0)
+    try:
+        serve(mock)
+        site, _ = integrity_site(client, user, categories=["C"])
+        run = await run_integrity(db, site, user)
+    finally:
+        if saved:
+            AiProviderRegistry.register("anthropic", saved)
+    stage = next(s for s in run.stages if s["key"] == "content_integrity")
+    assert stage["status"] == "done" and "1 failed batches" in stage["detail"]
+    assert run.triage == {"status": "pending"}  # nothing found, but not everything was read
+    assert run.metrics["integrity"]["confirmed"] is False

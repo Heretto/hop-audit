@@ -85,6 +85,12 @@ class Tally:
     status: str = "done"
     note: str = ""
     failing: int = 0  # failed batches in a row
+    answered: int = 0  # batches the agent answered
+
+    @property
+    def failed(self) -> bool:
+        """The review can't stand: the agent stopped, or answered nothing."""
+        return self.status == "stopped" or (self.errors > 0 and self.answered == 0)
 
 
 # ── The agent ─────────────────────────────────────────────────────────────────
@@ -356,6 +362,7 @@ class Review:
             self.tally.tokens += (result.input_tokens or 0) + (result.output_tokens or 0)
             found = parse_findings(result.output)
             if found is not None:
+                self.tally.answered += 1
                 return found
             if reasked:
                 self.log(

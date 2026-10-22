@@ -100,6 +100,10 @@ export class DashboardPage implements OnInit {
     this.tree().reduce((n, r) => n + (r.kind === 'section' ? r.matching : 0), 0),
   );
 
+  /** Labels of analyses whose agent review failed on this run. */
+  readonly failedStages = computed(() =>
+    (this.data()?.run.stages ?? []).filter((s) => s.status === 'failed').map((s) => s.label),
+  );
   readonly scoreClass = scoreClass;
   readonly findingsLabel = findingsLabel;
   readonly tokens = tokens;

@@ -442,6 +442,7 @@ async def run_review(db: Session, run: AuditRun, rec, checkpoint, record_stats) 
     reviewer = review.Review(db, run, key, agent, rec.log, lambda d, t: rec.stage(key, done=d, total=t), checkpoint)
     candidates: list[Candidate] = []
     malformed = 0
+    reviewed: set[str] = set()  # pages in batches the reviewer answered
     for n, (task, material, refs) in enumerate(jobs, 1):
         raw = await reviewer.ask(n, material, task)
         if raw is None:
@@ -452,21 +453,37 @@ async def run_review(db: Session, run: AuditRun, rec, checkpoint, record_stats) 
             found, bad = verify(raw, refs, enabled)
             candidates += found
             malformed += bad
+            reviewed |= {page.url for page, _ in refs.values()}
         rec.stage(key, done=n, detail=f"{agent.name} · {len(merge(candidates)):,} candidates so far")
     if malformed:
         rec.log(key, "warn", f"{agent.name}: {malformed} malformed or out-of-scope candidate(s) dropped.")
 
+    tally = reviewer.tally
+    if tally.failed:
+        # Nothing to triage and nothing resolved: no answer isn't a clean bill.
+        record_stats(agent, tally)
+        detail = (
+            f"{agent.name} didn't review this audit: {tally.errors:,} failed batch(es)"
+            + (f", {tally.note}" if tally.note else "")
+            + ". See the run log, then analyze again."
+        )
+        rec.stage(key, status="failed", detail=detail)
+        rec.log(key, "error", detail)
+        db.commit()
+        return
+
     if "T" in enabled:
         candidates += missing_translations(pairs_by_center, by_id, pages_by_center)
-    reviewed = {p.url for v in pages_by_center.values() for p in v}
     findings, resolved = assign(db, run, merge(candidates), reviewed)
     center_names = {str(c.id): c.name for c in centers}
     for f in findings:
         f.locale = locale_label(f.help_center_ids, center_names, f.category)
         f.agent_id, f.agent_name = agent.id, agent.name
         db.add(f)
-    run.triage = {"status": "pending"} if findings else {"status": "confirmed", "confirmed_at": None}
-    run.metrics = {**(run.metrics or {}), "integrity": metrics(findings, resolved, confirmed=not findings)}
+    # Only a complete review with nothing to triage confirms itself.
+    clean = not findings and not tally.errors
+    run.triage = {"status": "confirmed", "confirmed_at": None} if clean else {"status": "pending"}
+    run.metrics = {**(run.metrics or {}), "integrity": metrics(findings, resolved, confirmed=clean)}
     reviewer.tally.findings = len(findings)
     record_stats(agent, reviewer.tally)
 

@@ -50,6 +50,15 @@
         }
       </div>
     }
+    @if (failure(); as detail) {
+      <div class="callout error" role="alert">
+        <mat-icon>error</mat-icon>
+        <span
+          >{{ detail }} <a [routerLink]="['/audits', v.run.id]">Go to the dashboard</a> to analyze
+          again.</span
+        >
+      </div>
+    }
     @if (v.resolved.length) {
       <div class="callout">
         <mat-icon>task_alt</mat-icon>Resolved since the previous audit: {{ v.resolved.join(', ') }}
@@ -208,7 +217,13 @@
           </div>
         } @empty {
           <p class="sub empty">
-            {{ findings().length ? 'No findings match.' : 'The reviewer found no candidates.' }}
+            {{
+              findings().length
+                ? 'No findings match.'
+                : failure()
+                  ? 'No candidates: the review did not run.'
+                  : 'The reviewer found no candidates.'
+            }}
           </p>
         }
         <div class="footer">

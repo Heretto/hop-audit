@@ -56,6 +56,19 @@
           Analyze now
         </button>
       </div>
+    } @else if (failedStages().length && d.run.status === 'completed') {
+      <div class="callout error" role="alert">
+        <mat-icon>error</mat-icon>
+        <span>
+          {{ failedStages().join(', ') }} didn't complete: the agent's model refused or failed (the
+          <a [routerLink]="['/audits', d.run.id, 'progress']">run log</a> says why). Once that's
+          fixed, analyze again: the stored pages are reused, nothing is crawled again.
+        </span>
+        <span class="spacer"></span>
+        <button mat-flat-button color="primary" (click)="analyze()" [disabled]="analyzing()">
+          Analyze again
+        </button>
+      </div>
     }
 
     <div class="kpis">

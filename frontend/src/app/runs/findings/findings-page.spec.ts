@@ -120,6 +120,24 @@ describe('FindingsPage', () => {
     expect(page.limit()).toBe(PAGE_SIZE);
   });
 
+  it('says so when the review did not run', () => {
+    const v = sampleIntegrityView({ findings: [] });
+    v.run.stages = [
+      {
+        key: 'content_integrity',
+        label: 'Content integrity',
+        status: 'failed',
+        done: 3,
+        total: 4,
+        detail: "Content Integrity Reviewer didn't review this audit: 3 failed batch(es).",
+      },
+    ];
+    const { el } = render(v);
+    expect(el.textContent).toContain("didn't review this audit");
+    expect(el.textContent).toContain('No candidates: the review did not run.');
+    expect(el.textContent).not.toContain('The reviewer found no candidates.');
+  });
+
   it('confirms the triage', () => {
     const { fixture, page, runs, el } = render();
     page.confirm();

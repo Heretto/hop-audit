@@ -74,8 +74,12 @@ async def reanalyze(run_id: UUID, control: crawler.Control, http=None) -> None:
     http = http or discovery.client()
     try:
         run.status = "running"
-        # An integrity review would replace the findings someone may have triaged.
-        integrity_review = not db.scalar(select(IntegrityFinding.id).where(IntegrityFinding.run_id == run.id).limit(1))
+        # An integrity review would replace findings someone may have triaged:
+        # redo it only when there are none, or it failed and triage hasn't started.
+        has_findings = db.scalar(select(IntegrityFinding.id).where(IntegrityFinding.run_id == run.id).limit(1))
+        stage = next((s for s in run.stages if s["key"] == "content_integrity"), {})
+        untouched = (run.triage or {}).get("status", "pending") == "pending"
+        integrity_review = not has_findings or (stage.get("status") == "failed" and untouched)
         redo = set(MECHANICAL) | ({"content_integrity"} if integrity_review else set())
         for stage in run.stages:
             if stage["key"] in redo:
