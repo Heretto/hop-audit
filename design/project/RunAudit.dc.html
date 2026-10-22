@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HOP Audit: Run audit</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0}
+:root{--bg-primary:#ffffff;--bg-secondary:#f8f9fb;--bg-tertiary:#f1f3f6;--text-primary:#15181e;--text-secondary:#4d5560;--text-tertiary:#6c7280;--border-default:#e4e7ec;--border-light:#f1f3f6;--border-strong:#d2d6dd;--color-primary:#011627;--color-accent:#16b9a8;--color-accent-bg:#effefb;--color-accent-text:#0f766e;--color-success:#059669;--color-success-bg:#ecfdf5;--color-success-text:#047857;--color-success-border:#a7f3d0;--color-warning:#c07f1c;--color-warning-bg:#fefbf0;--color-warning-text:#714810;--color-warning-border:#fae5ad;--color-error:#dc2626;--color-error-bg:#fef2f2;--color-error-text:#b91c1c;--color-error-border:#fecaca;--font-sans:Inter,system-ui,sans-serif;--font-mono:"Roboto Mono",monospace}
+a{color:#0f766e;text-decoration:none}a:hover{color:#115e59;text-decoration:underline}
+.mi{font-family:"Material Symbols Rounded";font-weight:300;font-size:22px;line-height:1;font-variation-settings:"FILL" 0,"wght" 300,"GRAD" 0,"opsz" 24;display:inline-block;vertical-align:middle;flex:none}
+.card{background:#fff;border:1px solid var(--border-default);border-radius:12px;padding:20px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:16px}
+.btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:8px;font:500 14px var(--font-sans);border:1px solid var(--border-strong);background:#fff;color:var(--text-primary);cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:hover{background:#f1f3f6;text-decoration:none;color:var(--text-primary)}
+.btn.primary{background:var(--color-primary);color:#fff;border-color:var(--color-primary)}.btn.primary:hover{background:#0d2947;color:#fff}
+.btn.big{height:44px;padding:0 20px;font-size:15px}
+.btn .mi{font-size:18px}
+.icon-btn{width:36px;height:36px;border:0;background:transparent;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer}.icon-btn:hover{background:rgba(0,0,0,.04)}
+.sub{font-size:13px;color:var(--text-tertiary)}
+h1{font-size:28px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--text-primary)}h2{font-size:17px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--text-primary)}
+.field{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:500;color:var(--text-secondary)}
+.control{height:44px;border:1px solid var(--border-strong);border-radius:8px;padding:0 12px;font:400 14px var(--font-sans);color:var(--text-primary);background:#fff;box-sizing:border-box;width:100%}
+textarea.control{height:auto;padding:10px 12px;resize:vertical;line-height:1.5}
+.topbar{height:56px;background:#fff;border-bottom:1px solid var(--border-default);display:flex;align-items:center;padding:0 16px;gap:12px;box-sizing:border-box}
+.mono{font-family:var(--font-mono);font-size:13px}
+.seg{display:inline-flex;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;background:#fff}
+.seg button{height:40px;padding:0 16px;border:0;background:transparent;font:500 14px var(--font-sans);color:var(--text-secondary);cursor:pointer;border-right:1px solid var(--border-strong)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--color-primary);color:#fff}
+.row{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--border-default);border-radius:8px;cursor:pointer;background:#fff}
+.row.on{border-color:var(--color-accent);background:var(--color-accent-bg)}
+.row input{accent-color:#011627;width:16px;height:16px;margin:0}
+.check{display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer}
+.check input{accent-color:#011627;width:16px;height:16px;margin:0}
+.score{display:inline-flex;align-items:center;justify-content:center;width:40px;height:24px;border-radius:8px;font-weight:600;font-size:12px}
+.score.good{background:var(--color-success-bg);color:var(--color-success-text)}.score.warn{background:var(--color-warning-bg);color:var(--color-warning-text)}.score.bad{background:var(--color-error-bg);color:var(--color-error-text)}
+.switch{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--text-primary);cursor:pointer}
+.track{width:36px;height:20px;border-radius:9999px;background:var(--color-primary);position:relative;flex:none}
+.track.off{background:var(--border-strong)}
+.knob{position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:9999px;background:#fff}
+.track.off .knob{right:auto;left:2px}
+.card-title{display:flex;flex-direction:column;gap:4px}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column; background: var(--bg-secondary); font-family: var(--font-sans); color: var(--text-primary); font-size: 14px">
+  <header class="topbar">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <span style="width: 36px; height: 36px; border-radius: 8px; background: var(--color-primary); color: #79ECDD; display: flex; align-items: center; justify-content: center"><span class="mi" aria-hidden="true">fact_check</span></span>
+      <span style="font-weight: 600; font-size: 16px">HOP Audit</span>
+    </div>
+    <div style="flex: 1"></div>
+    <button class="icon-btn" aria-label="Account"><span class="mi">account_circle</span></button>
+    <button class="icon-btn" aria-label="Settings"><span class="mi">settings</span></button>
+  </header>
+  <div style="display: flex; flex-wrap: wrap; flex: 1">
+    <dc-import name="Nav" active="sites" hint-size="250px,640px"></dc-import>
+    <main style="flex: 999 1 560px; min-width: 0; padding: 24px 32px 48px 24px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box">
+
+      <a href="Main.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px"><span class="mi" style="font-size: 18px" aria-hidden="true">arrow_back</span>Sites</a>
+      <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h1>Run audit: Heretto Help Center</h1>
+          <span class="sub">Audit the whole site, or rerun a subset. Results merge into the site's current picture; every run is kept in history.</span>
+        </div>
+      </header>
+
+      <div style="display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; align-items: start">
+        <div style="display: flex; flex-direction: column; gap: 20px; min-width: 0">
+
+          <section class="card">
+            <div class="card-title"><h2>Scope</h2><span class="sub">What to analyze this time.</span></div>
+            <div class="seg" role="group" aria-label="Scope">
+              <button type="button" class="{{modeCls.site}}" onClick="{{pickSite}}">Whole site</button>
+              <button type="button" class="{{modeCls.sections}}" onClick="{{pickSections}}">Sections</button>
+              <button type="button" class="{{modeCls.changed}}" onClick="{{pickChanged}}">Changed since last audit</button>
+              <button type="button" class="{{modeCls.pages}}" onClick="{{pickPages}}">Specific pages</button>
+            </div>
+
+            <sc-if value="{{isSections}}" hint-placeholder-val="{{true}}">
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                <div style="display: flex; align-items: center; justify-content: space-between"><span class="sub">9 sections from the sitemap. Last audit's score per section on the right.</span><div style="display: flex; gap: 12px; font-size: 13px"><a href="#all" onClick="{{selectAll}}">Select all</a><a href="#none" onClick="{{selectNone}}">Clear</a></div></div>
+                <sc-for list="{{sections}}" as="s" hint-placeholder-count="9">
+                  <label class="{{s.cls}}">
+                    <input type="checkbox" checked="{{s.on}}" onChange="{{s.toggle}}">
+                    <span class="mono" style="flex: 1">{{s.path}}</span>
+                    <span class="sub">{{s.pages}} pages</span>
+                    <span class="{{s.scoreCls}}">{{s.score}}</span>
+                  </label>
+                </sc-for>
+              </div>
+            </sc-if>
+            <sc-if value="{{isChanged}}" hint-placeholder-val="{{false}}">
+              <div style="display: flex; flex-direction: column; gap: 8px">
+                <span>Pages whose sitemap <span class="mono">lastmod</span> or content hash changed since audit #14 on Oct 21, 2026.</span>
+                <span class="sub">The sitemap will be re-read when the run starts; the count below is from the last check, 2 hours ago.</span>
+              </div>
+            </sc-if>
+            <sc-if value="{{isPages}}" hint-placeholder-val="{{false}}">
+              <label class="field">Page URLs or paths, one per line<textarea class="control mono" rows="6">/authoring/reuse/conrefs
+/api/v2/publish-jobs
+https://help.heretto.com/tutorials/first-map</textarea></label>
+            </sc-if>
+            <sc-if value="{{isSite}}" hint-placeholder-val="{{false}}">
+              <span class="sub">All 1,284 pages in the sitemap plus any new pages the crawler finds, within the include and exclude rules in <a href="SiteSettings.dc.html">site settings</a>.</span>
+            </sc-if>
+          </section>
+
+          <section class="card">
+            <div class="card-title"><h2>Analyses</h2><span class="sub">Each analysis is run by the agent assigned in site settings.</span></div>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+              <label class="check"><input type="checkbox" checked>Readability <span class="sub">· Readability Reviewer</span></label>
+              <label class="check"><input type="checkbox" checked>Links <span class="sub">· Link Validator</span></label>
+              <label class="check"><input type="checkbox" checked>SEO and metadata <span class="sub">· SEO Analyst</span></label>
+              <label class="check"><input type="checkbox" checked>Summary report <span class="sub">· Summary Writer</span></label>
+              <label class="check" style="grid-column: 1 / -1"><input type="checkbox" checked>Content integrity <span class="sub">· Content Integrity Reviewer · all 10 categories</span></label>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--border-default); border-radius: 8px; background: #fbfcfd">
+              <span style="font-size: 13px; font-weight: 500; color: var(--text-secondary)">Help centers to review for content integrity</span>
+              <div style="display: flex; gap: 18px; flex-wrap: wrap">
+                <label class="check"><input type="checkbox" checked>US English <span class="sub">· primary · 1,284 articles</span></label>
+                <label class="check"><input type="checkbox" checked>Deutsch <span class="sub">· vs. English · 1,102 articles</span></label>
+                <label class="check"><input type="checkbox" checked>日本語 <span class="sub">· vs. English · 968 articles</span></label>
+              </div>
+              <span class="sub">Candidates land in Findings for triage; nothing is counted or built until you confirm what counts. A help center that blocks the crawler is reported, never worked around.</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px; padding-top: 4px; border-top: 1px solid var(--border-default)">
+              <label class="switch"><span class="track"><span class="knob"></span></span>Reuse pages crawled on Oct 21 where unchanged (faster, fewer requests)</label>
+              <label class="switch"><span class="track off"><span class="knob"></span></span>Re-check external links even if checked in the last 7 days</label>
+            </div>
+            <label class="field">Focus for this run only <span style="font-weight: 400; color: var(--text-tertiary)">(optional, added to the site's standing focus)</span><textarea class="control" rows="3" placeholder="Example: we renamed 'workspaces' to 'projects' last week; flag any page still using the old term."></textarea></label>
+          </section>
+        </div>
+
+        <aside style="display: flex; flex-direction: column; gap: 20px; min-width: 0">
+          <section class="card" style="border-left: 4px solid var(--color-accent)">
+            <div class="card-title"><h2>This run</h2></div>
+            <div style="display: flex; flex-direction: column; gap: 10px">
+              <div style="display: flex; justify-content: space-between"><span class="sub">Scope</span><span style="font-weight: 500; text-align: right">{{scopeLabel}}</span></div>
+              <div style="display: flex; justify-content: space-between"><span class="sub">Pages to analyze</span><span style="font-weight: 500">{{pageCount}}</span></div>
+              <div style="display: flex; justify-content: space-between"><span class="sub">Estimated duration</span><span style="font-weight: 500">{{duration}}</span></div>
+              <div style="display: flex; justify-content: space-between"><span class="sub">Estimated tokens</span><span style="font-weight: 500">{{tokens}}</span></div>
+              <div style="display: flex; justify-content: space-between"><span class="sub">Help centers</span><span style="font-weight: 500">3</span></div>
+              <div style="display: flex; justify-content: space-between"><span class="sub">Agents</span><span style="font-weight: 500">5</span></div>
+            </div>
+            <a class="btn primary big" href="AuditRunning.dc.html" style="justify-content: center"><span class="mi" aria-hidden="true">play_arrow</span>Start audit</a>
+            <span class="sub">Runs in the background. You can leave this page; progress shows on the site row and under Audits.</span>
+          </section>
+          <section class="card">
+            <div class="card-title"><h2>Recent runs</h2></div>
+            <div style="display: flex; flex-direction: column; gap: 8px; font-size: 13px">
+              <div style="display: flex; justify-content: space-between; gap: 8px"><a href="Dashboard.dc.html">#14 · Oct 21</a><span class="sub">Whole site · 42 min</span></div>
+              <div style="display: flex; justify-content: space-between; gap: 8px"><a href="Dashboard.dc.html">#13 · Oct 14</a><span class="sub">Whole site · 44 min</span></div>
+              <div style="display: flex; justify-content: space-between; gap: 8px"><a href="Dashboard.dc.html">#12 · Oct 9</a><span class="sub">/api · 9 min</span></div>
+              <div style="display: flex; justify-content: space-between; gap: 8px"><a href="Dashboard.dc.html">#11 · Oct 7</a><span class="sub">Changed pages (61) · 3 min</span></div>
+            </div>
+            <a href="History.dc.html" style="font-size: 13px">All runs</a>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.sections = [
+      ['/getting-started', 48, 88], ['/authoring', 312, 79], ['/publishing', 187, 84],
+      ['/administration', 143, 81], ['/api', 296, 71], ['/integrations', 88, 86],
+      ['/release-notes', 142, 90], ['/tutorials', 54, 77], ['/glossary', 14, 93],
+    ];
+    this.state = { mode: 'sections', on: { '/authoring': true, '/api': true } };
+  }
+  renderVals() {
+    const { mode, on } = this.state;
+    const setMode = (m) => () => this.setState({ mode: m });
+    const sections = this.sections.map(([path, pages, score]) => ({
+      path, pages, score,
+      on: !!on[path],
+      cls: 'row' + (on[path] ? ' on' : ''),
+      scoreCls: 'score ' + (score >= 80 ? 'good' : score >= 70 ? 'warn' : 'bad'),
+      toggle: () => this.setState({ on: { ...on, [path]: !on[path] } }),
+    }));
+    const picked = sections.filter((s) => s.on);
+    const count = mode === 'site' ? 1284 : mode === 'changed' ? 61 : mode === 'pages' ? 3
+      : picked.reduce((n, s) => n + s.pages, 0);
+    const scopeLabel = mode === 'site' ? 'Whole site' : mode === 'changed' ? 'Changed pages'
+      : mode === 'pages' ? 'Listed pages' : picked.length ? picked.length + ' of 9 sections' : 'No sections chosen';
+    const minutes = Math.max(1, Math.round(count * 42 / 1284));
+    const fmt = (n) => n.toLocaleString('en-US');
+    const cls = (m) => (m === mode ? 'on' : '');
+    return {
+      modeCls: { site: cls('site'), sections: cls('sections'), changed: cls('changed'), pages: cls('pages') },
+      isSite: mode === 'site', isSections: mode === 'sections', isChanged: mode === 'changed', isPages: mode === 'pages',
+      pickSite: setMode('site'), pickSections: setMode('sections'), pickChanged: setMode('changed'), pickPages: setMode('pages'),
+      selectAll: (e) => { e.preventDefault(); this.setState({ on: Object.fromEntries(this.sections.map((s) => [s[0], true])) }); },
+      selectNone: (e) => { e.preventDefault(); this.setState({ on: {} }); },
+      sections, scopeLabel,
+      pageCount: fmt(count),
+      duration: minutes < 60 ? 'about ' + minutes + ' min' : 'about ' + (minutes / 60).toFixed(1) + ' h',
+      tokens: (count * 1400 / 1e6).toFixed(2) + 'M',
+    };
+  }
+}
+</script>
+</body>
+</html>

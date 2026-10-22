@@ -1,0 +1,17 @@
+# Tool configuration only; dependencies are in requirements*.txt.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["B008"]  # FastAPI's Depends() in defaults
+
+[tool.ruff.lint.isort]
+known-first-party = ["catalog", "main", "migrate", "models", "routes", "seed", "settings"]

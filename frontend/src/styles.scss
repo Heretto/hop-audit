@@ -1,0 +1,7 @@
+// The hop-ui theme is the entire required global stylesheet (hop-core
+// DESIGN-SYSTEM.md §1). The page partial adds HOP Audit's shared page
+// patterns from the mockups, on the theme's tokens.
+@use '@heretto/hop-ui/theme' as hop;
+@use 'app/shared/page';
+
+@include hop.hop-core-theme();

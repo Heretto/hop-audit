@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HOP Audit: Page detail</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0}
+:root{--bg-primary:#ffffff;--bg-secondary:#f8f9fb;--bg-tertiary:#f1f3f6;--text-primary:#15181e;--text-secondary:#4d5560;--text-tertiary:#6c7280;--border-default:#e4e7ec;--border-light:#f1f3f6;--border-strong:#d2d6dd;--color-primary:#011627;--color-accent:#16b9a8;--color-accent-bg:#effefb;--color-accent-text:#0f766e;--color-success:#059669;--color-success-bg:#ecfdf5;--color-success-text:#047857;--color-success-border:#a7f3d0;--color-warning:#c07f1c;--color-warning-bg:#fefbf0;--color-warning-text:#714810;--color-warning-border:#fae5ad;--color-error:#dc2626;--color-error-bg:#fef2f2;--color-error-text:#b91c1c;--color-error-border:#fecaca;--font-sans:Inter,system-ui,sans-serif;--font-mono:"Roboto Mono",monospace}
+a{color:#0f766e;text-decoration:none}a:hover{color:#115e59;text-decoration:underline}
+.mi{font-family:"Material Symbols Rounded";font-weight:300;font-size:22px;line-height:1;font-variation-settings:"FILL" 0,"wght" 300,"GRAD" 0,"opsz" 24;display:inline-block;vertical-align:middle;flex:none}
+.card{background:#fff;border:1px solid var(--border-default);border-radius:12px;padding:20px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px}
+.btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:8px;font:500 14px var(--font-sans);border:1px solid var(--border-strong);background:#fff;color:var(--text-primary);cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:hover{background:#f1f3f6;text-decoration:none;color:var(--text-primary)}
+.btn.primary{background:var(--color-primary);color:#fff;border-color:var(--color-primary)}.btn.primary:hover{background:#0d2947;color:#fff}
+.btn .mi{font-size:18px}
+.icon-btn{width:36px;height:36px;border:0;background:transparent;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer}.icon-btn:hover{background:rgba(0,0,0,.04)}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:9999px;font-size:12px;font-weight:500;background:var(--bg-tertiary);color:var(--text-secondary);white-space:nowrap}
+table{border-collapse:collapse;width:100%;font-size:13px}th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-tertiary);padding:8px 10px;border-bottom:1px solid var(--border-default);white-space:nowrap}td{padding:9px 10px;border-bottom:1px solid var(--border-light);vertical-align:top}tbody tr:last-child td{border-bottom:0}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.sub{font-size:13px;color:var(--text-tertiary)}
+h1{font-size:26px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--text-primary)}h2{font-size:17px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--text-primary)}h3{font-size:14px;font-weight:600;margin:0}
+.topbar{height:56px;background:#fff;border-bottom:1px solid var(--border-default);display:flex;align-items:center;padding:0 16px;gap:12px;box-sizing:border-box}
+.mono{font-family:var(--font-mono);font-size:13px}
+.score{display:inline-flex;align-items:center;justify-content:center;min-width:40px;height:26px;border-radius:8px;font-weight:600;font-size:13px;padding:0 6px;box-sizing:border-box}
+.score.good{background:var(--color-success-bg);color:var(--color-success-text)}.score.warn{background:var(--color-warning-bg);color:var(--color-warning-text)}.score.bad{background:var(--color-error-bg);color:var(--color-error-text)}
+.stat{display:flex;flex-direction:column;gap:2px}.stat b{font-size:20px;font-weight:600;letter-spacing:-.02em}
+.sev{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap}
+.sev.err{background:var(--color-error-bg);color:var(--color-error-text)}.sev.warn{background:var(--color-warning-bg);color:var(--color-warning-text)}.sev.ok{background:var(--color-success-bg);color:var(--color-success-text)}.sev.info{background:var(--color-accent-bg);color:var(--color-accent-text)}
+.finding{display:flex;flex-direction:column;gap:6px;padding:14px 0;border-bottom:1px solid var(--border-light)}
+.finding:last-child{border-bottom:0;padding-bottom:0}
+.finding p{margin:0;color:var(--text-secondary);line-height:1.5}
+.quote{border-left:3px solid var(--border-strong);padding:4px 12px;color:var(--text-secondary);font-size:13px;font-style:italic}
+.tab{height:40px;padding:0 4px;border:0;background:transparent;font:500 14px var(--font-sans);color:var(--text-secondary);cursor:pointer;border-bottom:2px solid transparent;margin-right:20px}
+.tab.on{color:var(--text-primary);border-bottom-color:var(--color-accent)}
+.meter{height:6px;border-radius:9999px;background:var(--bg-tertiary);overflow:hidden}.meter span{display:block;height:100%;border-radius:9999px}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column; background: var(--bg-secondary); font-family: var(--font-sans); color: var(--text-primary); font-size: 14px">
+  <header class="topbar">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <span style="width: 36px; height: 36px; border-radius: 8px; background: var(--color-primary); color: #79ECDD; display: flex; align-items: center; justify-content: center"><span class="mi" aria-hidden="true">fact_check</span></span>
+      <span style="font-weight: 600; font-size: 16px">HOP Audit</span>
+    </div>
+    <div style="flex: 1"></div>
+    <button class="icon-btn" aria-label="Account"><span class="mi">account_circle</span></button>
+    <button class="icon-btn" aria-label="Settings"><span class="mi">settings</span></button>
+  </header>
+  <div style="display: flex; flex-wrap: wrap; flex: 1">
+    <dc-import name="Nav" active="sites" hint-size="250px,640px"></dc-import>
+    <main style="flex: 999 1 560px; min-width: 0; padding: 24px 32px 48px 24px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box">
+
+      <a href="Dashboard.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px"><span class="mi" style="font-size: 18px" aria-hidden="true">arrow_back</span>Heretto Help Center · Audit #14</a>
+      <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap">
+        <div style="display: flex; flex-direction: column; gap: 6px; min-width: 0">
+          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap"><h1>Reuse content with conrefs</h1><span class="score bad" style="height: 30px; font-size: 15px">61</span></div>
+          <span class="mono sub" style="font-size: 13px">https://help.heretto.com/authoring/reuse/conrefs <a href="https://help.heretto.com/authoring/reuse/conrefs" aria-label="Open page in a new tab"><span class="mi" style="font-size: 16px" aria-hidden="true">open_in_new</span></a></span>
+          <span class="sub">Section /authoring · crawled Oct 21, 2026 07:06 · HTTP 200 · 1,842 words · lastmod Sep 30, 2026 · score 64 in #13 (−3)</span>
+        </div>
+        <div style="display: flex; gap: 8px">
+          <a class="btn" href="History.dc.html"><span class="mi" aria-hidden="true">timeline</span>Page history</a>
+          <a class="btn primary" href="RunAudit.dc.html"><span class="mi" aria-hidden="true">refresh</span>Re-analyze page</a>
+        </div>
+      </header>
+
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start">
+        <section class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center"><h2>Readability</h2><span class="sev warn">Difficult</span></div>
+          <div style="display: flex; align-items: baseline; gap: 8px"><span style="font-size: 36px; font-weight: 600; letter-spacing: -.02em">44.2</span><span class="sub">Flesch Reading Ease · section avg 55.7</span></div>
+          <div class="meter"><span style="width: 44%; background: var(--color-warning)"></span></div>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+            <div class="stat"><b>12.8</b><span class="sub">Flesch–Kincaid grade</span></div>
+            <div class="stat"><b>25.9</b><span class="sub">Words per sentence</span></div>
+            <div class="stat"><b>18%</b><span class="sub">Passive sentences</span></div>
+            <div class="stat"><b>71</b><span class="sub">Sentences · 1,842 words</span></div>
+          </div>
+          <span class="sub">Tutorials target 60+; reference pages may be denser (site focus). This page is a task topic, so 60+ applies.</span>
+        </section>
+
+        <section class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center"><h2>Links</h2><span class="sev err">2 broken</span></div>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+            <div class="stat"><b>34</b><span class="sub">Total</span></div>
+            <div class="stat"><b>26</b><span class="sub">Internal</span></div>
+            <div class="stat"><b>8</b><span class="sub">External</span></div>
+          </div>
+          <table>
+            <thead><tr><th>Target</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td><span class="mono">/authoring/reuse/conref-push</span><br><span class="sub">anchor text "conref push"</span></td><td><span class="sev err">404</span></td></tr>
+              <tr><td><span class="mono">https://docs.oasis-open.org/dita/v1.2/…</span><br><span class="sub">anchor text "DITA 1.2 spec"</span></td><td><span class="sev err">410</span></td></tr>
+              <tr><td><span class="mono">/publishing/presets#filters</span><br><span class="sub">anchor not found on target</span></td><td><span class="sev warn">Anchor</span></td></tr>
+              <tr><td><span class="mono">/authoring/reuse/keys</span><br><span class="sub">301 → /authoring/reuse/keys-and-keydefs</span></td><td><span class="sev warn">Redirect</span></td></tr>
+            </tbody>
+          </table>
+          <a href="#links" style="font-size: 13px">All 34 links</a>
+        </section>
+
+        <section class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center"><h2>SEO and metadata</h2><span class="sev warn">3 issues</span></div>
+          <table>
+            <tbody>
+              <tr><td>Title</td><td><span class="sev warn">71 chars</span></td></tr>
+              <tr><td>Meta description</td><td><span class="sev err">Missing</span></td></tr>
+              <tr><td>Canonical URL</td><td><span class="sev ok">OK</span></td></tr>
+              <tr><td>H1</td><td><span class="sev ok">1</span></td></tr>
+              <tr><td>Heading order</td><td><span class="sev warn">H2 → H4 skip</span></td></tr>
+              <tr><td>Images without alt</td><td><span class="sev err">3 of 7</span></td></tr>
+              <tr><td>Open Graph</td><td><span class="sev ok">OK</span></td></tr>
+              <tr><td>Indexable</td><td><span class="sev ok">Yes</span></td></tr>
+            </tbody>
+          </table>
+          <div style="display: flex; flex-direction: column; gap: 4px"><span class="sub">Title as crawled</span><span style="font-size: 13px">Reuse content with conrefs | Authoring | Heretto Help Center | Heretto CCMS</span></div>
+        </section>
+      </div>
+
+      <section class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap"><div style="display: flex; flex-direction: column; gap: 2px"><h2>Content integrity findings involving this page (2)</h2><span class="sub">Confirmed in triage. Quotes are exact; the other article is named by slug.</span></div><a href="Findings.dc.html" style="font-size: 13px">All findings and triage</a></div>
+        <table>
+          <thead><tr><th>ID</th><th>Severity</th><th>Issue</th><th>This page</th><th>Other article</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">C-04</td><td><span class="sev err">High</span></td><td>Branch lock behaviour stated both ways</td><td><i>"Pushing a conref into a locked branch is rejected."</i></td><td><i>"Branches never lock; a queued publish job reads a snapshot."</i> <span class="mono sub">/publishing/deploy/publish</span></td></tr>
+            <tr><td class="mono">T-02</td><td><span class="sev warn">Medium</span></td><td>German version omits the "Limits" section</td><td>Five sections, including Limits (3 paragraphs)</td><td>Four sections; Limits is absent <span class="mono sub">/de/authoring/reuse/conrefs</span></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="card" style="gap: 0">
+        <div style="display: flex; align-items: center; border-bottom: 1px solid var(--border-default); margin-bottom: 4px">
+          <button class="tab on">Agent findings · 5</button>
+          <button class="tab">Headings outline</button>
+          <button class="tab">Crawled HTML</button>
+          <button class="tab">Raw metrics (JSON)</button>
+        </div>
+        <div class="finding">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap"><span class="sev err">High</span><h3>Three sentences over 45 words in the "Push conrefs" procedure</h3><span class="sub">Readability Reviewer · Claude Sonnet 4.5</span></div>
+          <p>Steps 4, 6 and 9 each pack a condition, the action and a caveat into one sentence. Split each into the action, then a note. Doing so for these three alone would lift the page to about Flesch 51.</p>
+          <div class="quote">"If the target element is inside a map that has been branched for a release and the branch is locked, which happens automatically when a publish job is queued against it, the push will be rejected unless…"</div>
+        </div>
+        <div class="finding">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap"><span class="sev err">High</span><h3>Meta description missing</h3><span class="sub">SEO Analyst · GPT-5</span></div>
+          <p>Search results will show an arbitrary excerpt. Suggested description (154 chars): "Reuse a paragraph, table or step across topics with a conref. Learn when to pull, when to push, and how to keep conref targets valid after a branch."</p>
+        </div>
+        <div class="finding">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap"><span class="sev warn">Medium</span><span class="sev info">Site focus</span><h3>Mentions "Heretto Publisher"</h3><span class="sub">Readability Reviewer · Claude Sonnet 4.5</span></div>
+          <p>The note under "Conrefs in published output" still says Heretto Publisher. The product was renamed Deploy in 2024 (site focus item 2). Replace both occurrences.</p>
+        </div>
+        <div class="finding">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap"><span class="sev warn">Medium</span><h3>Images 3, 5 and 7 have no alt text</h3><span class="sub">SEO Analyst · GPT-5</span></div>
+          <p>All three are screenshots of the conref dialog. Suggested alt text is in the raw metrics for each image.</p>
+        </div>
+        <div class="finding">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap"><span class="sev warn">Low</span><h3>Heading jumps from H2 "Push conrefs" to H4 "Limits"</h3><span class="sub">SEO Analyst · GPT-5</span></div>
+          <p>Promote "Limits" to H3, or add an H3 above it. Screen readers and the search index both use the heading tree.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1560}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HOP Audit: Audit history</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0}
+:root{--bg-primary:#ffffff;--bg-secondary:#f8f9fb;--bg-tertiary:#f1f3f6;--text-primary:#15181e;--text-secondary:#4d5560;--text-tertiary:#6c7280;--border-default:#e4e7ec;--border-light:#f1f3f6;--border-strong:#d2d6dd;--color-primary:#011627;--color-accent:#16b9a8;--color-accent-bg:#effefb;--color-accent-text:#0f766e;--color-success:#059669;--color-success-bg:#ecfdf5;--color-success-text:#047857;--color-warning:#c07f1c;--color-warning-bg:#fefbf0;--color-warning-text:#714810;--color-error:#dc2626;--color-error-bg:#fef2f2;--color-error-text:#b91c1c;--font-sans:Inter,system-ui,sans-serif;--font-mono:"Roboto Mono",monospace}
+a{color:#0f766e;text-decoration:none}a:hover{color:#115e59;text-decoration:underline}
+.mi{font-family:"Material Symbols Rounded";font-weight:300;font-size:22px;line-height:1;font-variation-settings:"FILL" 0,"wght" 300,"GRAD" 0,"opsz" 24;display:inline-block;vertical-align:middle;flex:none}
+.card{background:#fff;border:1px solid var(--border-default);border-radius:12px;padding:20px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px}
+.btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:8px;font:500 14px var(--font-sans);border:1px solid var(--border-strong);background:#fff;color:var(--text-primary);cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:hover{background:#f1f3f6;text-decoration:none;color:var(--text-primary)}
+.btn.primary{background:var(--color-primary);color:#fff;border-color:var(--color-primary)}.btn.primary:hover{background:#0d2947;color:#fff}
+.btn .mi{font-size:18px}
+.icon-btn{width:36px;height:36px;border:0;background:transparent;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer}.icon-btn:hover{background:rgba(0,0,0,.04)}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:9999px;font-size:12px;font-weight:500;background:var(--bg-tertiary);color:var(--text-secondary);white-space:nowrap}
+.chip.running{background:var(--color-accent-bg);color:var(--color-accent-text)}.chip.completed{background:var(--color-success-bg);color:var(--color-success-text)}.chip.failed{background:var(--color-error-bg);color:var(--color-error-text)}
+table{border-collapse:collapse;width:100%;font-size:14px}th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-tertiary);padding:10px 12px;border-bottom:1px solid var(--border-default);white-space:nowrap}td{padding:11px 12px;border-bottom:1px solid var(--border-light);vertical-align:middle}tbody tr:last-child td{border-bottom:0}tbody tr:hover td{background:rgba(0,0,0,.02)}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.sub{font-size:13px;color:var(--text-tertiary)}
+h1{font-size:28px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--text-primary)}h2{font-size:17px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--text-primary)}
+.topbar{height:56px;background:#fff;border-bottom:1px solid var(--border-default);display:flex;align-items:center;padding:0 16px;gap:12px;box-sizing:border-box}
+.mono{font-family:var(--font-mono);font-size:13px}
+.score{display:inline-flex;align-items:center;justify-content:center;min-width:40px;height:26px;border-radius:8px;font-weight:600;font-size:13px;padding:0 6px;box-sizing:border-box}
+.score.good{background:var(--color-success-bg);color:var(--color-success-text)}.score.warn{background:var(--color-warning-bg);color:var(--color-warning-text)}.score.bad{background:var(--color-error-bg);color:var(--color-error-text)}
+.d{font-size:12px;font-weight:500}.d.good{color:var(--color-success-text)}.d.bad{color:var(--color-error-text)}.d.flat{color:var(--text-tertiary)}
+.control{height:40px;border:1px solid var(--border-strong);border-radius:8px;padding:0 12px;font:400 14px var(--font-sans);color:var(--text-primary);background:#fff;box-sizing:border-box}
+.filter{display:flex;align-items:center;gap:8px;height:36px;border:1px solid var(--border-strong);border-radius:8px;padding:0 10px;color:var(--text-tertiary);font-size:14px;background:#fff;box-sizing:border-box}
+.spark{display:flex;align-items:flex-end;gap:3px;height:40px}
+.spark span{display:block;width:14px;background:var(--color-accent);border-radius:3px 3px 0 0;opacity:.85}
+.spark span.cur{background:var(--color-primary);opacity:1}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column; background: var(--bg-secondary); font-family: var(--font-sans); color: var(--text-primary); font-size: 14px">
+  <header class="topbar">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <span style="width: 36px; height: 36px; border-radius: 8px; background: var(--color-primary); color: #79ECDD; display: flex; align-items: center; justify-content: center"><span class="mi" aria-hidden="true">fact_check</span></span>
+      <span style="font-weight: 600; font-size: 16px">HOP Audit</span>
+    </div>
+    <div style="flex: 1"></div>
+    <button class="icon-btn" aria-label="Account"><span class="mi">account_circle</span></button>
+    <button class="icon-btn" aria-label="Settings"><span class="mi">settings</span></button>
+  </header>
+  <div style="display: flex; flex-wrap: wrap; flex: 1">
+    <dc-import name="Nav" active="audits" hint-size="250px,640px"></dc-import>
+    <main style="flex: 999 1 560px; min-width: 0; padding: 24px 32px 48px 24px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box">
+
+      <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h1>Audits</h1>
+          <span class="sub">Every run, for every site. Pick two to compare, or open one for its dashboard, findings and report. Issue IDs are stable across runs, so a finding fixed since the last audit shows as resolved. Runs are kept for 12 months.</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center">
+          <label class="filter"><span class="sub">Site</span><select aria-label="Site" style="border: 0; outline: 0; font: inherit; background: transparent; color: var(--text-primary)"><option selected>Heretto Help Center</option><option>Developer Portal</option><option>All sites</option></select></label>
+          <a class="btn primary" href="RunAudit.dc.html"><span class="mi" aria-hidden="true">play_arrow</span>Run audit</a>
+        </div>
+      </header>
+
+      <section class="card">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap">
+          <div style="display: flex; flex-direction: column; gap: 4px"><h2>Score over time</h2><span class="sub">Whole-site runs only; partial reruns update the site picture but aren't charted.</span></div>
+          <div style="display: flex; gap: 24px">
+            <div style="display: flex; flex-direction: column"><span style="font-size: 20px; font-weight: 600">82</span><span class="sub">Current score</span></div>
+            <div style="display: flex; flex-direction: column"><span style="font-size: 20px; font-weight: 600; color: var(--color-success-text)">+11</span><span class="sub">Since first audit (Aug 12)</span></div>
+            <div style="display: flex; flex-direction: column"><span style="font-size: 20px; font-weight: 600">14</span><span class="sub">Runs · 9 whole-site</span></div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: flex-end; gap: 28px; padding: 8px 4px 0">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><div class="spark"><span style="height: 71%"></span></div><span class="sub">#1 · 71</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><div class="spark"><span style="height: 73%"></span></div><span class="sub">#2 · 73</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><div class="spark"><span style="height: 72%"></span></div><span class="sub">#4 · 72</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><div class="spark"><span style="height: 75%"></span></div><span class="sub">#5 · 75</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><div class="spark"><span style="height: 76%"></span></div><span class="sub">#7 · 76</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><div class="spark"><span style="height: 78%"></span></div><span class="sub">#9 · 78</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><div class="spark"><span style="height: 77%"></span></div><span class="sub">#10 · 77</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><div class="spark"><span style="height: 79%"></span></div><span class="sub">#13 · 79</span></div>
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 4px"><div class="spark"><span class="cur" style="height: 82%"></span></div><span class="sub">#14 · 82</span></div>
+        </div>
+      </section>
+
+      <div style="display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; align-items: start">
+        <section class="card" style="padding: 0; gap: 0">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border-default)"><h2>Runs</h2><span class="sub">2 selected · <a href="#compare">Compare</a></span></div>
+          <div style="overflow-x: auto">
+          <table>
+            <thead><tr><th></th><th>Run</th><th>Scope</th><th>Trigger</th><th class="num">Pages</th><th class="num">Duration</th><th class="num">Score</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              <tr><td><input type="checkbox" aria-label="Select #15" style="accent-color: #011627"></td><td><a href="AuditRunning.dc.html">#15 · Oct 22 09:14</a></td><td class="sub">/authoring, /api</td><td class="sub">Manual</td><td class="num">608</td><td class="num sub">9 min…</td><td class="num"><span class="sub">—</span></td><td><span class="chip running">Running · 61%</span></td><td><a class="icon-btn" href="AuditRunning.dc.html" aria-label="Progress"><span class="mi">pending</span></a></td></tr>
+              <tr><td><input type="checkbox" checked aria-label="Select #14" style="accent-color: #011627"></td><td><a href="Dashboard.dc.html">#14 · Oct 21 07:00</a></td><td class="sub">Whole site</td><td class="sub">Scheduled</td><td class="num">1,284</td><td class="num sub">42 min</td><td class="num"><span class="score good">82</span> <span class="d good">+3</span></td><td><span class="chip completed">Completed</span></td><td><div style="display: flex; justify-content: flex-end"><a class="icon-btn" href="Dashboard.dc.html" aria-label="Dashboard"><span class="mi">analytics</span></a><a class="icon-btn" href="Report.dc.html" aria-label="Report"><span class="mi">description</span></a></div></td></tr>
+              <tr><td><input type="checkbox" checked aria-label="Select #13" style="accent-color: #011627"></td><td><a href="Dashboard.dc.html">#13 · Oct 14 07:00</a></td><td class="sub">Whole site</td><td class="sub">Scheduled</td><td class="num">1,278</td><td class="num sub">44 min</td><td class="num"><span class="score warn">79</span> <span class="d good">+2</span></td><td><span class="chip completed">Completed</span></td><td><div style="display: flex; justify-content: flex-end"><a class="icon-btn" href="Dashboard.dc.html" aria-label="Dashboard"><span class="mi">analytics</span></a><a class="icon-btn" href="Report.dc.html" aria-label="Report"><span class="mi">description</span></a></div></td></tr>
+              <tr><td><input type="checkbox" aria-label="Select #12" style="accent-color: #011627"></td><td><a href="Dashboard.dc.html">#12 · Oct 9 15:22</a></td><td class="sub">/api</td><td class="sub">Manual</td><td class="num">296</td><td class="num sub">9 min</td><td class="num"><span class="score warn">70</span> <span class="d flat">section</span></td><td><span class="chip completed">Completed</span></td><td><div style="display: flex; justify-content: flex-end"><a class="icon-btn" href="Dashboard.dc.html" aria-label="Dashboard"><span class="mi">analytics</span></a></div></td></tr>
+              <tr><td><input type="checkbox" aria-label="Select #11" style="accent-color: #011627"></td><td><a href="Dashboard.dc.html">#11 · Oct 7 11:03</a></td><td class="sub">Changed pages (61)</td><td class="sub">Manual</td><td class="num">61</td><td class="num sub">3 min</td><td class="num"><span class="sub">—</span></td><td><span class="chip completed">Completed</span></td><td><div style="display: flex; justify-content: flex-end"><a class="icon-btn" href="Dashboard.dc.html" aria-label="Dashboard"><span class="mi">analytics</span></a></div></td></tr>
+              <tr><td><input type="checkbox" aria-label="Select #10" style="accent-color: #011627"></td><td><a href="Dashboard.dc.html">#10 · Oct 7 07:00</a></td><td class="sub">Whole site</td><td class="sub">Scheduled</td><td class="num">1,270</td><td class="num sub">41 min</td><td class="num"><span class="score warn">77</span> <span class="d bad">−1</span></td><td><span class="chip completed">Completed</span></td><td><div style="display: flex; justify-content: flex-end"><a class="icon-btn" href="Dashboard.dc.html" aria-label="Dashboard"><span class="mi">analytics</span></a><a class="icon-btn" href="Report.dc.html" aria-label="Report"><span class="mi">description</span></a></div></td></tr>
+              <tr><td><input type="checkbox" aria-label="Select #8" style="accent-color: #011627"></td><td><a href="Dashboard.dc.html">#8 · Sep 23 07:00</a></td><td class="sub">Whole site</td><td class="sub">Scheduled</td><td class="num">—</td><td class="num sub">2 min</td><td class="num"><span class="sub">—</span></td><td><span class="chip failed">Failed</span></td><td><div style="display: flex; justify-content: flex-end"><a class="icon-btn" href="AuditRunning.dc.html" aria-label="Run log"><span class="mi">bug_report</span></a></div></td></tr>
+            </tbody>
+          </table>
+          </div>
+          <div style="padding: 12px 16px; border-top: 1px solid var(--border-default)"><span class="sub">#8 failed: the Anthropic credential had expired. Fixed under <a href="Credentials.dc.html">Credentials</a>.</span></div>
+        </section>
+
+        <section class="card" id="compare">
+          <div style="display: flex; flex-direction: column; gap: 4px"><h2>Compare #13 → #14</h2><span class="sub">Oct 14 to Oct 21 · both whole-site runs</span></div>
+          <table>
+            <thead><tr><th>Metric</th><th class="num">#13</th><th class="num">#14</th><th class="num">Change</th></tr></thead>
+            <tbody>
+              <tr><td>Site score</td><td class="num">79</td><td class="num">82</td><td class="num"><span class="d good">+3</span></td></tr>
+              <tr><td>Pages analyzed</td><td class="num">1,278</td><td class="num">1,284</td><td class="num"><span class="d flat">+6</span></td></tr>
+              <tr><td>Avg Flesch Reading Ease</td><td class="num">57.2</td><td class="num">58.4</td><td class="num"><span class="d good">+1.2</span></td></tr>
+              <tr><td>Pages under Flesch 50</td><td class="num">259</td><td class="num">241</td><td class="num"><span class="d good">−18</span></td></tr>
+              <tr><td>Broken links</td><td class="num">51</td><td class="num">37</td><td class="num"><span class="d good">−14</span></td></tr>
+              <tr><td>Redirected links</td><td class="num">74</td><td class="num">96</td><td class="num"><span class="d bad">+22</span></td></tr>
+              <tr><td>SEO issues</td><td class="num">103</td><td class="num">112</td><td class="num"><span class="d bad">+9</span></td></tr>
+              <tr><td>Confirmed integrity issues</td><td class="num">24</td><td class="num">21</td><td class="num"><span class="d good">−3</span></td></tr>
+              <tr><td>High severity</td><td class="num">3</td><td class="num">2</td><td class="num"><span class="d good">−1</span></td></tr>
+              <tr><td>Items for review</td><td class="num">4</td><td class="num">3</td><td class="num"><span class="d flat">−1</span></td></tr>
+              <tr><td>Agent findings</td><td class="num">238</td><td class="num">214</td><td class="num"><span class="d good">−24</span></td></tr>
+              <tr><td>Focus findings</td><td class="num">43</td><td class="num">31</td><td class="num"><span class="d good">−12</span></td></tr>
+              <tr><td>Tokens</td><td class="num">1.9M</td><td class="num">1.8M</td><td class="num"><span class="d flat">−0.1M</span></td></tr>
+            </tbody>
+          </table>
+          <div style="display: flex; flex-direction: column; gap: 6px; font-size: 13px">
+            <strong>Pages that changed most</strong>
+            <div style="display: flex; justify-content: space-between"><a href="PageDetail.dc.html">/authoring/topics/create-a-topic</a><span><span class="d good">+19</span> <span class="sub">67 → 86</span></span></div>
+            <div style="display: flex; justify-content: space-between"><a href="PageDetail.dc.html">/publishing/presets</a><span><span class="d bad">−11</span> <span class="sub">83 → 72</span></span></div>
+            <div style="display: flex; justify-content: space-between"><a href="PageDetail.dc.html">/authoring/reuse/conrefs</a><span><span class="d bad">−3</span> <span class="sub">64 → 61</span></span></div>
+          </div>
+          <div style="display: flex; gap: 8px"><button class="btn"><span class="mi" aria-hidden="true">download</span>Export comparison (CSV)</button><button class="btn"><span class="mi" aria-hidden="true">swap_horiz</span>Change runs</button></div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

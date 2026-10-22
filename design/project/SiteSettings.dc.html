@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HOP Audit: Site settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0}
+:root{--bg-primary:#ffffff;--bg-secondary:#f8f9fb;--bg-tertiary:#f1f3f6;--text-primary:#15181e;--text-secondary:#4d5560;--text-tertiary:#6c7280;--border-default:#e4e7ec;--border-light:#f1f3f6;--border-strong:#d2d6dd;--color-primary:#011627;--color-accent:#16b9a8;--color-accent-bg:#effefb;--color-accent-text:#0f766e;--color-success:#059669;--color-success-bg:#ecfdf5;--color-success-text:#047857;--color-success-border:#a7f3d0;--color-warning:#c07f1c;--color-warning-bg:#fefbf0;--color-warning-text:#714810;--color-warning-border:#fae5ad;--color-error:#dc2626;--color-error-bg:#fef2f2;--color-error-text:#b91c1c;--color-error-border:#fecaca;--font-sans:Inter,system-ui,sans-serif;--font-mono:"Roboto Mono",monospace}
+a{color:#0f766e;text-decoration:none}a:hover{color:#115e59;text-decoration:underline}
+.mi{font-family:"Material Symbols Rounded";font-weight:300;font-size:22px;line-height:1;font-variation-settings:"FILL" 0,"wght" 300,"GRAD" 0,"opsz" 24;display:inline-block;vertical-align:middle;flex:none}
+.card{background:#fff;border:1px solid var(--border-default);border-radius:12px;padding:20px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:16px}
+.btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:8px;font:500 14px var(--font-sans);border:1px solid var(--border-strong);background:#fff;color:var(--text-primary);cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:hover{background:#f1f3f6;text-decoration:none;color:var(--text-primary)}
+.btn.primary{background:var(--color-primary);color:#fff;border-color:var(--color-primary)}.btn.primary:hover{background:#0d2947;color:#fff}
+.btn .mi{font-size:18px}
+.icon-btn{width:36px;height:36px;border:0;background:transparent;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer}.icon-btn:hover{background:rgba(0,0,0,.04)}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:9999px;font-size:12px;font-weight:500;background:var(--bg-tertiary);color:var(--text-secondary);white-space:nowrap}
+.chip.completed{background:var(--color-success-bg);color:var(--color-success-text)}
+.sub{font-size:13px;color:var(--text-tertiary)}
+h1{font-size:28px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--text-primary)}h2{font-size:17px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--text-primary)}
+.field{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:500;color:var(--text-secondary)}
+.control{height:44px;border:1px solid var(--border-strong);border-radius:8px;padding:0 12px;font:400 14px var(--font-sans);color:var(--text-primary);background:#fff;box-sizing:border-box;width:100%}
+textarea.control{height:auto;padding:10px 12px;resize:vertical;line-height:1.5}
+select.control{appearance:auto}
+.topbar{height:56px;background:#fff;border-bottom:1px solid var(--border-default);display:flex;align-items:center;padding:0 16px;gap:12px;box-sizing:border-box}
+.status{border-radius:8px;padding:10px 14px;font-size:14px;border:1px solid;display:flex;align-items:center;gap:8px}
+.status.info{background:var(--color-accent-bg);color:var(--color-accent-text);border-color:#99f6e4}
+.mono{font-family:var(--font-mono);font-size:13px}
+.check{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid var(--border-default);border-radius:8px;font-weight:400;color:var(--text-primary);cursor:pointer}
+.check.on{border-color:var(--color-accent);background:var(--color-accent-bg)}
+.check input{margin:3px 0 0;accent-color:#011627;width:16px;height:16px}
+.switch{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)}
+.track{width:36px;height:20px;border-radius:9999px;background:var(--color-primary);position:relative;flex:none}
+.track.off{background:var(--border-strong)}
+.knob{position:absolute;top:2px;right:2px;width:16px;height:16px;border-radius:9999px;background:#fff}
+.track.off .knob{right:auto;left:2px}
+.card-title{display:flex;flex-direction:column;gap:4px}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column; background: var(--bg-secondary); font-family: var(--font-sans); color: var(--text-primary); font-size: 14px">
+  <header class="topbar">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <span style="width: 36px; height: 36px; border-radius: 8px; background: var(--color-primary); color: #79ECDD; display: flex; align-items: center; justify-content: center"><span class="mi" aria-hidden="true">fact_check</span></span>
+      <span style="font-weight: 600; font-size: 16px">HOP Audit</span>
+    </div>
+    <div style="flex: 1"></div>
+    <button class="icon-btn" aria-label="Account"><span class="mi">account_circle</span></button>
+    <button class="icon-btn" aria-label="Settings"><span class="mi">settings</span></button>
+  </header>
+  <div style="display: flex; flex-wrap: wrap; flex: 1">
+    <dc-import name="Nav" active="sites" hint-size="250px,640px"></dc-import>
+    <main style="flex: 999 1 560px; min-width: 0; padding: 24px 32px 48px 24px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box">
+
+      <a href="Main.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px"><span class="mi" style="font-size: 18px" aria-hidden="true">arrow_back</span>Sites</a>
+      <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h1>Heretto Help Center</h1>
+          <span class="sub">What to crawl, every language version to compare, what the agents should focus on beyond the standard guidance, and which agent runs each analysis.</span>
+        </div>
+        <div style="display: flex; gap: 8px">
+          <a class="btn" href="Main.dc.html">Cancel</a>
+          <a class="btn" href="RunAudit.dc.html">Save and run audit</a>
+          <a class="btn primary" href="Main.dc.html">Save</a>
+        </div>
+      </header>
+
+      <div style="display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; align-items: start">
+        <div style="display: flex; flex-direction: column; gap: 20px; min-width: 0">
+
+          <section class="card">
+            <div class="card-title"><h2>Site</h2><span class="sub">The public documentation site to audit.</span></div>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+              <label class="field">Name<input class="control" value="Heretto Help Center"></label>
+              <label class="field">Start URL<input class="control mono" value="https://help.heretto.com/"></label>
+            </div>
+            <label class="field">Description <span style="font-weight: 400; color: var(--text-tertiary)">(optional)</span><input class="control" value="Public help site for the Heretto CCMS and Deploy portal"></label>
+          </section>
+
+          <section class="card">
+            <div class="card-title"><h2>Help centers and languages</h2><span class="sub">Every locale and language version is reviewed. Non-primary languages are compared against the primary for translation defects; each help center is counted separately.</span></div>
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <div style="display: grid; grid-template-columns: 180px minmax(0, 1fr) 150px 44px; gap: 10px; align-items: center; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-tertiary); padding: 0 2px"><span>Help center</span><span>URL</span><span>Language</span><span></span></div>
+              <div style="display: grid; grid-template-columns: 180px minmax(0, 1fr) 150px 44px; gap: 10px; align-items: center"><input class="control" value="US English"><input class="control mono" value="https://help.heretto.com/"><select class="control"><option selected>English · primary</option></select><span></span></div>
+              <div style="display: grid; grid-template-columns: 180px minmax(0, 1fr) 150px 44px; gap: 10px; align-items: center"><input class="control" value="Deutsch"><input class="control mono" value="https://help.heretto.com/de/"><select class="control"><option selected>German</option></select><button class="icon-btn" aria-label="Remove help center"><span class="mi">close</span></button></div>
+              <div style="display: grid; grid-template-columns: 180px minmax(0, 1fr) 150px 44px; gap: 10px; align-items: center"><input class="control" value="日本語"><input class="control mono" value="https://help.heretto.com/ja/"><select class="control"><option selected>Japanese</option></select><button class="icon-btn" aria-label="Remove help center"><span class="mi">close</span></button></div>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center"><button class="btn"><span class="mi" aria-hidden="true">add</span>Add help center</button><span class="sub">Detected from hreflang on the start URL: de, ja. Two versions of one language (fr and fr_CA, say) are compared with each other too.</span></div>
+          </section>
+
+          <section class="card">
+            <div class="card-title"><h2>Discovery and crawling</h2><span class="sub">Pages are found from the sitemap first; the crawler follows links for anything the sitemap misses.</span></div>
+            <div class="status info"><span class="mi" style="font-size: 18px" aria-hidden="true">check_circle</span>Sitemap found at <span class="mono">https://help.heretto.com/sitemap.xml</span>: 1,284 URLs in 9 sections, last modified Oct 20, 2026.<div style="flex: 1"></div><button class="btn" style="height: 30px; font-size: 13px">Re-check</button></div>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+              <label class="field">Sitemap URL <span style="font-weight: 400; color: var(--text-tertiary)">(blank = auto-detect)</span><input class="control mono" value="" placeholder="https://help.heretto.com/sitemap.xml"></label>
+              <label class="field">Section grouping<select class="control"><option selected>First path segment (/authoring/…)</option><option>Sitemap file (sitemap index entries)</option><option>Breadcrumb from page metadata</option></select></label>
+              <label class="field">Include paths <span style="font-weight: 400; color: var(--text-tertiary)">(one pattern per line, blank = all)</span><textarea class="control mono" rows="3">/docs/**
+/api/**</textarea></label>
+              <label class="field">Exclude paths<textarea class="control mono" rows="3">/docs/archive/**
+/**/print/**
+*.pdf</textarea></label>
+              <label class="field">Max pages<input class="control" value="2,000"></label>
+              <label class="field">Max link depth from start URL<input class="control" value="8"></label>
+              <label class="field">Crawl delay (ms)<input class="control" value="250"></label>
+              <label class="field">Concurrency<input class="control" value="4"></label>
+            </div>
+            <div style="display: flex; gap: 24px; flex-wrap: wrap">
+              <span class="switch"><span class="track"><span class="knob"></span></span>Respect robots.txt</span>
+              <span class="switch"><span class="track"><span class="knob"></span></span>Follow links not in the sitemap</span>
+              <span class="switch"><span class="track off"><span class="knob"></span></span>Render JavaScript (slower)</span>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-title"><h2>Analyses and focus</h2><span class="sub">Standard guidance is always applied. Add what matters for this site; it's given to every agent in every run.</span></div>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
+              <label class="check on"><input type="checkbox" checked><span><strong>Readability</strong><br><span class="sub">Flesch Reading Ease per page, sentence length, passive voice, jargon.</span></span></label>
+              <label class="check on"><input type="checkbox" checked><span><strong>Links</strong><br><span class="sub">Broken links, redirects, internal vs external, anchors that don't resolve.</span></span></label>
+              <label class="check on"><input type="checkbox" checked><span><strong>SEO and metadata</strong><br><span class="sub">Titles, descriptions, canonical, heading structure, image alt text.</span></span></label>
+              <label class="check on"><input type="checkbox" checked><span><strong>Summary report</strong><br><span class="sub">Site-wide findings, trends against the previous audit, recommended fixes.</span></span></label>
+              <label class="check on" style="grid-column: 1 / -1"><input type="checkbox" checked><span><strong>Content integrity</strong><br><span class="sub">Content that is wrong, conflicting, outdated, or missing its scope, with exact quotes and article slugs. Differences where both versions are accurate are never counted. Every finding gets an ID, a severity (High: a customer could act on it or it's compliance-sensitive; Medium: confusing or outdated; Low: cosmetic) and a triage tier you confirm before anything is built.</span></span></label>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px; padding-left: 4px">
+              <span style="font-size: 13px; font-weight: 500; color: var(--text-secondary)">Content integrity categories</span>
+              <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 16px; font-size: 13px">
+                <label style="display: flex; gap: 8px; align-items: center"><input type="checkbox" checked style="accent-color: #011627"><span class="mono" style="color: var(--text-tertiary); width: 26px">C</span>Contradictions, between and within articles</label>
+                <label style="display: flex; gap: 8px; align-items: center"><input type="checkbox" checked style="accent-color: #011627"><span class="mono" style="color: var(--text-tertiary); width: 26px">U</span>Instructions that don't match the app or each other</label>
+                <label style="display: flex; gap: 8px; align-items: center"><input type="checkbox" checked style="accent-color: #011627"><span class="mono" style="color: var(--text-tertiary); width: 26px">T</span>Translation defects, each language vs. primary</label>
+                <label style="display: flex; gap: 8px; align-items: center"><input type="checkbox" checked style="accent-color: #011627"><span class="mono" style="color: var(--text-tertiary); width: 26px">TM</span>Terminology inconsistency</label>
+                <label style="display: flex; gap: 8px; align-items: center"><input type="checkbox" checked style="accent-color: #011627"><span class="mono" style="color: var(--text-tertiary); width: 26px">D</span>Disclosure and legal text that conflicts</label>
+                <label style="display: flex; gap: 8px; align-items: center"><input type="checkbox" checked style="accent-color: #011627"><span class="mono" style="color: var(--text-tertiary); width: 26px">L</span>Retired products shown without scope</label>
+                <label style="display: flex; gap: 8px; align-items: center"><input type="checkbox" checked style="accent-color: #011627"><span class="mono" style="color: var(--text-tertiary); width: 26px">S</span>Scope errors: product rules stated as general</label>
+                <label style="display: flex; gap: 8px; align-items: center"><input type="checkbox" checked style="accent-color: #011627"><span class="mono" style="color: var(--text-tertiary); width: 26px">O</span>Outdated content and stale announcements</label>
+                <label style="display: flex; gap: 8px; align-items: center"><input type="checkbox" checked style="accent-color: #011627"><span class="mono" style="color: var(--text-tertiary); width: 26px">N</span>Links to the wrong locale, duplicates</label>
+                <label style="display: flex; gap: 8px; align-items: center"><input type="checkbox" checked style="accent-color: #011627"><span class="mono" style="color: var(--text-tertiary); width: 26px">X</span>Structure and publishing errors, internal notes published</label>
+              </div>
+            </div>
+            <label class="field">Additional focus for this site<textarea class="control" rows="5">Pay special attention to API reference pages: every endpoint page must state required permissions and show at least one request and response example with a language set on the code block.
+Flag any page that still mentions "Heretto Publisher" (renamed Deploy in 2024).
+Tutorials should read at Flesch 60 or above; reference pages may be denser.</textarea><span class="sub" style="font-weight: 400">Be concrete about thresholds. Agents cite the pages they used for each finding.</span></label>
+          </section>
+
+          <section class="card">
+            <div class="card-title"><h2>Agents</h2><span class="sub">Which agent runs each part of the analysis. Agents and their models are defined under <a href="Agents.dc.html">Agents</a>; the model keys come from <a href="Credentials.dc.html">Credentials</a>.</span></div>
+            <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+              <label class="field">Readability<select class="control"><option selected>Readability Reviewer · Claude Sonnet 4.5</option><option>SEO Analyst · GPT-5</option></select></label>
+              <label class="field">Links<select class="control"><option selected>Link Validator · Gemini 2.5 Pro</option><option>Readability Reviewer · Claude Sonnet 4.5</option></select></label>
+              <label class="field">SEO and metadata<select class="control"><option selected>SEO Analyst · GPT-5</option><option>Readability Reviewer · Claude Sonnet 4.5</option></select></label>
+              <label class="field">Content integrity<select class="control"><option selected>Content Integrity Reviewer · Claude Sonnet 4.5</option><option>Readability Reviewer · Claude Sonnet 4.5</option></select></label>
+              <label class="field">Summary report<select class="control"><option selected>Summary Writer · Claude Sonnet 4.5</option><option>Collateral Writer · Claude Sonnet 4.5</option></select></label>
+              <label class="field">Prospect deliverables<select class="control"><option selected>Collateral Writer · Claude Sonnet 4.5</option><option>Summary Writer · Claude Sonnet 4.5</option></select></label>
+            </div>
+            <span class="sub">Pages are sent to each agent in batches; one agent may serve several analyses.</span>
+          </section>
+        </div>
+
+        <aside style="display: flex; flex-direction: column; gap: 20px; min-width: 0">
+          <section class="card">
+            <div class="card-title"><h2>Purpose</h2><span class="sub">Decides which deliverables a run can build.</span></div>
+            <label class="field">This site is<select class="control"><option selected>Our own documentation (internal quality)</option><option>A prospect's help center (sales review)</option></select></label>
+            <span class="sub">For a prospect review, triage must be confirmed before the one-sheets and full findings report are built, and the one-sheets carry the Heretto wordmark, "Prepared for", and the sender's details.</span>
+          </section>
+          <section class="card">
+            <div class="card-title"><h2>Last audit</h2></div>
+            <div style="display: flex; align-items: center; justify-content: space-between"><span>#14 · Oct 21, 2026 07:00</span><span class="chip completed">Completed</span></div>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+              <div style="display: flex; flex-direction: column"><span style="font-size: 22px; font-weight: 600">1,284</span><span class="sub">Pages analyzed</span></div>
+              <div style="display: flex; flex-direction: column"><span style="font-size: 22px; font-weight: 600">82</span><span class="sub">Site score</span></div>
+              <div style="display: flex; flex-direction: column"><span style="font-size: 22px; font-weight: 600">21</span><span class="sub">Integrity issues · 2 High</span></div>
+              <div style="display: flex; flex-direction: column"><span style="font-size: 22px; font-weight: 600">37</span><span class="sub">Broken links</span></div>
+            </div>
+            <div style="display: flex; gap: 8px"><a class="btn" href="Dashboard.dc.html"><span class="mi" aria-hidden="true">analytics</span>Results</a><a class="btn" href="History.dc.html"><span class="mi" aria-hidden="true">history</span>History</a></div>
+          </section>
+          <section class="card">
+            <div class="card-title"><h2>Sections discovered</h2><span class="sub">From the sitemap, grouped by first path segment. Pick sections when you rerun part of the site.</span></div>
+            <div style="display: flex; flex-direction: column; gap: 6px; font-size: 13px">
+              <div style="display: flex; justify-content: space-between"><span class="mono">/getting-started</span><span class="sub">48</span></div>
+              <div style="display: flex; justify-content: space-between"><span class="mono">/authoring</span><span class="sub">312</span></div>
+              <div style="display: flex; justify-content: space-between"><span class="mono">/publishing</span><span class="sub">187</span></div>
+              <div style="display: flex; justify-content: space-between"><span class="mono">/administration</span><span class="sub">143</span></div>
+              <div style="display: flex; justify-content: space-between"><span class="mono">/api</span><span class="sub">296</span></div>
+              <div style="display: flex; justify-content: space-between"><span class="mono">/integrations</span><span class="sub">88</span></div>
+              <div style="display: flex; justify-content: space-between"><span class="mono">/release-notes</span><span class="sub">142</span></div>
+              <div style="display: flex; justify-content: space-between"><span class="mono">/tutorials</span><span class="sub">54</span></div>
+              <div style="display: flex; justify-content: space-between"><span class="mono">/glossary</span><span class="sub">14</span></div>
+            </div>
+          </section>
+          <section class="card">
+            <div class="card-title"><h2>Schedule</h2><span class="sub">Optional. You can always run on demand.</span></div>
+            <label class="field">Frequency<select class="control"><option>Manual only</option><option selected>Weekly</option><option>Monthly</option></select></label>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+              <label class="field">Day<select class="control"><option selected>Tuesday</option></select></label>
+              <label class="field">Time<input class="control" value="07:00"></label>
+            </div>
+            <span class="sub">Next run: Tue, Oct 28, 2026 07:00 America/Denver</span>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

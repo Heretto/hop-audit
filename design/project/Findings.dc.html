@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HOP Audit: Findings and triage</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0}
+:root{--bg-primary:#ffffff;--bg-secondary:#f8f9fb;--bg-tertiary:#f1f3f6;--text-primary:#15181e;--text-secondary:#4d5560;--text-tertiary:#6c7280;--border-default:#e4e7ec;--border-light:#f1f3f6;--border-strong:#d2d6dd;--color-primary:#011627;--color-accent:#16b9a8;--color-accent-bg:#effefb;--color-accent-text:#0f766e;--color-tertiary-bg:#fbf0f6;--color-tertiary-text:#923a6b;--color-success-bg:#ecfdf5;--color-success-text:#047857;--color-warning-bg:#fefbf0;--color-warning-text:#714810;--color-error-bg:#fef2f2;--color-error-text:#b91c1c;--font-sans:Inter,system-ui,sans-serif;--font-mono:"Roboto Mono",monospace}
+a{color:#0f766e;text-decoration:none}a:hover{color:#115e59;text-decoration:underline}
+.mi{font-family:"Material Symbols Rounded";font-weight:300;font-size:22px;line-height:1;font-variation-settings:"FILL" 0,"wght" 300,"GRAD" 0,"opsz" 24;display:inline-block;vertical-align:middle;flex:none}
+.card{background:#fff;border:1px solid var(--border-default);border-radius:12px;padding:20px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px}
+.btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:8px;font:500 14px var(--font-sans);border:1px solid var(--border-strong);background:#fff;color:var(--text-primary);cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:hover{background:#f1f3f6;text-decoration:none;color:var(--text-primary)}
+.btn.primary{background:var(--color-primary);color:#fff;border-color:var(--color-primary)}.btn.primary:hover{background:#0d2947;color:#fff}
+.btn .mi{font-size:18px}
+.icon-btn{width:36px;height:36px;border:0;background:transparent;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer}.icon-btn:hover{background:rgba(0,0,0,.04)}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:9999px;font-size:12px;font-weight:500;background:var(--bg-tertiary);color:var(--text-secondary);white-space:nowrap}
+.chip.completed{background:var(--color-success-bg);color:var(--color-success-text)}
+.sub{font-size:13px;color:var(--text-tertiary)}
+h1{font-size:28px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--text-primary)}h2{font-size:17px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--text-primary)}h3{font-size:14px;font-weight:600;margin:0}
+.topbar{height:56px;background:#fff;border-bottom:1px solid var(--border-default);display:flex;align-items:center;padding:0 16px;gap:12px;box-sizing:border-box}
+.mono{font-family:var(--font-mono);font-size:12px}
+.sev{display:inline-flex;align-items:center;height:22px;padding:0 8px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap}
+.sev.High{background:var(--color-tertiary-bg);color:var(--color-tertiary-text)}.sev.Medium{background:var(--color-accent-bg);color:var(--color-accent-text)}.sev.Low{background:var(--bg-tertiary);color:var(--text-secondary)}
+.filter{display:flex;align-items:center;gap:8px;height:36px;border:1px solid var(--border-strong);border-radius:8px;padding:0 10px;color:var(--text-tertiary);font-size:14px;background:#fff;box-sizing:border-box}
+.seg{display:inline-flex;border:1px solid var(--border-strong);border-radius:8px;overflow:hidden;background:#fff;flex:none}
+.seg button{height:30px;padding:0 10px;border:0;background:transparent;font:500 12px var(--font-sans);color:var(--text-secondary);cursor:pointer;border-right:1px solid var(--border-strong)}
+.seg button:last-child{border-right:0}
+.seg button.on-firm{background:var(--color-primary);color:#fff}.seg button.on-review{background:var(--color-warning-bg);color:var(--color-warning-text)}.seg button.on-drop{background:var(--bg-tertiary);color:var(--text-secondary)}
+.row{display:grid;grid-template-columns:72px 90px minmax(0,1fr) 300px;gap:16px;padding:14px 16px;border-bottom:1px solid var(--border-light);align-items:start}
+.row:last-child{border-bottom:0}
+.row.dropped{opacity:.55}
+.row.review{background:#fffdf7}
+.quote{border-left:3px solid var(--border-strong);padding:2px 10px;color:var(--text-secondary);font-size:13px;display:flex;flex-direction:column;gap:2px}
+.quote i{font-style:italic}
+.ex{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:1px solid var(--border-strong);border-radius:8px;background:#fff;font:500 12px var(--font-sans);color:var(--text-secondary);cursor:pointer}
+.ex.on{border-color:var(--color-accent);background:var(--color-accent-bg);color:var(--color-accent-text)}
+.ex .mi{font-size:16px}
+.bar{height:6px;border-radius:9999px;background:var(--bg-tertiary);overflow:hidden}.bar span{display:block;height:100%;background:var(--color-accent);border-radius:9999px}
+.tier{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:8px;border:1px solid var(--border-default)}
+.tier b{font-size:22px;font-weight:600;letter-spacing:-.02em}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column; background: var(--bg-secondary); font-family: var(--font-sans); color: var(--text-primary); font-size: 14px">
+  <header class="topbar">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <span style="width: 36px; height: 36px; border-radius: 8px; background: var(--color-primary); color: #79ECDD; display: flex; align-items: center; justify-content: center"><span class="mi" aria-hidden="true">fact_check</span></span>
+      <span style="font-weight: 600; font-size: 16px">HOP Audit</span>
+    </div>
+    <div style="flex: 1"></div>
+    <button class="icon-btn" aria-label="Account"><span class="mi">account_circle</span></button>
+    <button class="icon-btn" aria-label="Settings"><span class="mi">settings</span></button>
+  </header>
+  <div style="display: flex; flex-wrap: wrap; flex: 1">
+    <dc-import name="Nav" active="sites" hint-size="250px,640px"></dc-import>
+    <main style="flex: 999 1 560px; min-width: 0; padding: 24px 32px 48px 24px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box">
+
+      <a href="Dashboard.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px"><span class="mi" style="font-size: 18px" aria-hidden="true">arrow_back</span>Lumen Financial Help Center · Audit #3</a>
+      <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <div style="display: flex; align-items: center; gap: 12px"><h1>Content integrity findings</h1><span class="chip completed">Triage in progress</span></div>
+          <span class="sub">Oct 8, 2026 · 329 articles in 3 help centers (US English, Canada English, Canada French) · Content Integrity Reviewer found 78 candidates. Decide what counts before anything is built; your call wins.</span>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap">
+          <button class="btn"><span class="mi" aria-hidden="true">download</span>Export findings (CSV)</button>
+          <a class="btn" href="Report.dc.html"><span class="mi" aria-hidden="true">description</span>Full report</a>
+          <a class="btn primary" href="Deliverables.dc.html"><span class="mi" aria-hidden="true">check</span>Confirm triage and build deliverables</a>
+        </div>
+      </header>
+
+      <div style="display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 20px; align-items: start">
+        <section class="card" style="padding: 0; gap: 0">
+          <div style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border-default); flex-wrap: wrap">
+            <label class="filter" style="width: 240px"><span class="mi" style="font-size: 18px" aria-hidden="true">search</span><input type="text" placeholder="Filter by ID, text or slug" aria-label="Filter findings" style="border: 0; outline: 0; font: inherit; width: 100%; background: transparent"></label>
+            <label class="filter"><span class="sub">Category</span><select aria-label="Category" style="border: 0; outline: 0; font: inherit; background: transparent; color: var(--text-primary)"><option>All 10</option><option>C · Contradictions</option><option>U · Instructions don't match</option><option>T · Translation defects</option><option>TM · Terminology</option><option>D · Disclosure and legal text</option><option>L · Retired products</option><option>S · Scope errors</option><option>O · Outdated content</option><option>N · Links and duplicates</option><option>X · Structure and publishing</option></select></label>
+            <label class="filter"><span class="sub">Tier</span><select aria-label="Tier" style="border: 0; outline: 0; font: inherit; background: transparent; color: var(--text-primary)"><option>All</option><option>Firm</option><option>For review</option><option>Dropped</option></select></label>
+            <label class="filter"><span class="sub">Severity</span><select aria-label="Severity" style="border: 0; outline: 0; font: inherit; background: transparent; color: var(--text-primary)"><option>All</option><option>High</option><option>Medium</option><option>Low</option></select></label>
+            <div style="flex: 1"></div>
+            <span class="sub">Showing 12 of 78</span>
+          </div>
+          <div class="row" style="padding: 8px 16px; background: #fbfcfd; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-tertiary)"><span>ID</span><span>Severity</span><span>Finding, quotes and article slugs</span><span>Tier · one-sheet example</span></div>
+          <sc-for list="{{rows}}" as="f" hint-placeholder-count="12">
+            <div class="{{f.cls}}">
+              <div style="display: flex; flex-direction: column; gap: 4px"><span class="mono" style="font-weight: 500; color: var(--text-primary)">{{f.id}}</span><span class="sub" style="font-size: 12px">{{f.locale}}</span></div>
+              <div><span class="{{f.sevCls}}">{{f.sev}}</span></div>
+              <div style="display: flex; flex-direction: column; gap: 8px; min-width: 0">
+                <div style="display: flex; flex-direction: column; gap: 2px"><strong>{{f.title}}</strong><span class="sub">{{f.cat}}</span></div>
+                <sc-for list="{{f.quotes}}" as="q" hint-placeholder-count="2">
+                  <div class="quote"><span><strong style="color: var(--text-primary)">{{q.label}}</strong> <i>“{{q.text}}”</i> <span class="sub">{{q.note}}</span></span><span class="mono sub">{{q.slug}}</span></div>
+                </sc-for>
+                <span style="font-size: 13px; color: var(--text-secondary)">{{f.why}}</span>
+                <sc-if value="{{f.hasReason}}" hint-placeholder-val="{{false}}"><span style="font-size: 13px; color: var(--color-warning-text)"><strong>Triage note:</strong> {{f.reason}}</span></sc-if>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 8px; align-items: flex-start">
+                <div class="seg" role="group" aria-label="Tier">
+                  <button type="button" class="{{f.firmCls}}" onClick="{{f.setFirm}}">Firm</button>
+                  <button type="button" class="{{f.reviewCls}}" onClick="{{f.setReview}}">For review</button>
+                  <button type="button" class="{{f.dropCls}}" onClick="{{f.setDrop}}">Drop</button>
+                </div>
+                <button type="button" class="{{f.exCls}}" onClick="{{f.toggleEx}}"><span class="mi" aria-hidden="true">{{f.exIcon}}</span>{{f.exLabel}}</button>
+                <a href="PageDetail.dc.html" style="font-size: 12px">Open articles</a>
+              </div>
+            </div>
+          </sc-for>
+          <div style="display: flex; justify-content: space-between; padding: 12px 16px; border-top: 1px solid var(--border-default)"><span class="sub">Firm = counted everywhere. For review = listed separately, not counted (depends on policy you can't see). Drop = petty or not an error.</span><a href="#more" style="font-size: 13px">Next 12</a></div>
+        </section>
+
+        <aside style="display: flex; flex-direction: column; gap: 20px; position: sticky; top: 20px">
+          <section class="card">
+            <div style="display: flex; flex-direction: column; gap: 4px"><h2>Recount</h2><span class="sub">Updates as you triage. Firm + review + dropped = 78 candidates.</span></div>
+            <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+              <div class="tier"><b>{{firm}}</b><span class="sub">Confirmed</span></div>
+              <div class="tier"><b>{{review}}</b><span class="sub">For review</span></div>
+              <div class="tier"><b>{{drop}}</b><span class="sub">Dropped</span></div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 6px">
+              <div style="display: flex; justify-content: space-between; font-size: 13px"><span>Severity of confirmed issues</span><span class="sub">{{sevText}}</span></div>
+              <div style="display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px"><div style="{{highStyle}}"></div><div style="{{medStyle}}"></div><div style="{{lowStyle}}"></div></div>
+              <span class="sub">High: a customer could act on wrong information, or compliance-sensitive. Medium: confusing, conflicting or outdated. Low: cosmetic or structural.</span>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid var(--border-default)">
+              <h3>By category (confirmed)</h3>
+              <sc-for list="{{cats}}" as="c" hint-placeholder-count="9">
+                <div style="display: flex; flex-direction: column; gap: 3px; font-size: 13px"><div style="display: flex; justify-content: space-between"><span>{{c.label}}</span><strong>{{c.n}}</strong></div><div class="bar"><span style="{{c.w}}"></span></div></div>
+              </sc-for>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px; padding-top: 8px; border-top: 1px solid var(--border-default); font-size: 13px">
+              <div style="display: flex; justify-content: space-between"><span>US English</span><span class="sub">142 articles</span></div>
+              <div style="display: flex; justify-content: space-between"><span>Canada English</span><span class="sub">96 articles</span></div>
+              <div style="display: flex; justify-content: space-between"><span>Canada French</span><span class="sub">91 articles · 103 pages (fr, fr_CA)</span></div>
+            </div>
+          </section>
+          <section class="card">
+            <div style="display: flex; flex-direction: column; gap: 4px"><h2>One-sheet examples</h2><span class="sub">Pick three a stranger can grasp in five seconds, plus a backup: a customer-impact reversal, something concrete and checkable, and one a documentation head will feel.</span></div>
+            <div style="display: flex; align-items: baseline; gap: 8px"><span style="font-size: 22px; font-weight: 600">{{exCount}}</span><span class="sub">{{exHint}}</span></div>
+            <sc-for list="{{examples}}" as="e" hint-placeholder-count="4">
+              <div style="display: flex; gap: 8px; align-items: center; font-size: 13px"><span class="mono" style="color: var(--text-primary)">{{e.id}}</span><span style="flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap">{{e.title}}</span><span class="{{e.sevCls}}">{{e.sev}}</span></div>
+            </sc-for>
+            <span class="sub">Nothing from the review tier, nothing that needs policy knowledge, nothing fixable in minutes.</span>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1760}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    const q = (label, text, slug, note) => ({ label, text, slug, note: note || '' });
+    this.findings = [
+      { id: 'C-01', sev: 'High', cat: 'C · Contradiction between articles', key: 'Contradictions between articles', locale: 'US', title: 'Credit reporting: "may lower your score" vs. "not reported at this time"', quotes: [q('A', 'Late or missed payments may lower your credit score.', 'how-late-payments-affect-credit'), q('B', 'Loans opened after April 1, 2026 are not reported to credit bureaus at this time.', 'credit-reporting-faq')], why: 'A customer with a loan from May reads opposite answers about the same payment.', tier: 'firm', ex: true },
+      { id: 'T-03', sev: 'High', cat: 'T · Translation defect (FR vs. EN)', key: 'French and English don’t match', locale: 'CA · FR vs. EN', title: 'French AutoPay instruction reverses the meaning', quotes: [q('EN', 'To start making automatic payments, turn on AutoPay.', 'autopay'), q('FR', 'Pour ne plus effectuer de paiements automatiques, activez le paiement automatique.', 'fr/paiement-automatique', '(To stop automatic payments, turn on AutoPay)')], why: 'A French reader who wants to stop payments is told to turn them on.', tier: 'firm', ex: true },
+      { id: 'U-02', sev: 'High', cat: 'U · Instructions don’t match', key: 'Instructions don’t match the app', locale: 'CA · EN and FR', title: 'Support phone number has two digits swapped', quotes: [q('A', '(416) 555-0146', 'contact-lumen-canada'), q('B', '416-555-0164', 'contact-us')], why: 'One of the two numbers is wrong; customers dialling it reach nobody.', tier: 'firm', ex: true },
+      { id: 'X-01', sev: 'Medium', cat: 'X · Structure and publishing error', key: 'Structure and publishing errors', locale: 'US', title: 'Internal agent note published to customers', quotes: [q('', 'Check the vendor status page for outages before escalating. Ensure the ID state matches their location.', 'verify-your-identity')], why: 'Agent-facing process text is visible on a customer article.', tier: 'firm', ex: true },
+      { id: 'O-04', sev: 'Medium', cat: 'O · Outdated content', key: 'Outdated content', locale: 'US', title: 'Future-tense announcement for a feature that shipped in 2025', quotes: [q('', 'Starting in spring 2025, you’ll be able to change your payment date from the app.', 'change-your-payment-date')], why: 'Reads as a promise about the future; the feature has been live for a year.', tier: 'firm', ex: false },
+      { id: 'L-02', sev: 'Medium', cat: 'L · Retired product', key: 'Retired products still shown', locale: 'US', title: '"Lumen Split Pay" still explained in the general FAQ', quotes: [q('', 'With Split Pay, your purchase is divided into four payments.', 'payment-options-faq')], why: 'Split Pay was retired in 2025 and no longer appears at checkout; nothing says who it applies to.', tier: 'firm', ex: false },
+      { id: 'C-07', sev: 'Medium', cat: 'C · Contradiction between articles', key: 'Contradictions between articles', locale: 'US', title: 'Unclaimed balance timeline: 2 years vs. 3–5 years', quotes: [q('A', 'Balances may go to escheatment after 2 years of inactivity.', 'inactive-accounts'), q('B', 'Unclaimed funds are turned over after 3–5 years depending on your state.', 'unclaimed-funds')], why: 'Reconcilable by someone who knows the policy, but a customer gets two different answers. Kept as Medium.', tier: 'firm', ex: false },
+      { id: 'N-05', sev: 'Low', cat: 'N · Links and duplicates', key: 'Broken or misdirected links', locale: 'CA · FR', title: 'French contact link returns 404', quotes: [q('', 'Communiquez avec nous', 'fr/aide-paiements', '→ /ca/fr/contact, 404 confirmed, no redirect')], why: 'The only contact link on the French payments article is dead.', tier: 'firm', ex: false },
+      { id: 'D-01', sev: 'Medium', cat: 'D · Disclosure and legal text', key: 'Disclosure text', locale: 'US', title: 'APR range stated two ways', quotes: [q('A', '0–31.99% APR based on creditworthiness', 'how-interest-works'), q('B', 'Rates from 0% to 32% APR', 'rates-and-fees')], why: 'May be rounding rather than a conflict.', tier: 'review', ex: false, reason: 'Likely rounding; both may be valid representative ranges. Not counted.' },
+      { id: 'S-01', sev: 'Medium', cat: 'S · Scope error', key: 'Product rules stated as general', locale: 'US', title: '"No extra interest on late payments" next to daily accrual', quotes: [q('A', 'We never charge extra interest for paying late.', 'late-payments'), q('B', 'Interest accrues daily on the outstanding principal.', 'how-interest-works')], why: 'No penalty rate, but more days of interest; whether this is a conflict depends on policy wording.', tier: 'review', ex: false, reason: 'Depends on internal policy you can’t see. Listed for review, not counted.' },
+      { id: 'O-06', sev: 'Low', cat: 'O · Outdated content', key: 'Outdated content', locale: 'US', title: 'Fall promotion still featured', quotes: [q('', 'Offer ends October 6, 2026.', 'promotions')], why: 'Ended two days before the review.', tier: 'drop', ex: false, reason: 'Ended a day or two before the audit: petty. Dropped.' },
+      { id: 'D-03', sev: 'Low', cat: 'D · Disclosure and legal text', key: 'Disclosure text', locale: 'CA · EN', title: 'Rate in article differs from footer', quotes: [q('', 'Rates effective as of September 1, 2026.', 'rates-canada')], why: 'The article carries its own effective date in the footer.', tier: 'drop', ex: false, reason: 'A rate with an "effective as of" footer is not an error. Dropped.' },
+    ];
+    this.hidden = { firm: 55, review: 7, drop: 4, high: 6, medium: 37, low: 12, cats: { 'Contradictions between articles': 17, 'French and English don’t match': 16, 'Instructions don’t match the app': 6, 'Broken or misdirected links': 4, 'Retired products still shown': 3, 'Outdated content': 3, 'Inconsistent terminology': 3, 'Structure and publishing errors': 2, 'Product rules stated as general': 1, 'Disclosure text': 0 } };
+    this.state = { tier: Object.fromEntries(this.findings.map((f) => [f.id, f.tier])), ex: Object.fromEntries(this.findings.map((f) => [f.id, f.ex])) };
+  }
+  renderVals() {
+    const { tier, ex } = this.state;
+    const setTier = (id, t) => () => this.setState({ tier: { ...tier, [id]: t } });
+    const counts = { ...this.hidden, cats: { ...this.hidden.cats } };
+    const rows = this.findings.map((f) => {
+      const t = tier[f.id];
+      counts[t] += 1;
+      if (t === 'firm') { counts[f.sev.toLowerCase()] += 1; counts.cats[f.key] += 1; }
+      return {
+        ...f, hasReason: !!f.reason && t !== 'firm', reason: f.reason || '',
+        cls: 'row' + (t === 'drop' ? ' dropped' : t === 'review' ? ' review' : ''),
+        sevCls: 'sev ' + f.sev,
+        firmCls: t === 'firm' ? 'on-firm' : '', reviewCls: t === 'review' ? 'on-review' : '', dropCls: t === 'drop' ? 'on-drop' : '',
+        setFirm: setTier(f.id, 'firm'), setReview: setTier(f.id, 'review'), setDrop: setTier(f.id, 'drop'),
+        exCls: 'ex' + (ex[f.id] ? ' on' : ''), exIcon: ex[f.id] ? 'star' : 'star_outline', exLabel: ex[f.id] ? 'One-sheet example' : 'Use as example',
+        toggleEx: () => this.setState({ ex: { ...ex, [f.id]: !ex[f.id] } }),
+      };
+    });
+    const firmTotal = counts.high + counts.medium + counts.low;
+    const pct = (n) => Math.round(100 * n / Math.max(1, firmTotal));
+    const cats = Object.entries(counts.cats).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).map(([label, n]) => ({ label, n, w: 'width: ' + Math.round(100 * n / Math.max(1, counts.cats['Contradictions between articles'])) + '%' }));
+    const examples = rows.filter((r) => ex[r.id]).map((r) => ({ id: r.id, title: r.title, sev: r.sev, sevCls: r.sevCls }));
+    const n = examples.length;
+    return {
+      rows, cats, examples,
+      firm: counts.firm, review: counts.review, drop: counts.drop,
+      sevText: counts.high + ' High · ' + counts.medium + ' Medium · ' + counts.low + ' Low',
+      highStyle: 'width: ' + pct(counts.high) + '%; background: #ad4780', medStyle: 'width: ' + pct(counts.medium) + '%; background: #16b9a8', lowStyle: 'width: ' + pct(counts.low) + '%; background: #b1bfd2',
+      exCount: n + ' picked',
+      exHint: n < 3 ? 'pick ' + (3 - n) + ' more' : n === 3 ? 'add a backup in case a quote doesn’t verify' : n === 4 ? '3 for the one-sheet plus a backup' : 'too many: keep 3 plus a backup',
+    };
+  }
+}
+</script>
+</body>
+</html>

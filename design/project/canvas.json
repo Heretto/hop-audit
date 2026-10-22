@@ -1,0 +1,199 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "Admin.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "title": "Administration (HOP Core)",
+      "w": 1440,
+      "x": 3040,
+      "y": 6500
+    },
+    "Agents.dc.html": {
+      "expand": "fill",
+      "h": 1000,
+      "title": "Agents (HOP Core)",
+      "w": 1440,
+      "x": 0,
+      "y": 6500
+    },
+    "AuditRunning.dc.html": {
+      "expand": "fill",
+      "h": 1240,
+      "title": "Audit in progress",
+      "w": 1440,
+      "x": 0,
+      "y": 2300
+    },
+    "Credentials.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "is_interactive": true,
+      "title": "Credentials: AI models (HOP Core)",
+      "w": 1440,
+      "x": 1520,
+      "y": 6500
+    },
+    "Dashboard.dc.html": {
+      "expand": "fill",
+      "h": 1400,
+      "is_interactive": true,
+      "title": "Audit dashboard",
+      "w": 1440,
+      "x": 1520,
+      "y": 2300
+    },
+    "Deliverables.dc.html": {
+      "expand": "fill",
+      "h": 1240,
+      "title": "Deliverables",
+      "w": 1440,
+      "x": 3040,
+      "y": 4400
+    },
+    "ExecBrief.dc.html": {
+      "h": 1056,
+      "paper": "letter",
+      "title": "Executive brief (Letter)",
+      "w": 816,
+      "x": 5456,
+      "y": 4400
+    },
+    "Findings.dc.html": {
+      "expand": "fill",
+      "h": 1760,
+      "is_interactive": true,
+      "title": "Findings and triage",
+      "w": 1440,
+      "x": 4560,
+      "y": 2300
+    },
+    "History.dc.html": {
+      "expand": "fill",
+      "h": 1100,
+      "title": "Audit history and compare",
+      "w": 1440,
+      "x": 1520,
+      "y": 4400
+    },
+    "Main.dc.html": {
+      "expand": "fill",
+      "h": 900,
+      "title": "Sites",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "Nav.dc.html": {
+      "h": 640,
+      "title": "Nav (shared sidebar)",
+      "w": 250,
+      "x": -520,
+      "y": 0
+    },
+    "OneSheetLead.dc.html": {
+      "h": 1056,
+      "paper": "letter",
+      "title": "Lead one-sheet (Letter)",
+      "w": 816,
+      "x": 4560,
+      "y": 4400
+    },
+    "PageDetail.dc.html": {
+      "expand": "fill",
+      "h": 1560,
+      "title": "Page detail",
+      "w": 1440,
+      "x": 3040,
+      "y": 2300
+    },
+    "Report.dc.html": {
+      "expand": "fill",
+      "h": 1700,
+      "title": "Full findings report",
+      "w": 1440,
+      "x": 0,
+      "y": 4400
+    },
+    "RunAudit.dc.html": {
+      "expand": "fill",
+      "h": 1240,
+      "is_interactive": true,
+      "title": "Run audit",
+      "w": 1440,
+      "x": 3040,
+      "y": 0
+    },
+    "SiteSettings.dc.html": {
+      "expand": "fill",
+      "h": 1900,
+      "title": "Site settings",
+      "w": 1440,
+      "x": 1520,
+      "y": 0
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-10-22T16:40:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "notes": {
+    "row1": {
+      "kind": "title1",
+      "maxW": 4480,
+      "text": "Configure a site to audit",
+      "w": 240,
+      "x": 0,
+      "y": -300
+    },
+    "row2": {
+      "kind": "title1",
+      "maxW": 6000,
+      "text": "Run an audit, explore results, triage content-integrity findings",
+      "w": 240,
+      "x": 0,
+      "y": 2000
+    },
+    "row3": {
+      "kind": "title1",
+      "maxW": 6272,
+      "text": "Full findings report, history, and the prospect deliverables",
+      "w": 240,
+      "x": 0,
+      "y": 4100
+    },
+    "row4": {
+      "kind": "title1",
+      "maxW": 4480,
+      "text": "HOP Core standard pages reused as-is",
+      "w": 240,
+      "x": 0,
+      "y": 6200
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "SiteSettings.dc.html",
+    "RunAudit.dc.html",
+    "AuditRunning.dc.html",
+    "Dashboard.dc.html",
+    "PageDetail.dc.html",
+    "Findings.dc.html",
+    "Report.dc.html",
+    "History.dc.html",
+    "Deliverables.dc.html",
+    "OneSheetLead.dc.html",
+    "ExecBrief.dc.html",
+    "Agents.dc.html",
+    "Credentials.dc.html",
+    "Admin.dc.html",
+    "Nav.dc.html"
+  ],
+  "pages": [],
+  "title": "HOP Audit"
+}

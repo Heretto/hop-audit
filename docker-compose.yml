@@ -1,0 +1,25 @@
+services:
+  backend:
+    build: ./backend
+    env_file: .env
+    environment:
+      APP_ENV: production
+      DATABASE_URL: sqlite:////data/audit.db
+      CORS_ORIGINS: http://localhost:8080
+      FRONTEND_BASE_URL: http://localhost:8080
+      # Fail at compose time, with a readable message, when a secret is missing.
+      APP_SECRET_KEY: ${APP_SECRET_KEY:?not set, see .env.example}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?not set, see .env.example}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?not set, see .env.example}
+    volumes:
+      - audit-data:/data
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+
+volumes:
+  audit-data:

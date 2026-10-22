@@ -1,0 +1,59 @@
+// Page patterns shared by HOP Audit's own screens (the mockups' header,
+// subtitle, card titles and empty states). Tokens only.
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+
+  h1 {
+    margin: 0 0 4px;
+    font-size: 1.875rem;
+  }
+}
+
+.page-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sub {
+  font-size: 0.875rem;
+  color: var(--text-tertiary);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--text-secondary);
+
+  > mat-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 40px;
+    color: var(--text-tertiary);
+  }
+
+  h2 {
+    margin: 0;
+    font-size: 1.125rem;
+  }
+}

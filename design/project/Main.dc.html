@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HOP Audit: Sites</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0}
+:root{--bg-primary:#ffffff;--bg-secondary:#f8f9fb;--bg-tertiary:#f1f3f6;--text-primary:#15181e;--text-secondary:#4d5560;--text-tertiary:#6c7280;--border-default:#e4e7ec;--border-light:#f1f3f6;--border-strong:#d2d6dd;--color-primary:#011627;--color-accent:#16b9a8;--color-accent-bg:#effefb;--color-accent-text:#0f766e;--color-success:#059669;--color-success-bg:#ecfdf5;--color-success-text:#047857;--color-success-border:#a7f3d0;--color-warning:#c07f1c;--color-warning-bg:#fefbf0;--color-warning-text:#714810;--color-warning-border:#fae5ad;--color-error:#dc2626;--color-error-bg:#fef2f2;--color-error-text:#b91c1c;--color-error-border:#fecaca;--font-sans:Inter,system-ui,sans-serif;--font-mono:"Roboto Mono",monospace}
+a{color:#0f766e;text-decoration:none}a:hover{color:#115e59;text-decoration:underline}
+.mi{font-family:"Material Symbols Rounded";font-weight:300;font-size:22px;line-height:1;font-variation-settings:"FILL" 0,"wght" 300,"GRAD" 0,"opsz" 24;display:inline-block;vertical-align:middle;flex:none}
+.card{background:#fff;border:1px solid var(--border-default);border-radius:12px;padding:20px 24px;box-sizing:border-box}
+.accent{border-left:4px solid var(--color-accent)}
+.btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:8px;font:500 14px var(--font-sans);border:1px solid var(--border-strong);background:#fff;color:var(--text-primary);cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:hover{background:#f1f3f6;text-decoration:none;color:var(--text-primary)}
+.btn.primary{background:var(--color-primary);color:#fff;border-color:var(--color-primary)}.btn.primary:hover{background:#0d2947;color:#fff}
+.btn .mi{font-size:18px}
+.icon-btn{width:36px;height:36px;border:0;background:transparent;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer}.icon-btn:hover{background:rgba(0,0,0,.04)}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:9999px;font-size:12px;font-weight:500;background:var(--bg-tertiary);color:var(--text-secondary);white-space:nowrap}
+.chip.running{background:var(--color-accent-bg);color:var(--color-accent-text)}.chip.completed{background:var(--color-success-bg);color:var(--color-success-text)}.chip.pending{background:var(--color-warning-bg);color:var(--color-warning-text)}.chip.failed{background:var(--color-error-bg);color:var(--color-error-text)}
+table{border-collapse:collapse;width:100%;font-size:14px}th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-tertiary);padding:10px 12px;border-bottom:1px solid var(--border-default);white-space:nowrap}td{padding:12px;border-bottom:1px solid var(--border-light);vertical-align:middle}tbody tr:last-child td{border-bottom:0}tbody tr:hover td{background:rgba(0,0,0,.02)}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.sub{font-size:13px;color:var(--text-tertiary)}
+h1{font-size:28px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--text-primary)}h2{font-size:17px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--text-primary)}
+.field{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:500;color:var(--text-secondary)}
+.control{height:44px;border:1px solid var(--border-strong);border-radius:8px;padding:0 12px;font:400 14px var(--font-sans);color:var(--text-primary);background:#fff;box-sizing:border-box}
+.topbar{height:56px;background:#fff;border-bottom:1px solid var(--border-default);display:flex;align-items:center;padding:0 16px;gap:12px;box-sizing:border-box}
+.status{border-radius:8px;padding:10px 14px;font-size:14px;border:1px solid;display:flex;align-items:center;gap:8px}
+.status.success{background:var(--color-success-bg);color:var(--color-success-text);border-color:var(--color-success-border)}
+.mono{font-family:var(--font-mono);font-size:13px}
+.score{display:inline-flex;align-items:center;justify-content:center;width:40px;height:26px;border-radius:8px;font-weight:600;font-size:13px;font-variant-numeric:tabular-nums}
+.score.good{background:var(--color-success-bg);color:var(--color-success-text)}.score.warn{background:var(--color-warning-bg);color:var(--color-warning-text)}.score.bad{background:var(--color-error-bg);color:var(--color-error-text)}
+.filter{display:flex;align-items:center;gap:8px;height:36px;border:1px solid var(--border-strong);border-radius:8px;padding:0 10px;width:260px;color:var(--text-tertiary);font-size:14px;background:#fff;box-sizing:border-box}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column; background: var(--bg-secondary); font-family: var(--font-sans); color: var(--text-primary); font-size: 14px">
+  <header class="topbar">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <span style="width: 36px; height: 36px; border-radius: 8px; background: var(--color-primary); color: #79ECDD; display: flex; align-items: center; justify-content: center"><span class="mi" aria-hidden="true">fact_check</span></span>
+      <span style="font-weight: 600; font-size: 16px">HOP Audit</span>
+    </div>
+    <div style="flex: 1"></div>
+    <button class="icon-btn" aria-label="Account"><span class="mi">account_circle</span></button>
+    <button class="icon-btn" aria-label="Settings"><span class="mi">settings</span></button>
+  </header>
+  <div style="display: flex; flex-wrap: wrap; flex: 1">
+    <dc-import name="Nav" active="sites" hint-size="250px,640px"></dc-import>
+    <main style="flex: 999 1 560px; min-width: 0; padding: 24px 32px 48px 24px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box">
+
+      <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h1>Sites</h1>
+          <span class="sub">Documentation websites and help centers this organization audits. Each audit crawls every language version, runs the analysis agents (readability, links, SEO, content integrity) and keeps a report.</span>
+        </div>
+        <a class="btn primary" href="SiteSettings.dc.html"><span class="mi" aria-hidden="true">add</span>Add site</a>
+      </header>
+
+      <div class="status success" role="status"><span class="mi" style="font-size: 18px" aria-hidden="true">check_circle</span>Audit #14 of Heretto Help Center completed 42 minutes after it started. <a href="Dashboard.dc.html">View results</a></div>
+
+      <div class="card" style="padding: 0">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border-default)">
+          <label class="filter"><span class="mi" style="font-size: 18px" aria-hidden="true">search</span><input type="text" placeholder="Filter sites" aria-label="Filter sites" style="border: 0; outline: 0; font: inherit; width: 100%; background: transparent"></label>
+          <span class="sub">4 sites</span>
+        </div>
+        <div style="overflow-x: auto">
+        <table>
+          <thead><tr><th>Site</th><th>Pages</th><th>Last audit</th><th class="num">Score</th><th class="num">Integrity issues</th><th class="num">Broken links</th><th>Status</th><th><span style="position: absolute; width: 1px; height: 1px; overflow: hidden">Actions</span></th></tr></thead>
+          <tbody>
+            <tr>
+              <td><div style="display: flex; flex-direction: column; gap: 2px"><a href="Dashboard.dc.html" style="font-weight: 500; color: var(--text-primary)">Heretto Help Center</a><span class="sub">help.heretto.com · en, de, ja · sitemap.xml</span></div></td>
+              <td>1,284</td>
+              <td><div style="display: flex; flex-direction: column; gap: 2px"><span>Oct 21, 2026 07:00</span><span class="sub">#14 · whole site · 42 min</span></div></td>
+              <td class="num"><span class="score good">82</span></td>
+              <td class="num"><a href="Findings.dc.html" style="color: var(--text-primary)">21</a> <span class="sub">· 2 High</span></td>
+              <td class="num">37</td>
+              <td><span class="chip completed">Completed</span></td>
+              <td><div style="display: flex; gap: 2px; justify-content: flex-end">
+                <a class="icon-btn" href="RunAudit.dc.html" aria-label="Run audit" title="Run audit"><span class="mi">play_arrow</span></a>
+                <a class="icon-btn" href="Dashboard.dc.html" aria-label="View results" title="Results"><span class="mi">analytics</span></a>
+                <a class="icon-btn" href="History.dc.html" aria-label="Audit history" title="History"><span class="mi">history</span></a>
+                <a class="icon-btn" href="SiteSettings.dc.html" aria-label="Edit site" title="Edit"><span class="mi">edit</span></a>
+                <button class="icon-btn" aria-label="Delete site" title="Delete"><span class="mi">delete</span></button>
+              </div></td>
+            </tr>
+            <tr>
+              <td><div style="display: flex; flex-direction: column; gap: 2px"><a href="Dashboard.dc.html" style="font-weight: 500; color: var(--text-primary)">Developer Portal</a><span class="sub">developers.heretto.com · sitemap index (3 sitemaps)</span></div></td>
+              <td>412</td>
+              <td><div style="display: flex; flex-direction: column; gap: 2px"><span>Oct 18, 2026 02:00</span><span class="sub">#6 · API reference only · 11 min</span></div></td>
+              <td class="num"><span class="score warn">74</span></td>
+              <td class="num"><a href="Findings.dc.html" style="color: var(--text-primary)">14</a> <span class="sub">· 1 High</span></td>
+              <td class="num">9</td>
+              <td><span class="chip running"><span class="mi" style="font-size: 14px" aria-hidden="true">progress_activity</span>Running · 61%</span></td>
+              <td><div style="display: flex; gap: 2px; justify-content: flex-end">
+                <a class="icon-btn" href="AuditRunning.dc.html" aria-label="View progress" title="Progress"><span class="mi">pending</span></a>
+                <a class="icon-btn" href="Dashboard.dc.html" aria-label="View results" title="Results"><span class="mi">analytics</span></a>
+                <a class="icon-btn" href="History.dc.html" aria-label="Audit history" title="History"><span class="mi">history</span></a>
+                <a class="icon-btn" href="SiteSettings.dc.html" aria-label="Edit site" title="Edit"><span class="mi">edit</span></a>
+                <button class="icon-btn" aria-label="Delete site" title="Delete"><span class="mi">delete</span></button>
+              </div></td>
+            </tr>
+            <tr>
+              <td><div style="display: flex; flex-direction: column; gap: 2px"><a href="Findings.dc.html" style="font-weight: 500; color: var(--text-primary)">Lumen Financial Help Center</a><span class="sub">help.lumenfinancial.com, help.lumenfinancial.ca (en, fr) · prospect review</span></div></td>
+              <td>329</td>
+              <td><div style="display: flex; flex-direction: column; gap: 2px"><span>Oct 8, 2026 14:10</span><span class="sub">#3 · 3 help centers · 58 min</span></div></td>
+              <td class="num"><span class="score bad">64</span></td>
+              <td class="num"><a href="Findings.dc.html" style="color: var(--text-primary)">63</a> <span class="sub">· 9 High</span></td>
+              <td class="num">11</td>
+              <td><span class="chip completed">Deliverables built</span></td>
+              <td><div style="display: flex; gap: 2px; justify-content: flex-end">
+                <a class="icon-btn" href="RunAudit.dc.html" aria-label="Run audit" title="Run audit"><span class="mi">play_arrow</span></a>
+                <a class="icon-btn" href="Findings.dc.html" aria-label="Findings and triage" title="Findings"><span class="mi">rule</span></a>
+                <a class="icon-btn" href="Deliverables.dc.html" aria-label="Deliverables" title="Deliverables"><span class="mi">inventory_2</span></a>
+                <a class="icon-btn" href="SiteSettings.dc.html" aria-label="Edit site" title="Edit"><span class="mi">edit</span></a>
+                <button class="icon-btn" aria-label="Delete site" title="Delete"><span class="mi">delete</span></button>
+              </div></td>
+            </tr>
+            <tr>
+              <td><div style="display: flex; flex-direction: column; gap: 2px"><a href="SiteSettings.dc.html" style="font-weight: 500; color: var(--text-primary)">Release Notes</a><span class="sub">release.heretto.com · no sitemap, crawl from home page</span></div></td>
+              <td><span class="sub">—</span></td>
+              <td><span class="sub">Never audited</span></td>
+              <td class="num"><span class="sub">—</span></td>
+              <td class="num"><span class="sub">—</span></td>
+              <td class="num"><span class="sub">—</span></td>
+              <td><span class="chip">Not audited</span></td>
+              <td><div style="display: flex; gap: 2px; justify-content: flex-end">
+                <a class="icon-btn" href="RunAudit.dc.html" aria-label="Run audit" title="Run audit"><span class="mi">play_arrow</span></a>
+                <a class="icon-btn" href="SiteSettings.dc.html" aria-label="Edit site" title="Edit"><span class="mi">edit</span></a>
+                <button class="icon-btn" aria-label="Delete site" title="Delete"><span class="mi">delete</span></button>
+              </div></td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+        <div class="card" style="display: flex; gap: 14px; align-items: center">
+          <span style="width: 40px; height: 40px; border-radius: 9999px; background: var(--color-accent-bg); color: var(--color-accent-text); display: flex; align-items: center; justify-content: center"><span class="mi" aria-hidden="true">travel_explore</span></span>
+          <div style="display: flex; flex-direction: column"><span style="font-size: 24px; font-weight: 600; letter-spacing: -.02em">2,025</span><span class="sub">Pages under audit across all sites</span></div>
+        </div>
+        <div class="card" style="display: flex; gap: 14px; align-items: center">
+          <span style="width: 40px; height: 40px; border-radius: 9999px; background: var(--color-error-bg); color: var(--color-error-text); display: flex; align-items: center; justify-content: center"><span class="mi" aria-hidden="true">link_off</span></span>
+          <div style="display: flex; flex-direction: column"><span style="font-size: 24px; font-weight: 600; letter-spacing: -.02em">98</span><span class="sub">Confirmed integrity issues, 12 High · <a href="Findings.dc.html">triage</a></span></div>
+        </div>
+        <div class="card" style="display: flex; gap: 14px; align-items: center">
+          <span style="width: 40px; height: 40px; border-radius: 9999px; background: #eef2f6; color: #0d2947; display: flex; align-items: center; justify-content: center"><span class="mi" aria-hidden="true">smart_toy</span></span>
+          <div style="display: flex; flex-direction: column"><span style="font-size: 24px; font-weight: 600; letter-spacing: -.02em">6</span><span class="sub">Analysis agents configured · <a href="Agents.dc.html">Agents</a></span></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

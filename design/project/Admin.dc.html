@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HOP Audit: Administration</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0}
+:root{--bg-primary:#ffffff;--bg-secondary:#f8f9fb;--bg-tertiary:#f1f3f6;--text-primary:#15181e;--text-secondary:#4d5560;--text-tertiary:#6c7280;--border-default:#e4e7ec;--border-light:#f1f3f6;--border-strong:#d2d6dd;--color-primary:#011627;--color-accent:#16b9a8;--color-accent-bg:#effefb;--color-accent-text:#0f766e;--color-success-bg:#ecfdf5;--color-success-text:#047857;--color-warning-bg:#fefbf0;--color-warning-text:#714810;--color-error-bg:#fef2f2;--color-error-text:#b91c1c;--font-sans:Inter,system-ui,sans-serif;--font-mono:"Roboto Mono",monospace}
+a{color:#0f766e;text-decoration:none}a:hover{color:#115e59;text-decoration:underline}
+.mi{font-family:"Material Symbols Rounded";font-weight:300;font-size:22px;line-height:1;font-variation-settings:"FILL" 0,"wght" 300,"GRAD" 0,"opsz" 24;display:inline-block;vertical-align:middle;flex:none}
+.card{background:#fff;border:1px solid var(--border-default);border-radius:12px;box-sizing:border-box;display:flex;flex-direction:column}
+.btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:8px;font:500 14px var(--font-sans);border:1px solid var(--border-strong);background:#fff;color:var(--text-primary);cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:hover{background:#f1f3f6;text-decoration:none;color:var(--text-primary)}
+.btn.primary{background:var(--color-primary);color:#fff;border-color:var(--color-primary)}.btn.primary:hover{background:#0d2947;color:#fff}
+.btn .mi{font-size:18px}
+.icon-btn{width:36px;height:36px;border:0;background:transparent;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer}.icon-btn:hover{background:rgba(0,0,0,.04)}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:9999px;font-size:12px;font-weight:500;background:var(--bg-tertiary);color:var(--text-secondary);white-space:nowrap}
+.chip.pending{background:var(--color-warning-bg);color:var(--color-warning-text)}
+table{border-collapse:collapse;width:100%;font-size:14px}th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-tertiary);padding:10px 12px;border-bottom:1px solid var(--border-default);white-space:nowrap}td{padding:12px;border-bottom:1px solid var(--border-light);vertical-align:middle}tbody tr:last-child td{border-bottom:0}tbody tr:hover td{background:rgba(0,0,0,.02)}
+.sub{font-size:13px;color:var(--text-tertiary)}
+h1{font-size:28px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--text-primary)}h2{font-size:17px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--text-primary)}
+.topbar{height:56px;background:#fff;border-bottom:1px solid var(--border-default);display:flex;align-items:center;padding:0 16px;gap:12px;box-sizing:border-box}
+.tab{height:44px;padding:0 4px;border:0;background:transparent;font:500 14px var(--font-sans);color:var(--text-secondary);cursor:pointer;border-bottom:2px solid transparent;margin-right:24px;display:inline-flex;align-items:center;gap:8px}
+.tab.on{color:var(--text-primary);border-bottom-color:var(--color-accent)}
+.side{display:flex;align-items:center;gap:10px;height:40px;padding:0 12px;border-radius:8px;font-weight:500;color:var(--text-secondary);text-decoration:none}
+.side.on{background:var(--color-accent-bg);color:var(--color-accent-text)}
+.side:hover{text-decoration:none;background:rgba(0,0,0,.04)}
+.filter{display:flex;align-items:center;gap:8px;height:36px;border:1px solid var(--border-strong);border-radius:8px;padding:0 10px;width:260px;color:var(--text-tertiary);font-size:14px;background:#fff;box-sizing:border-box}
+.avatar{width:32px;height:32px;border-radius:9999px;background:#eef2f6;color:#0d2947;display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:12px;flex:none}
+select.role{height:32px;border:1px solid var(--border-strong);border-radius:8px;padding:0 8px;font:400 13px var(--font-sans);background:#fff;color:var(--text-primary)}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column; background: var(--bg-secondary); font-family: var(--font-sans); color: var(--text-primary); font-size: 14px">
+  <header class="topbar">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <span style="width: 36px; height: 36px; border-radius: 8px; background: var(--color-primary); color: #79ECDD; display: flex; align-items: center; justify-content: center"><span class="mi" aria-hidden="true">fact_check</span></span>
+      <span style="font-weight: 600; font-size: 16px">HOP Audit</span>
+    </div>
+    <div style="flex: 1"></div>
+    <button class="icon-btn" aria-label="Account"><span class="mi">account_circle</span></button>
+    <button class="icon-btn" aria-label="Settings"><span class="mi">settings</span></button>
+  </header>
+  <div style="display: flex; flex-wrap: wrap; flex: 1">
+    <dc-import name="Nav" active="admin" hint-size="250px,640px"></dc-import>
+    <main style="flex: 999 1 560px; min-width: 0; padding: 24px 32px 48px 24px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box">
+
+      <header style="display: flex; flex-direction: column; gap: 4px">
+        <h1>Administration</h1>
+        <span class="sub">HOP Core's standard organization admin (hop-admin): General, Users and invitations. HOP Audit adds nothing here; AI models live under Credentials.</span>
+      </header>
+
+      <div style="display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 20px; align-items: start">
+        <nav aria-label="Administration sections" style="display: flex; flex-direction: column; gap: 2px">
+          <a class="side" href="#general"><span class="mi" aria-hidden="true">tune</span>General</a>
+          <a class="side on" href="#users"><span class="mi" aria-hidden="true">group</span>Users</a>
+          <a class="side" href="#usage"><span class="mi" aria-hidden="true">data_usage</span>Usage and limits</a>
+        </nav>
+
+        <div style="display: flex; flex-direction: column; gap: 20px; min-width: 0">
+          <section class="card">
+            <div style="display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid var(--border-default)">
+              <button class="tab on">Members <span class="chip" style="height: 20px">6</span></button>
+              <button class="tab">Invitations <span class="chip" style="height: 20px">2</span></button>
+              <div style="flex: 1"></div>
+              <button class="btn primary" style="height: 32px; font-size: 13px"><span class="mi" aria-hidden="true">person_add</span>Invite member</button>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border-default)">
+              <label class="filter"><span class="mi" style="font-size: 18px" aria-hidden="true">search</span><input type="text" placeholder="Filter members" aria-label="Filter members" style="border: 0; outline: 0; font: inherit; width: 100%; background: transparent"></label>
+              <span class="sub">Heretto · 6 members · 2 admins</span>
+            </div>
+            <div style="overflow-x: auto">
+            <table>
+              <thead><tr><th>Member</th><th>Role</th><th>Joined</th><th>Last active</th><th></th></tr></thead>
+              <tbody>
+                <tr><td><div style="display: flex; align-items: center; gap: 10px"><span class="avatar">PB</span><div style="display: flex; flex-direction: column"><strong>Patrick Bosek</strong><span class="sub">patrick@heretto.com · you</span></div></div></td><td><select class="role" aria-label="Role"><option selected>Admin</option><option>Member</option></select></td><td class="sub">Aug 12, 2026</td><td class="sub">Now</td><td></td></tr>
+                <tr><td><div style="display: flex; align-items: center; gap: 10px"><span class="avatar">MR</span><div style="display: flex; flex-direction: column"><strong>Maria Ruiz</strong><span class="sub">maria@heretto.com</span></div></div></td><td><select class="role" aria-label="Role"><option selected>Admin</option><option>Member</option></select></td><td class="sub">Aug 12, 2026</td><td class="sub">Today 08:40</td><td><div style="display: flex; justify-content: flex-end"><button class="icon-btn" aria-label="Remove member"><span class="mi">person_remove</span></button></div></td></tr>
+                <tr><td><div style="display: flex; align-items: center; gap: 10px"><span class="avatar">JL</span><div style="display: flex; flex-direction: column"><strong>Jordan Lee</strong><span class="sub">jordan@heretto.com</span></div></div></td><td><select class="role" aria-label="Role"><option>Admin</option><option selected>Member</option></select></td><td class="sub">Sep 2, 2026</td><td class="sub">Yesterday</td><td><div style="display: flex; justify-content: flex-end"><button class="icon-btn" aria-label="Remove member"><span class="mi">person_remove</span></button></div></td></tr>
+                <tr><td><div style="display: flex; align-items: center; gap: 10px"><span class="avatar">AK</span><div style="display: flex; flex-direction: column"><strong>Ana Kowalski</strong><span class="sub">ana@heretto.com</span></div></div></td><td><select class="role" aria-label="Role"><option>Admin</option><option selected>Member</option></select></td><td class="sub">Sep 2, 2026</td><td class="sub">Oct 20</td><td><div style="display: flex; justify-content: flex-end"><button class="icon-btn" aria-label="Remove member"><span class="mi">person_remove</span></button></div></td></tr>
+                <tr><td><div style="display: flex; align-items: center; gap: 10px"><span class="avatar">SN</span><div style="display: flex; flex-direction: column"><strong>Sam Nguyen</strong><span class="sub">sam@heretto.com</span></div></div></td><td><select class="role" aria-label="Role"><option>Admin</option><option selected>Member</option></select></td><td class="sub">Sep 15, 2026</td><td class="sub">Oct 21</td><td><div style="display: flex; justify-content: flex-end"><button class="icon-btn" aria-label="Remove member"><span class="mi">person_remove</span></button></div></td></tr>
+                <tr><td><div style="display: flex; align-items: center; gap: 10px"><span class="avatar">DO</span><div style="display: flex; flex-direction: column"><strong>Dana Okafor</strong><span class="sub">dana@heretto.com</span></div></div></td><td><select class="role" aria-label="Role"><option>Admin</option><option selected>Member</option></select></td><td class="sub">Oct 1, 2026</td><td class="sub">Oct 18</td><td><div style="display: flex; justify-content: flex-end"><button class="icon-btn" aria-label="Remove member"><span class="mi">person_remove</span></button></div></td></tr>
+              </tbody>
+            </table>
+            </div>
+          </section>
+
+          <section class="card" style="padding: 20px 24px; gap: 12px">
+            <div style="display: flex; flex-direction: column; gap: 4px"><h2>Pending invitations</h2><span class="sub">Invitations expire after 7 days.</span></div>
+            <table>
+              <thead><tr><th>Email</th><th>Role</th><th>Invited by</th><th>Expires</th><th></th></tr></thead>
+              <tbody>
+                <tr><td>lena@heretto.com</td><td><span class="chip">Member</span></td><td class="sub">patrick@heretto.com</td><td class="sub">Oct 27</td><td><div style="display: flex; justify-content: flex-end; gap: 2px"><button class="icon-btn" aria-label="Resend invitation"><span class="mi">send</span></button><button class="icon-btn" aria-label="Revoke invitation"><span class="mi">close</span></button></div></td></tr>
+                <tr><td>writers-contractor@example.com</td><td><span class="chip">Member</span></td><td class="sub">maria@heretto.com</td><td class="sub"><span class="chip pending">Expires tomorrow</span></td><td><div style="display: flex; justify-content: flex-end; gap: 2px"><button class="icon-btn" aria-label="Resend invitation"><span class="mi">send</span></button><button class="icon-btn" aria-label="Revoke invitation"><span class="mi">close</span></button></div></td></tr>
+              </tbody>
+            </table>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

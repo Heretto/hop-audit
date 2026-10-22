@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HOP Audit: Deliverables</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0}
+:root{--bg-primary:#ffffff;--bg-secondary:#f8f9fb;--bg-tertiary:#f1f3f6;--text-primary:#15181e;--text-secondary:#4d5560;--text-tertiary:#6c7280;--border-default:#e4e7ec;--border-light:#f1f3f6;--border-strong:#d2d6dd;--color-primary:#011627;--color-accent:#16b9a8;--color-accent-bg:#effefb;--color-accent-text:#0f766e;--color-tertiary-bg:#fbf0f6;--color-tertiary-text:#923a6b;--color-success-bg:#ecfdf5;--color-success-text:#047857;--color-success-border:#a7f3d0;--color-warning-bg:#fefbf0;--color-warning-text:#714810;--color-warning-border:#fae5ad;--color-error-bg:#fef2f2;--color-error-text:#b91c1c;--font-sans:Inter,system-ui,sans-serif;--font-mono:"Roboto Mono",monospace}
+a{color:#0f766e;text-decoration:none}a:hover{color:#115e59;text-decoration:underline}
+.mi{font-family:"Material Symbols Rounded";font-weight:300;font-size:22px;line-height:1;font-variation-settings:"FILL" 0,"wght" 300,"GRAD" 0,"opsz" 24;display:inline-block;vertical-align:middle;flex:none}
+.card{background:#fff;border:1px solid var(--border-default);border-radius:12px;padding:20px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px}
+.btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:8px;font:500 14px var(--font-sans);border:1px solid var(--border-strong);background:#fff;color:var(--text-primary);cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:hover{background:#f1f3f6;text-decoration:none;color:var(--text-primary)}
+.btn.primary{background:var(--color-primary);color:#fff;border-color:var(--color-primary)}.btn.primary:hover{background:#0d2947;color:#fff}
+.btn.sm{height:30px;font-size:13px;padding:0 10px}
+.btn .mi{font-size:18px}
+.icon-btn{width:36px;height:36px;border:0;background:transparent;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer}.icon-btn:hover{background:rgba(0,0,0,.04)}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:9999px;font-size:12px;font-weight:500;background:var(--bg-tertiary);color:var(--text-secondary);white-space:nowrap}
+.chip.completed{background:var(--color-success-bg);color:var(--color-success-text)}.chip.pending{background:var(--color-warning-bg);color:var(--color-warning-text)}
+.sub{font-size:13px;color:var(--text-tertiary)}
+h1{font-size:28px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--text-primary)}h2{font-size:17px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--text-primary)}h3{font-size:14px;font-weight:600;margin:0}
+.topbar{height:56px;background:#fff;border-bottom:1px solid var(--border-default);display:flex;align-items:center;padding:0 16px;gap:12px;box-sizing:border-box}
+.mono{font-family:var(--font-mono);font-size:12px}
+.field{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:500;color:var(--text-secondary)}
+.control{height:44px;border:1px solid var(--border-strong);border-radius:8px;padding:0 12px;font:400 14px var(--font-sans);color:var(--text-primary);background:#fff;box-sizing:border-box;width:100%}
+textarea.control{height:auto;padding:10px 12px;resize:vertical;line-height:1.5}
+.budget{font-weight:400;color:var(--text-tertiary);font-variant-numeric:tabular-nums}
+.budget.over{color:var(--color-error-text);font-weight:500}
+.step{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:8px;border:1px solid var(--border-default);flex:1;background:#fff}
+.step.done{border-color:var(--color-success-border);background:var(--color-success-bg)}
+.step.now{border-color:var(--color-accent);background:var(--color-accent-bg)}
+.tag{display:inline-flex;align-items:center;height:20px;padding:0 8px;border-radius:6px;font-size:11px;font-weight:600;letter-spacing:.02em}
+.tag.risk{background:var(--color-tertiary-bg);color:var(--color-tertiary-text)}.tag.ret{background:#eef2f6;color:#0d2947}.tag.cost{background:var(--color-accent-bg);color:var(--color-accent-text)}
+.thumb{height:120px;border-radius:8px;background:radial-gradient(ellipse 90% 120% at 78% -10%,#14505f 0%,#08303f 36%,#001322 78%);display:flex;align-items:flex-end;padding:12px;color:#79ecdd;font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase}
+.thumb.doc{background:#fff;border:1px solid var(--border-default);color:var(--text-tertiary);align-items:flex-start;flex-direction:column;gap:6px;text-transform:none;letter-spacing:0;font-weight:400}
+.line{height:6px;border-radius:3px;background:var(--bg-tertiary)}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:13px}
+.check .mi{font-size:18px;margin-top:1px}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column; background: var(--bg-secondary); font-family: var(--font-sans); color: var(--text-primary); font-size: 14px">
+  <header class="topbar">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <span style="width: 36px; height: 36px; border-radius: 8px; background: var(--color-primary); color: #79ECDD; display: flex; align-items: center; justify-content: center"><span class="mi" aria-hidden="true">fact_check</span></span>
+      <span style="font-weight: 600; font-size: 16px">HOP Audit</span>
+    </div>
+    <div style="flex: 1"></div>
+    <button class="icon-btn" aria-label="Account"><span class="mi">account_circle</span></button>
+    <button class="icon-btn" aria-label="Settings"><span class="mi">settings</span></button>
+  </header>
+  <div style="display: flex; flex-wrap: wrap; flex: 1">
+    <dc-import name="Nav" active="sites" hint-size="250px,640px"></dc-import>
+    <main style="flex: 999 1 560px; min-width: 0; padding: 24px 32px 48px 24px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box">
+
+      <a href="Findings.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px"><span class="mi" style="font-size: 18px" aria-hidden="true">arrow_back</span>Lumen Financial Help Center · Audit #3 · Findings</a>
+      <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <h1>Deliverables</h1>
+          <span class="sub">Built from the confirmed findings by Collateral Writer. The one-sheets show counts and three examples; the full report is held back for the walkthrough, so the prospect has a reason to take the meeting.</span>
+        </div>
+        <div style="display: flex; gap: 8px"><button class="btn"><span class="mi" aria-hidden="true">refresh</span>Rebuild all</button><button class="btn primary"><span class="mi" aria-hidden="true">download</span>Download PDFs</button></div>
+      </header>
+
+      <div style="display: flex; gap: 10px">
+        <div class="step done"><span class="mi" style="color: var(--color-success-text)" aria-hidden="true">check_circle</span><div style="display: flex; flex-direction: column"><strong>Assess</strong><span class="sub">78 candidates · Oct 8</span></div></div>
+        <div class="step done"><span class="mi" style="color: var(--color-success-text)" aria-hidden="true">check_circle</span><div style="display: flex; flex-direction: column"><strong>Triage</strong><span class="sub">63 firm · 9 review · 6 dropped · confirmed Oct 9 by patrick</span></div></div>
+        <div class="step done"><span class="mi" style="color: var(--color-success-text)" aria-hidden="true">check_circle</span><div style="display: flex; flex-direction: column"><strong>Build</strong><span class="sub">4 deliverables · no overflow</span></div></div>
+        <div class="step now"><span class="mi" style="color: var(--color-accent-text)" aria-hidden="true">radio_button_checked</span><div style="display: flex; flex-direction: column"><strong>Hand off</strong><span class="sub">2 placeholders · 3 quotes to spot-check</span></div></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px">
+        <section class="card" style="gap: 10px">
+          <a href="OneSheetLead.dc.html" class="thumb" style="text-decoration: none">Content Integrity Snapshot</a>
+          <div style="display: flex; justify-content: space-between; align-items: center"><h3>Lead one-sheet</h3><span class="chip completed">Built</span></div>
+          <span class="sub">Letter PDF for the documentation lead: stats, categories, severity, three issues, why it matters.</span>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap"><a class="btn sm" href="OneSheetLead.dc.html"><span class="mi" aria-hidden="true">visibility</span>Preview</a><button class="btn sm"><span class="mi" aria-hidden="true">picture_as_pdf</span>PDF</button></div>
+        </section>
+        <section class="card" style="gap: 10px">
+          <a href="ExecBrief.dc.html" class="thumb" style="text-decoration: none">Executive Brief</a>
+          <div style="display: flex; justify-content: space-between; align-items: center"><h3>Executive brief</h3><span class="chip completed">Built</span></div>
+          <span class="sub">Letter PDF for a CIO: business impact first, three cards with quoted evidence, numbers in the header.</span>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap"><a class="btn sm" href="ExecBrief.dc.html"><span class="mi" aria-hidden="true">visibility</span>Preview</a><button class="btn sm"><span class="mi" aria-hidden="true">picture_as_pdf</span>PDF</button></div>
+        </section>
+        <section class="card" style="gap: 10px">
+          <a href="Report.dc.html" class="thumb doc" style="text-decoration: none"><strong style="color: var(--text-primary)">Content Integrity Review</strong><span>Full findings · 63 issues · 9 for review</span><div class="line" style="width: 90%"></div><div class="line" style="width: 70%"></div><div class="line" style="width: 80%"></div></a>
+          <div style="display: flex; justify-content: space-between; align-items: center"><h3>Full findings report</h3><span class="chip completed">Built</span></div>
+          <span class="sub">Doc and PDF with every confirmed issue, exact quotes and article slugs, plus items for review. For the walkthrough.</span>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap"><a class="btn sm" href="Report.dc.html"><span class="mi" aria-hidden="true">visibility</span>Open</a><button class="btn sm"><span class="mi" aria-hidden="true">picture_as_pdf</span>PDF</button><button class="btn sm"><span class="mi" aria-hidden="true">description</span>Doc</button></div>
+        </section>
+        <section class="card" style="gap: 10px">
+          <div class="thumb doc"><strong style="color: var(--text-primary)">What it assessed</strong><span>Internal note · plain text</span><div class="line" style="width: 85%"></div><div class="line" style="width: 60%"></div><div class="line" style="width: 75%"></div></div>
+          <div style="display: flex; justify-content: space-between; align-items: center"><h3>Internal summary</h3><span class="chip">On request</span></div>
+          <span class="sub">Short note for colleagues on what the review covered, the issue types found and the result. Never sent to the prospect.</span>
+          <div style="display: flex; gap: 6px; flex-wrap: wrap"><button class="btn sm"><span class="mi" aria-hidden="true">content_copy</span>Copy note</button></div>
+        </section>
+      </div>
+
+      <div style="display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; align-items: start">
+        <section class="card">
+          <div style="display: flex; flex-direction: column; gap: 4px"><h2>Copy and business case</h2><span class="sub">Written by Collateral Writer from the findings and the prospect's industry (lending). Edit anything; budgets keep the page from overflowing.</span></div>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
+            <label class="field"><span style="display: flex; justify-content: space-between">Lead headline, line 1 <span class="budget">17 / 26</span></span><input class="control" value="One answer, in every"></label>
+            <label class="field"><span style="display: flex; justify-content: space-between">Lead headline, line 2 <span class="budget">24 / 26</span></span><input class="control" value="language, on every page"></label>
+          </div>
+          <label class="field"><span style="display: flex; justify-content: space-between">Executive headline <span class="budget">40 / ~45 · no "you" or "your"</span></span><input class="control" value="Regulated lending needs governed content"></label>
+          <label class="field"><span style="display: flex; justify-content: space-between">Executive lead sentence <span class="budget">137 / 160 · "Structured content is critical to [imperative]; without it, [consequence]."</span></span><textarea class="control" rows="2">Structured content is critical to controlling risk; without it, the same terms read differently by page, by language, and in every AI answer.</textarea></label>
+          <span class="sub" style="padding: 8px 12px; background: var(--color-warning-bg); border: 1px solid var(--color-warning-border); border-radius: 8px; color: var(--color-warning-text)">Headline rules: never critical of the prospect, never implies Heretto audits or scans content. Fresh wording per prospect; nothing reused with the name swapped.</span>
+          <div style="display: flex; flex-direction: column; gap: 8px; padding-top: 8px; border-top: 1px solid var(--border-default)">
+            <h3>Why it matters: three lines, about 95 characters each</h3>
+            <div style="display: grid; grid-template-columns: 150px minmax(0, 1fr) 44px; gap: 10px; align-items: center"><span class="tag ret">Customer Retention</span><input class="control" style="height: 40px" value="Customers act on it. Wrong steps, numbers, and timelines lead to failed payments and support calls."><span class="budget">99</span></div>
+            <div style="display: grid; grid-template-columns: 150px minmax(0, 1fr) 44px; gap: 10px; align-items: center"><span class="tag risk">Risk</span><input class="control" style="height: 40px" value="Much of it is regulated. Eligibility, credit reporting, and refund terms differ between articles."><span class="budget">97</span></div>
+            <div style="display: grid; grid-template-columns: 150px minmax(0, 1fr) 44px; gap: 10px; align-items: center"><span class="tag risk">Risk · AI</span><input class="control" style="height: 40px" value="AI assistants repeat it. Answers drawn from these articles inherit every conflict."><span class="budget">82</span></div>
+            <span class="sub">Each line traces to findings: C-01, C-07 (credit reporting, timelines); T-03, U-02 (steps and numbers); the prospect's chatbot answers from the help center. Imperatives are the framework, never printed.</span>
+          </div>
+        </section>
+
+        <aside style="display: flex; flex-direction: column; gap: 20px">
+          <section class="card">
+            <div style="display: flex; flex-direction: column; gap: 4px"><h2>Prepared for and sender</h2></div>
+            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px">
+              <label class="field">Prospect<input class="control" value="Lumen Financial"></label>
+              <label class="field">Prospect logo<button class="btn" style="height: 44px; justify-content: flex-start; color: var(--text-tertiary)"><span class="mi" aria-hidden="true">upload</span>Upload file…</button></label>
+              <label class="field">Sender name and title<input class="control" placeholder="[Name, Title]"></label>
+              <label class="field">Sender email<input class="control" placeholder="[email]"></label>
+            </div>
+            <span class="sub">Without a logo file the one-sheet shows a labelled placeholder. Logos are never drawn or fetched from the prospect's site.</span>
+          </section>
+          <section class="card">
+            <div style="display: flex; flex-direction: column; gap: 4px"><h2>Before sending</h2><span class="sub">One wrong or petty finding in front of a documentation head undoes the piece.</span></div>
+            <div class="check"><span class="mi" style="color: var(--color-warning-text)" aria-hidden="true">radio_button_unchecked</span><span>Prospect logo and sender details are still placeholders.</span></div>
+            <div class="check"><span class="mi" style="color: var(--color-warning-text)" aria-hidden="true">radio_button_unchecked</span><span>Spot-check every one-sheet quote in a live browser: <a href="#q">T-03 (fr/paiement-automatique)</a>, <a href="#q">U-02 (contact-us)</a>, <a href="#q">X-01 (verify-your-identity)</a>. help.lumenfinancial.ca blocked the fetcher, so the French quote is unverified.</span></div>
+            <div class="check"><span class="mi" style="color: var(--color-warning-text)" aria-hidden="true">radio_button_unchecked</span><span>Check with Heretto marketing before putting the prospect's logo on unsolicited collateral.</span></div>
+            <div class="check"><span class="mi" style="color: var(--color-success-text)" aria-hidden="true">check_circle</span><span>Both one-sheets fit on one page (lead 1,041 px, exec 1,038 px of 1,056).</span></div>
+            <div class="check"><span class="mi" style="color: var(--color-success-text)" aria-hidden="true">check_circle</span><span>Counts on the one-sheets match the triaged totals (63 · 9 · 329 · 3).</span></div>
+          </section>
+        </aside>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

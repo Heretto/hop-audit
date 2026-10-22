@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HOP Audit: Audit in progress</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&display=block" rel="stylesheet">
+<style>
+body{margin:0}
+:root{--bg-primary:#ffffff;--bg-secondary:#f8f9fb;--bg-tertiary:#f1f3f6;--text-primary:#15181e;--text-secondary:#4d5560;--text-tertiary:#6c7280;--border-default:#e4e7ec;--border-light:#f1f3f6;--border-strong:#d2d6dd;--color-primary:#011627;--color-accent:#16b9a8;--color-accent-bg:#effefb;--color-accent-text:#0f766e;--color-success:#059669;--color-success-bg:#ecfdf5;--color-success-text:#047857;--color-success-border:#a7f3d0;--color-warning:#c07f1c;--color-warning-bg:#fefbf0;--color-warning-text:#714810;--color-warning-border:#fae5ad;--color-error:#dc2626;--color-error-bg:#fef2f2;--color-error-text:#b91c1c;--color-error-border:#fecaca;--font-sans:Inter,system-ui,sans-serif;--font-mono:"Roboto Mono",monospace}
+a{color:#0f766e;text-decoration:none}a:hover{color:#115e59;text-decoration:underline}
+.mi{font-family:"Material Symbols Rounded";font-weight:300;font-size:22px;line-height:1;font-variation-settings:"FILL" 0,"wght" 300,"GRAD" 0,"opsz" 24;display:inline-block;vertical-align:middle;flex:none}
+.card{background:#fff;border:1px solid var(--border-default);border-radius:12px;padding:20px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:16px}
+.btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:8px;font:500 14px var(--font-sans);border:1px solid var(--border-strong);background:#fff;color:var(--text-primary);cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:hover{background:#f1f3f6;text-decoration:none;color:var(--text-primary)}
+.btn .mi{font-size:18px}
+.icon-btn{width:36px;height:36px;border:0;background:transparent;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer}.icon-btn:hover{background:rgba(0,0,0,.04)}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:9999px;font-size:12px;font-weight:500;background:var(--bg-tertiary);color:var(--text-secondary);white-space:nowrap}
+.chip.running{background:var(--color-accent-bg);color:var(--color-accent-text)}.chip.completed{background:var(--color-success-bg);color:var(--color-success-text)}.chip.pending{background:var(--color-warning-bg);color:var(--color-warning-text)}
+.sub{font-size:13px;color:var(--text-tertiary)}
+h1{font-size:28px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--text-primary)}h2{font-size:17px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--text-primary)}
+.topbar{height:56px;background:#fff;border-bottom:1px solid var(--border-default);display:flex;align-items:center;padding:0 16px;gap:12px;box-sizing:border-box}
+.mono{font-family:var(--font-mono);font-size:13px}
+.stage{display:grid;grid-template-columns:28px minmax(0,1.2fr) minmax(0,2fr) 110px;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border-light)}
+.stage:last-child{border-bottom:0}
+.bar{height:8px;border-radius:9999px;background:var(--bg-tertiary);overflow:hidden}
+.bar span{display:block;height:100%;background:var(--color-accent);border-radius:9999px}
+.bar.done span{background:var(--color-success)}
+.shimmer{background:linear-gradient(90deg,transparent 0%,#effefb 50%,transparent 100%);background-size:200% 100%;animation:sweep 1.6s linear infinite}
+@keyframes sweep{from{background-position:200% 0}to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.shimmer{animation:none}}
+.log{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;font-size:13px}
+.log li{display:grid;grid-template-columns:72px 110px minmax(0,1fr);gap:12px;padding:7px 0;border-bottom:1px solid var(--border-light)}
+.log .t{color:var(--text-tertiary);font-family:var(--font-mono);font-size:12px}
+.log .s{color:var(--text-secondary);font-weight:500}
+.log li.warn .m{color:var(--color-warning-text)}
+.done{color:var(--color-success)}.run{color:var(--color-accent-text)}.wait{color:var(--text-disabled,#9ba1ac)}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column; background: var(--bg-secondary); font-family: var(--font-sans); color: var(--text-primary); font-size: 14px">
+  <header class="topbar">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <span style="width: 36px; height: 36px; border-radius: 8px; background: var(--color-primary); color: #79ECDD; display: flex; align-items: center; justify-content: center"><span class="mi" aria-hidden="true">fact_check</span></span>
+      <span style="font-weight: 600; font-size: 16px">HOP Audit</span>
+    </div>
+    <div style="flex: 1"></div>
+    <button class="icon-btn" aria-label="Account"><span class="mi">account_circle</span></button>
+    <button class="icon-btn" aria-label="Settings"><span class="mi">settings</span></button>
+  </header>
+  <div style="display: flex; flex-wrap: wrap; flex: 1">
+    <dc-import name="Nav" active="sites" hint-size="250px,640px"></dc-import>
+    <main style="flex: 999 1 560px; min-width: 0; padding: 24px 32px 48px 24px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box">
+
+      <a href="History.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px"><span class="mi" style="font-size: 18px" aria-hidden="true">arrow_back</span>Heretto Help Center · Audits</a>
+      <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <div style="display: flex; align-items: center; gap: 12px"><h1>Audit #15</h1><span class="chip running"><span class="mi" style="font-size: 14px" aria-hidden="true">progress_activity</span>Running</span></div>
+          <span class="sub">Started Oct 22, 2026 09:14 by patrick@heretto.com · Sections: /authoring, /api (608 pages) · 3 help centers · 5 analyses</span>
+        </div>
+        <div style="display: flex; gap: 8px">
+          <button class="btn"><span class="mi" aria-hidden="true">pause</span>Pause</button>
+          <button class="btn" style="color: var(--color-error-text)"><span class="mi" aria-hidden="true">stop_circle</span>Cancel run</button>
+        </div>
+      </header>
+
+      <section class="card shimmer">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap">
+          <div style="display: flex; align-items: baseline; gap: 10px"><span style="font-size: 32px; font-weight: 600; letter-spacing: -.02em">61%</span><span class="sub">372 of 608 pages fully analyzed · 9 min elapsed · about 6 min left</span></div>
+          <span class="sub">Partial results are already on the <a href="Dashboard.dc.html">dashboard</a>.</span>
+        </div>
+        <div class="bar"><span style="width: 61%"></span></div>
+      </section>
+
+      <div style="display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; align-items: start">
+        <section class="card" style="gap: 4px">
+          <div style="display: flex; flex-direction: column; gap: 4px; padding-bottom: 8px"><h2>Stages</h2><span class="sub">Crawling runs ahead; each analysis agent works through pages as they arrive.</span></div>
+          <div class="stage"><span class="mi done" aria-hidden="true">check_circle</span><div style="display: flex; flex-direction: column"><strong>Discover</strong><span class="sub">sitemap.xml re-read, 2 new pages</span></div><div class="bar done"><span style="width: 100%"></span></div><span class="sub" style="text-align: right">608 / 608</span></div>
+          <div class="stage"><span class="mi done" aria-hidden="true">check_circle</span><div style="display: flex; flex-direction: column"><strong>Crawl</strong><span class="sub">214 unchanged pages reused from #14</span></div><div class="bar done"><span style="width: 100%"></span></div><span class="sub" style="text-align: right">608 / 608</span></div>
+          <div class="stage"><span class="mi run" aria-hidden="true">progress_activity</span><div style="display: flex; flex-direction: column"><strong>Readability</strong><span class="sub">Readability Reviewer · Claude Sonnet 4.5</span></div><div class="bar"><span style="width: 72%"></span></div><span class="sub" style="text-align: right">438 / 608</span></div>
+          <div class="stage"><span class="mi done" aria-hidden="true">check_circle</span><div style="display: flex; flex-direction: column"><strong>Links</strong><span class="sub">Link Validator · 14,206 links checked, 21 broken</span></div><div class="bar done"><span style="width: 100%"></span></div><span class="sub" style="text-align: right">608 / 608</span></div>
+          <div class="stage"><span class="mi run" aria-hidden="true">progress_activity</span><div style="display: flex; flex-direction: column"><strong>SEO and metadata</strong><span class="sub">SEO Analyst · GPT-5</span></div><div class="bar"><span style="width: 61%"></span></div><span class="sub" style="text-align: right">372 / 608</span></div>
+          <div class="stage"><span class="mi run" aria-hidden="true">progress_activity</span><div style="display: flex; flex-direction: column"><strong>Content integrity</strong><span class="sub">Content Integrity Reviewer · en done, de 61%, ja queued · 23 candidates so far</span></div><div class="bar"><span style="width: 54%"></span></div><span class="sub" style="text-align: right">2 / 3 centers</span></div>
+          <div class="stage"><span class="mi wait" aria-hidden="true">schedule</span><div style="display: flex; flex-direction: column"><strong>Summary report</strong><span class="sub">Summary Writer · waits for the analyses above</span></div><div class="bar"><span style="width: 0%"></span></div><span class="sub" style="text-align: right">Pending</span></div>
+        </section>
+
+        <section class="card">
+          <h2>Agents in this run</h2>
+          <div style="display: flex; flex-direction: column; gap: 10px">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid var(--border-default); border-radius: 8px"><div style="display: flex; flex-direction: column"><strong>Readability Reviewer</strong><span class="sub">Claude Sonnet 4.5 · Anthropic, production</span></div><div style="display: flex; flex-direction: column; align-items: flex-end"><span class="chip running">Running</span><span class="sub">612k tokens · 0 errors</span></div></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid var(--border-default); border-radius: 8px"><div style="display: flex; flex-direction: column"><strong>Link Validator</strong><span class="sub">Gemini 2.5 Pro · Google</span></div><div style="display: flex; flex-direction: column; align-items: flex-end"><span class="chip completed">Completed</span><span class="sub">88k tokens · 0 errors</span></div></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid var(--border-default); border-radius: 8px"><div style="display: flex; flex-direction: column"><strong>SEO Analyst</strong><span class="sub">GPT-5 · OpenAI</span></div><div style="display: flex; flex-direction: column; align-items: flex-end"><span class="chip running">Running</span><span class="sub">401k tokens · 2 retries</span></div></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid var(--border-default); border-radius: 8px"><div style="display: flex; flex-direction: column"><strong>Content Integrity Reviewer</strong><span class="sub">Claude Sonnet 4.5 · Anthropic, production</span></div><div style="display: flex; flex-direction: column; align-items: flex-end"><span class="chip running">Running</span><span class="sub">1.9M tokens · 0 errors</span></div></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border: 1px solid var(--border-default); border-radius: 8px"><div style="display: flex; flex-direction: column"><strong>Summary Writer</strong><span class="sub">Claude Sonnet 4.5 · Anthropic, production</span></div><div style="display: flex; flex-direction: column; align-items: flex-end"><span class="chip pending">Pending</span><span class="sub">—</span></div></div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding-top: 8px; border-top: 1px solid var(--border-default)">
+            <div style="display: flex; flex-direction: column"><span style="font-size: 20px; font-weight: 600">3.0M</span><span class="sub">Tokens so far</span></div>
+            <div style="display: flex; flex-direction: column"><span style="font-size: 20px; font-weight: 600">21</span><span class="sub">Broken links found</span></div>
+            <div style="display: flex; flex-direction: column"><span style="font-size: 20px; font-weight: 600">23</span><span class="sub">Integrity candidates · <a href="Findings.dc.html">triage</a></span></div>
+          </div>
+        </section>
+      </div>
+
+      <section class="card" style="gap: 10px">
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+          <div style="display: flex; align-items: center; gap: 10px"><span class="mi" aria-hidden="true">expand_more</span><h2>Run log</h2><span class="sub">31 steps</span></div>
+          <button class="btn" style="height: 30px; font-size: 13px"><span class="mi" aria-hidden="true">content_copy</span>Copy log</button>
+        </div>
+        <span class="sub">Each step of the run, in your timezone. Holds no API keys, prompts or page text, so it's safe to share when reporting a problem.</span>
+        <ol class="log">
+          <li><span class="t">09:14:02</span><span class="s">discover</span><span class="m">Read sitemap.xml: 1,286 URLs (2 new since #14). Scope filter kept 608 in /authoring and /api.</span></li>
+          <li><span class="t">09:14:05</span><span class="s">crawl</span><span class="m">Reusing 214 pages whose lastmod and content hash match #14. Fetching 394 pages, 4 at a time, 250 ms delay.</span></li>
+          <li class="warn"><span class="t">09:15:41</span><span class="s">crawl</span><span class="m">/api/v1/legacy-export returned 503 twice; retried after 30 s and succeeded.</span></li>
+          <li><span class="t">09:17:58</span><span class="s">crawl</span><span class="m">Crawl complete: 608 pages, 14,206 links extracted.</span></li>
+          <li><span class="t">09:18:00</span><span class="s">links</span><span class="m">Link Validator started. 3,112 external targets de-duplicated to 1,904 hosts and paths.</span></li>
+          <li><span class="t">09:18:00</span><span class="s">readability</span><span class="m">Readability Reviewer started: batches of 12 pages, site focus and run focus attached.</span></li>
+          <li><span class="t">09:18:01</span><span class="s">seo</span><span class="m">SEO Analyst started: batches of 20 pages.</span></li>
+          <li class="warn"><span class="t">09:20:17</span><span class="s">seo</span><span class="m">OpenAI returned 429 on batch 7; retried after 12 s.</span></li>
+          <li><span class="t">09:22:45</span><span class="s">links</span><span class="m">Link Validator complete: 21 broken (18 internal, 3 external), 44 redirects, 2 anchors not found.</span></li>
+          <li><span class="t">09:21:30</span><span class="s">integrity</span><span class="m">Content Integrity Reviewer started on US English: 608 articles, collapsed sections expanded, 10 categories, site focus attached.</span></li>
+          <li><span class="t">09:23:10</span><span class="s">readability</span><span class="m">438 of 608 pages scored. Running mean Flesch 56.9, 71 pages under 40.</span></li>
+          <li><span class="t">09:24:52</span><span class="s">integrity</span><span class="m">US English complete: 14 candidates (3 C, 2 U, 4 O, 2 L, 3 X). Deutsch started, compared against English.</span></li>
+        </ol>
+      </section>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
