@@ -52,6 +52,12 @@ describe('SiteSettings', () => {
                   is_active: true,
                 },
               ]),
+            listAiConfigurations: () =>
+              of([
+                { id: 'c1', name: 'Claude', provider: 'anthropic', provider_label: 'Anthropic' },
+                { id: 'c2', name: 'Team key', provider: 'openai', provider_label: 'OpenAI' },
+                { id: 'c3', name: 'Studio', provider: 'gemini', provider_label: 'Google Gemini' },
+              ]),
           },
         },
       ],
@@ -117,6 +123,12 @@ describe('SiteSettings', () => {
     expect(el.textContent).toContain(
       'refused the request (HTTP 403). The audit will report this help center as blocked',
     );
+  });
+
+  it('offers keywords or an OpenAI/Gemini configuration for matching statements', () => {
+    const { page } = render();
+    expect(page.embedders().map((c) => c.id)).toEqual(['c2', 'c3']); // Anthropic can't embed
+    expect(page.form()!.controls.claim_matching.value).toBe('auto');
   });
 
   it('lists problems instead of saving an invalid form', () => {

@@ -163,8 +163,15 @@ TASK = {
 
 
 def instructions(
-    analysis: str, site_focus: str, run_focus: str, task: str | None = None, fmt: str | None = None
+    analysis: str,
+    site_focus: str,
+    run_focus: str,
+    task: str | None = None,
+    fmt: str | None = None,
+    answer: str | None = None,
 ) -> str:
+    """The request's instructions: the task, both focuses, the rules, and the
+    answer's shape (``answer`` replaces the default JSON-array sentence)."""
     parts = [task or TASK[analysis]]
     if site_focus.strip():
         parts.append(f"Focus for this site (applies to every page):\n{site_focus.strip()}")
@@ -174,7 +181,9 @@ def instructions(
         "Mark a finding on_focus when it is something the focus asked for. Quote exactly; never invent or "
         "paraphrase text inside a quote. Report only real problems: return [] when nothing needs fixing."
     )
-    parts.append(f"Answer with a JSON array and nothing else, one object per finding:\n[{fmt or FORMAT[analysis]}]")
+    parts.append(
+        answer or f"Answer with a JSON array and nothing else, one object per finding:\n[{fmt or FORMAT[analysis]}]"
+    )
     return "\n\n".join(parts)
 
 
@@ -230,6 +239,19 @@ def parse_findings(output: str) -> list[dict] | None:
     return value if isinstance(value, list) else None
 
 
+def parse_object(output: str) -> dict | None:
+    """The JSON object in an agent's reply, tolerating code fences and prose."""
+    text = re.sub(r"```(?:json)?", "", output).strip()
+    start, end = text.find("{"), text.rfind("}")
+    if start == -1 or end < start:
+        return None
+    try:
+        value = json.loads(text[start : end + 1])
+    except ValueError:
+        return None
+    return value if isinstance(value, dict) else None
+
+
 def _normalize(text: str) -> str:
     text = text.replace("’", "'").replace("‘", "'").replace("“", '"').replace("”", '"')
     return re.sub(r"\s+", " ", text).strip().lower()
@@ -264,11 +286,12 @@ class Review:
         self.runner = AgentRunner(agent.service)
         self.budget = REPLY_BUDGET.get(analysis, 8192)
 
-    async def ask(self, where: str, material: str, task: str | None = None) -> list[dict] | None:
+    async def ask(self, where: str, material: str, task: str | None = None, parse=None) -> list | dict | None:
         """One request: the parsed findings, or None when it failed. ``where``
         names it in the log (a page path, or "batch 3").
 
-        ``task`` replaces the analysis's usual instructions for this request.
+        ``task`` replaces the analysis's usual instructions for this request;
+        ``parse`` replaces the JSON-array parser (pass 1 of integrity answers an object).
         Rate limits and server errors are retried with backoff; a reply that
         ran out of room is asked again with a bigger budget; a reply that
         isn't JSON is asked for again once. None of these share a count.
@@ -304,7 +327,7 @@ class Review:
                     continue
                 self.log(self.analysis, "error", f"{self.agent.name}, {where}: {self.too_long()}")
                 return None
-            found = parse_findings(result.output)
+            found = (parse or parse_findings)(result.output)
             if found is not None:
                 self.tally.answered += 1
                 return found
@@ -313,7 +336,7 @@ class Review:
                 return None
             reasked = True
             self.log(self.analysis, "warn", f"{self.agent.name}, {where}: reply wasn't JSON; asked again.")
-            instructions = base + "\n\nYour last reply wasn't a JSON array. Reply with the array only."
+            instructions = base + "\n\nYour last reply wasn't the JSON asked for. Reply with the JSON only."
 
     def grow(self, where: str) -> bool:
         """Double the reply budget after a reply ran out of room; False at the ceiling."""
@@ -410,32 +433,41 @@ class Review:
         todo = self.reuse(pages, unchanged or {})
         done = len(pages) - len(todo)
         self.progress(done, len(pages))
-        limit = asyncio.Semaphore(AGENT_CONCURRENCY)
 
         async def one(page: Page) -> None:
             nonlocal done
+            language = languages.get(page.help_center_id, "en")
+            raw = await self.ask(page.path, page_input("P1", page, language, self.analysis))
+            if raw is None:
+                self.failed()
+            else:
+                self.tally.failing = 0
+                self.record(page, raw)
+            done += 1
+            self.progress(done, len(pages))
+
+        await self.each(todo, one)
+        return self.tally
+
+    async def each(self, items: list, fn) -> None:
+        """``fn(item)`` for every item, AGENT_CONCURRENCY at a time, until the
+        agent stops; cancelling the run cancels what's in flight."""
+        limit = asyncio.Semaphore(AGENT_CONCURRENCY)
+
+        async def one(item) -> None:
             async with limit:
                 if self.tally.status == "stopped":
                     return
-                language = languages.get(page.help_center_id, "en")
-                raw = await self.ask(page.path, page_input("P1", page, language, self.analysis))
-                if raw is None:
-                    self.failed()
-                else:
-                    self.tally.failing = 0
-                    self.record(page, raw)
-                done += 1
-                self.progress(done, len(pages))
+                await fn(item)
                 self.db.commit()
 
-        tasks = [asyncio.create_task(one(p)) for p in todo]
+        tasks = [asyncio.create_task(one(i)) for i in items]
         try:
             await asyncio.gather(*tasks)
-        except BaseException:  # cancelled or paused-then-cancelled: stop the other pages too
+        except BaseException:
             for task in tasks:
                 task.cancel()
             raise
-        return self.tally
 
     def record(self, page: Page, raw: list[dict]) -> None:
         """Keep a page's valid findings; drop quotes that aren't on the page."""

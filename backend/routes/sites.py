@@ -7,11 +7,13 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from hop_core.api.dependencies import CurrentUserContext, get_current_active_user_with_org
 from hop_core.db import get_db
 from hop_core.models.agent import Agent
+from hop_core.models.credential import Credential
 from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 import discovery
 from catalog import AGENT_ANALYSES
+from embeddings import PROVIDERS
 from models import AuditRun, HelpCenter, OrgSetup, Site
 from schemas.run import RunSummary, SiteListItem
 from schemas.site import DetectRequest, SiteIn, SiteOut, SiteSummary
@@ -37,6 +39,15 @@ def check_agents(db: Session, ctx: CurrentUserContext, data: SiteIn) -> None:
     }
     if missing := wanted - found:
         raise HTTPException(422, f"Unknown agent: {', '.join(map(str, missing))}")
+
+
+def check_claim_matching(db: Session, ctx: CurrentUserContext, data: SiteIn) -> None:
+    """A credential chosen for embeddings must be the organization's OpenAI or Gemini configuration."""
+    if data.claim_matching in ("auto", "keywords"):
+        return
+    credential = db.get(Credential, UUID(data.claim_matching))
+    if credential is None or credential.organization_id != ctx.organization_id or credential.type not in PROVIDERS:
+        raise HTTPException(422, "Claim matching needs one of this organization's OpenAI or Gemini configurations")
 
 
 def apply(site: Site, data: SiteIn) -> None:
@@ -114,6 +125,7 @@ async def detect(body: DetectRequest, ctx: CurrentUserContext = Ctx):
 @router.post("", response_model=SiteOut, status_code=status.HTTP_201_CREATED)
 def create_site(data: SiteIn, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
     check_agents(db, ctx, data)
+    check_claim_matching(db, ctx, data)
     site = Site(organization_id=ctx.organization_id, created_by=ctx.user.email)
     apply(site, data)
     db.add(site)
@@ -131,6 +143,7 @@ def read_site(site_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depend
 def update_site(site_id: UUID, data: SiteIn, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
     site = get_site(db, ctx, site_id)
     check_agents(db, ctx, data)
+    check_claim_matching(db, ctx, data)
     apply(site, data)
     db.commit()
     db.refresh(site)

@@ -88,15 +88,26 @@ Read those instead of inferring from this project's code. Do not copy them here.
   fragment ids) and `propose_fix` writes the fix (relink, anchor, restore,
   remove) from the crawl. Organizations seeded before this keep a Link
   Validator agent that nothing uses; it can be deleted.
-- **Content integrity** (`backend/integrity.py`): the reviewer reads each
-  reviewed help center a section at a time (character budget) and
-  translations as (original, translation) pairs; quotes must be on their
-  page or the finding goes to review; articles in only one language are
-  found mechanically. Codes are stable per site: a candidate sharing a
-  category and a quote with the previous run's finding keeps its code and,
-  if that triage was confirmed, its tier. Integrity counts show anywhere
-  only once `run.triage.status == "confirmed"`; any change reopens it.
-  Re-analysis never re-runs the integrity review over an existing triage.
+- **Content integrity** (`backend/integrity.py`) runs three passes, one
+  request each, 4 at a time: (1) each article for issues inside it plus its
+  checkable claims (`Page.integrity`; claims not on the page are dropped);
+  (2) each (original, translation) pair (`Page.integrity_pair`, kept while
+  both checksums match); (3) claims grouped by subject within a help center
+  (`claims.py`), only groups whose statements differ, verdicts cached per
+  site in `ClaimGroupReview` by group key. Grouping uses embeddings
+  (`embeddings.py`, calling OpenAI `text-embedding-3-small` or Gemini
+  `gemini-embedding-001` directly with the org's API key; hop-core has no
+  embeddings) or keywords; `Site.claim_matching` is auto | keywords | a
+  credential id, and keywords is also the fallback when embedding fails.
+  Unchanged articles, pairs and groups are reused unless forced. Duplicate
+  titles, links into another language's help center, broken links and
+  missing translations are found in code. Quotes must be on their page or
+  the finding goes to review. Codes are stable per site: a candidate
+  sharing a category and a quote with the previous run's finding keeps its
+  code and, if that triage was confirmed, its tier. Integrity counts show
+  anywhere only once `run.triage.status == "confirmed"`; any change reopens
+  it. Re-analysis never re-runs the integrity review over an existing
+  triage.
 - **Routes in the UI**: `/audits/:runId` is the dashboard (active runs
   redirect to `/audits/:runId/progress`), pages are
   `/audits/:runId/pages/:pageId`, triage is `/audits/:runId/findings`,

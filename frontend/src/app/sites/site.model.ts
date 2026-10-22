@@ -54,6 +54,8 @@ export interface SiteInput {
   crawl: CrawlRules;
   analyses: AnalysisKey[];
   integrity_categories: string[];
+  /** How content integrity matches statements across articles: "auto", "keywords" or an OpenAI/Gemini AI configuration id. */
+  claim_matching: string;
   focus: string;
   agent_assignments: Partial<Record<AssignmentKey, string | null>>;
   schedule: Schedule;

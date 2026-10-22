@@ -21,7 +21,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
-import { AgentSummary, HopAgentService } from '@heretto/hop-ui';
+import { AgentSummary, AiConfiguration, HopAgentService } from '@heretto/hop-ui';
 import { MONTHDAY_OPTIONS, nextRun, WEEKDAY_OPTIONS } from '../schedule';
 import {
   ANALYSES,
@@ -36,6 +36,9 @@ import {
 } from '../site.model';
 import { apiErrors, SitesService } from '../sites.service';
 import { helpCenterGroup, httpUrl, SiteForm, siteForm, toSiteInput } from './site-form';
+
+/** Providers HOP Audit can call for embeddings (Anthropic has no embeddings API). */
+const EMBEDDERS = ['openai', 'gemini'];
 
 const NO_PROSPECT: Prospect = {
   company: '',
@@ -79,6 +82,8 @@ export class SiteSettings implements OnInit {
   readonly form = signal<SiteForm | null>(null);
   readonly title = signal('New site');
   readonly agents = signal<AgentSummary[]>([]);
+  /** OpenAI and Gemini configurations, which can embed statements for content integrity. */
+  readonly embedders = signal<AiConfiguration[]>([]);
   readonly discovery = signal<Discovery | null>(null);
   readonly detecting = signal(false);
   readonly saving = signal(false);
@@ -114,6 +119,10 @@ export class SiteSettings implements OnInit {
     this.agentService
       .listAgents()
       .subscribe({ next: (a) => this.agents.set(a), error: () => this.agents.set([]) });
+    this.agentService.listAiConfigurations().subscribe({
+      next: (configs) => this.embedders.set(configs.filter((c) => EMBEDDERS.includes(c.provider))),
+      error: () => this.embedders.set([]),
+    });
     const id = this.id();
     const load = id ? this.sites.get(id) : this.sites.defaults();
     load.subscribe({

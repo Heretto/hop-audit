@@ -38,6 +38,7 @@ describe('site form', () => {
     expect(body.crawl.exclude).toEqual(['/archive/**', '*.pdf']);
     expect(body.analyses).toEqual(site.analyses);
     expect(body.integrity_categories).toEqual(['C', 'U', 'T']);
+    expect(body.claim_matching).toBe('auto');
     expect(body.agent_assignments).toEqual({
       readability: null,
       seo: 'agent-seo',

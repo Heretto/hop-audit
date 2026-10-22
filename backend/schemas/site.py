@@ -126,6 +126,9 @@ class SiteIn(BaseModel):
     analyses: list[str] = list(SITE_ANALYSES)
     integrity_categories: list[str] = list(CATEGORY_CODES)
     focus: str = ""
+    # Matching statements across articles (content integrity): "auto", "keywords",
+    # or the id of an OpenAI / Gemini credential to embed with.
+    claim_matching: str = "auto"
     agent_assignments: dict[str, UUID | None] = {}
     schedule: Schedule = Schedule()
     prospect: Prospect = Prospect()
@@ -154,6 +157,17 @@ class SiteIn(BaseModel):
         if unknown:
             raise ValueError(f"unknown categories: {', '.join(sorted(unknown))}")
         return [c for c in CATEGORY_CODES if c in v]
+
+    @field_validator("claim_matching")
+    @classmethod
+    def _claim_matching(cls, v: str) -> str:
+        v = (v or "auto").strip()
+        if v in ("auto", "keywords"):
+            return v
+        try:
+            return str(UUID(v))
+        except ValueError:
+            raise ValueError('must be "auto", "keywords" or an OpenAI or Gemini configuration') from None
 
     @field_validator("agent_assignments")
     @classmethod

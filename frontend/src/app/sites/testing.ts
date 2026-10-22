@@ -38,6 +38,7 @@ export function sampleSite(overrides: Partial<SiteInput> = {}): SiteInput {
     },
     analyses: ['readability', 'links', 'seo', 'content_integrity', 'summary'],
     integrity_categories: ['C', 'U', 'T'],
+    claim_matching: 'auto',
     focus: '',
     agent_assignments: { seo: 'agent-seo' },
     schedule: { frequency: 'manual', day: 1, time: '07:00', timezone: 'UTC' },

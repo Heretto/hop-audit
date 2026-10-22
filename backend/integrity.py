@@ -2,54 +2,88 @@
 every reviewed help center and logs what is wrong, conflicting, outdated,
 missing or unscoped (the skill's assessment, in its context files).
 
-Articles go in batches per help center, a section at a time so related
-articles are read together; translated articles go as pairs with their
-primary-language version (and two versions of one language with each other).
-A site too large for one prompt is therefore read in parts: contradictions
-between distant sections can be missed.
+Three passes, so no request has to hold the whole site and unchanged
+articles cost nothing:
+
+1. Per article (one request each): issues inside the article, and the
+   checkable statements it makes (claims). Kept for unchanged pages.
+2. Per translation pair: the translation against the article it translates
+   (and two versions of one language against each other). Kept when neither
+   side changed.
+3. Across articles: claims about the same subject, within a help center,
+   grouped by embeddings (an OpenAI or Gemini key) or by keywords (no extra
+   service, and the fallback); each group whose statements differ goes to
+   the reviewer once. A group seen before with the same statements keeps
+   its verdict.
+
+Some findings need no model at all: duplicate titles, links into another
+language's help center, broken links, and articles missing a translation.
 
 Candidates are verified (every quote must be on its page, or the finding
-goes to review), merged across batches, and given stable codes: a candidate
-matching an earlier run's finding keeps its code, and its tier when that
-run's triage was confirmed. Nothing is counted until a person confirms.
+goes to review), merged, and given stable codes: a candidate matching an
+earlier run's finding keeps its code, and its tier when that run's triage
+was confirmed. Nothing is counted until a person confirms.
 """
 
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Literal
+from urllib.parse import urldefrag
 from uuid import UUID
 
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
+import claims as claim_groups
+import embeddings
 import review
 from catalog import CATEGORY_CODES, INTEGRITY_CATEGORIES
-from models import AuditRun, HelpCenter, IntegrityFinding, Page
-from scope import Root, relative_path
+from models import AuditRun, ClaimGroupReview, HelpCenter, IntegrityFinding, LinkResult, Page
+from scope import Root, help_center_for, relative_path
 
-ARTICLE_TEXT_LIMIT = 8000  # characters per article in a batch
-BATCH_CHARS = 60_000  # characters of article text per batch
-MISSING_LISTED = 8  # untranslated articles quoted on the mechanical finding
+ARTICLE_TEXT_LIMIT = 20_000  # characters of an article sent in one request
+MAX_CLAIMS = 30  # per article
+BROKEN_LINK = "Broken link: "  # title prefix of code-found broken links
+MISSING_LISTED = 8  # pages quoted on a code-made finding
 SEVERITY_ORDER = {"High": 0, "Medium": 1, "Low": 2}
 CATEGORY_LABELS = {c.code: c.label for c in INTEGRITY_CATEGORIES}
+CROSS_ARTICLE = ("C", "U", "TM", "D", "S")  # what comparing statements can find
 
-TASK_ARTICLES = (
-    "Assess these articles for content-integrity issues, following your assessment, counting rule and triage "
-    "files. They are from one help center, a section at a time. Log only content that is wrong, conflicting, "
-    "outdated, missing or unscoped; never differences where both versions are accurate."
+TASK_ARTICLE = (
+    "Assess this article (P1) for content-integrity issues inside it, following your assessment, counting "
+    "rule and triage files: contradictions within it, instructions that can't match the app, outdated "
+    "content, retired products, scope errors, inconsistent terms or disclosure text, and structure or "
+    "publishing errors. Articles are compared with each other separately, so don't guess about others.\n\n"
+    "Then list the article's checkable claims: statements a customer could act on or check (numbers, prices, "
+    "rates, fees, timelines, eligibility, limits, steps, contact details, product names). Give each a short "
+    "subject (2 to 6 words, the same subject wording another article would use) and the exact sentence."
 )
-TASK_PAIRS = (
-    "Compare each translated article with the version it translates, following your assessment, counting rule "
-    "and triage files: changed meaning, missing or added sentences, untranslated strings, one version visibly "
-    "older. Also log anything else wrong inside either article. Never log wording differences where both say "
-    "the same thing."
+TASK_PAIR = (
+    "Compare the translation (P2) with the article it translates (P1), following your assessment, counting "
+    "rule and triage files: changed meaning, missing or added sentences, untranslated strings, one version "
+    "visibly older. Never log wording differences where both say the same thing."
 )
-FORMAT = (
+TASK_GROUP = (
+    "These statements come from different articles in one help center and are about the same subject. Log a "
+    "finding only where they can't all be true for the same customer, product and locale, or would give a "
+    "customer two different answers. Never log statements that are both accurate (different situations, or "
+    "the same fact worded differently). Refer to statements by their S number."
+)
+ISSUE = (
     '{"category": "C|U|T|TM|D|L|S|O|N|X", "severity": "High|Medium|Low", "title": "under 100 characters", '
     '"quotes": [{"label": "A|B|EN|FR…", "page": "P1", "text": "exact text, trimmed to the clause that matters", '
     '"note": "a translation of a non-English quote, or empty"}], "why": "one sentence on why it is a problem", '
+    '"tier": "firm|review|drop", "tier_reason": "why, for review or drop"}'
+)
+ANSWER_ARTICLE = (
+    "Answer with one JSON object and nothing else:\n"
+    '{"issues": [' + ISSUE + '], "claims": [{"subject": "late payment fee", "statement": "exact sentence"}]}'
+)
+GROUP_FINDING = (
+    '{"category": "C|U|TM|D|S", "severity": "High|Medium|Low", "title": "under 100 characters", '
+    '"statements": ["S1", "S3"], "why": "one sentence on why it is a problem", '
     '"tier": "firm|review|drop", "tier_reason": "why, for review or drop"}'
 )
 
@@ -96,32 +130,13 @@ class Candidate:
         return {(q["slug"], review._normalize(q["text"])[:80]) for q in self.quotes}
 
 
-# ── Articles and batches ──────────────────────────────────────────────────────
+# ── Articles and pairs ──────────────────────────────────────────────────────
 
 
 def slug(page: Page, root: Root) -> str:
     rel = relative_path(page.url, root).strip("/")
     prefix = root.url.split("://", 1)[-1].split("/", 1)[-1].strip("/")
     return f"{prefix}/{rel}".strip("/") if prefix else (rel or "(home)")
-
-
-def article_batches(pages: list[Page], budget: int = BATCH_CHARS) -> list[list[Page]]:
-    """One help center's articles packed by section, a section kept whole where it fits."""
-    by_section: dict[str, list[Page]] = defaultdict(list)
-    for p in sorted(pages, key=lambda p: (p.section, p.path)):
-        by_section[p.section].append(p)
-    batches, current, size = [], [], 0
-    for section_pages in by_section.values():
-        for page in section_pages:
-            n = min(len(page.content.get("text", "")), ARTICLE_TEXT_LIMIT)
-            if current and size + n > budget:
-                batches.append(current)
-                current, size = [], 0
-            current.append(page)
-            size += n
-    if current:
-        batches.append(current)
-    return batches
 
 
 def base_language(tag: str) -> str:
@@ -156,20 +171,6 @@ def counterparts(
         if source is not None:
             pairs.append((source, page))
     return pairs
-
-
-def pack_pairs(pairs: list[tuple[Page, Page]], budget: int = BATCH_CHARS) -> list[list[tuple[Page, Page]]]:
-    batches, current, size = [], [], 0
-    for a, b in pairs:
-        n = sum(min(len(p.content.get("text", "")), ARTICLE_TEXT_LIMIT) for p in (a, b))
-        if current and size + n > budget:
-            batches.append(current)
-            current, size = [], 0
-        current.append((a, b))
-        size += n
-    if current:
-        batches.append(current)
-    return batches
 
 
 def article(ref: str, page: Page, root: Root) -> str:
@@ -260,6 +261,116 @@ def missing_translations(
             )
         )
     return out
+
+
+def verify_group(
+    raw: list[dict], refs: dict[str, claim_groups.Claim], enabled: set[str]
+) -> tuple[list[Candidate], int]:
+    """Pass 3 verdicts: each names the statements (S1…) it concerns; their
+    exact text and pages come from the claims, already verified on their pages."""
+    out, malformed = [], 0
+    for item in raw:
+        if not isinstance(item, dict):
+            malformed += 1
+            continue
+        named = [refs[r] for r in item.get("statements", []) if isinstance(r, str) and r in refs]
+        category = str(item.get("category", "")).strip().upper()
+        if len(named) < 2 or category not in enabled or category not in CROSS_ARTICLE:
+            malformed += 1
+            continue
+        try:
+            c = CandidateIn.model_validate(
+                {**item, "category": category, "quotes": [{"page": "S", "text": n.statement} for n in named]}
+            )
+        except ValidationError:
+            malformed += 1
+            continue
+        labels = "ABCDEFGHIJKL"
+        quotes = [
+            {"label": labels[i], "text": n.statement, "slug": n.slug, "note": "", "page_id": str(n.page_id),
+             "verified": True}
+            for i, n in enumerate(named)
+        ]  # fmt: skip
+        centers = list(dict.fromkeys(n.center_id for n in named))
+        out.append(Candidate(c.category, c.severity, c.title.strip(), quotes, c.why.strip(), c.tier, c.tier_reason,
+                             centers))  # fmt: skip
+    return out, malformed
+
+
+def code_findings(
+    db: Session, run: AuditRun, roots: list[Root], every_root: list[Root], pages: dict[UUID, list[Page]]
+) -> list[Candidate]:
+    """Findings that need no model: duplicate titles, links into another
+    language's help center, and broken links (from this run's link check, or
+    the latest earlier one when this run didn't check links)."""
+    out: list[Candidate] = []
+    by_id = {r.id: r for r in every_root}
+
+    def quote(page: Page, root: Root, text: str, note: str) -> dict:
+        return {"label": "", "text": text, "slug": slug(page, root), "note": note, "page_id": str(page.id),
+                "verified": True}  # fmt: skip
+
+    for root in roots:
+        titles: dict[str, list[Page]] = defaultdict(list)
+        for p in pages[root.id]:
+            if p.title.strip():
+                titles[claim_groups.normalize(p.title)].append(p)
+        for same in titles.values():
+            if len(same) > 1:
+                out.append(Candidate(
+                    "N", "Low", f'{len(same)} articles share the title "{same[0].title}"',
+                    [quote(p, root, p.title, "") for p in same[:MISSING_LISTED]],
+                    "Readers, search and AI answers can't tell these articles apart.", "firm", "", [root.id],
+                ))  # fmt: skip
+
+        wrong: dict[UUID, list[tuple[Page, str, str]]] = defaultdict(list)
+        for p in pages[root.id]:
+            for link in p.content.get("links", []):
+                target = help_center_for(urldefrag(link["url"])[0], every_root)
+                if target and base_language(target.language) != base_language(root.language) and link.get("text"):
+                    wrong[target.id].append((p, link["text"], link["url"]))
+        for target_id, found in wrong.items():
+            target = by_id[target_id]
+            out.append(Candidate(
+                "N", "Medium", f"{root.name} links into the {target.name} help center ({len(found)} links)",
+                [quote(p, root, text, f"→ {url}") for p, text, url in found[:MISSING_LISTED]],
+                f"A {root.name} reader following these links lands in another language.", "firm", "",
+                [root.id, target.id],
+            ))  # fmt: skip
+
+    reviewed = {p.url: (p, by_id[p.help_center_id]) for ps in pages.values() for p in ps}
+    broken: dict[str, list[tuple[LinkResult, Page, Root]]] = defaultdict(list)
+    checked_in = run.id if "links" in (run.analyses or []) else _last_link_check(db, run)
+    rows = db.execute(
+        select(LinkResult, Page.url)
+        .join(Page, Page.id == LinkResult.page_id)
+        .where(LinkResult.run_id == checked_in, LinkResult.outcome == "broken")
+    ) if checked_in else []  # fmt: skip
+    for r, page_url in rows:
+        if page_url in reviewed and r.text:
+            broken[urldefrag(r.url)[0]].append((r, *reviewed[page_url]))
+    for target, found in broken.items():
+        first = found[0][0]
+        out.append(Candidate(
+            "N", "Medium" if first.internal else "Low",
+            f"{BROKEN_LINK}{target.split('://', 1)[-1][:80]} ({first.note or first.status})",
+            [quote(p, root, r.text, f"→ {first.note or 'broken'}") for r, p, root in found[:MISSING_LISTED]],
+            "The link goes nowhere; readers who need what it points to are stuck.", "firm", "",
+            list(dict.fromkeys(root.id for _, _, root in found)),
+        ))  # fmt: skip
+    return out
+
+
+def _last_link_check(db: Session, run: AuditRun) -> UUID | None:
+    """The latest earlier completed run of the site that checked links."""
+    for earlier in db.scalars(
+        select(AuditRun)
+        .where(AuditRun.site_id == run.site_id, AuditRun.number < run.number, AuditRun.status == "completed")
+        .order_by(AuditRun.number.desc())
+    ):
+        if "links" in (earlier.analyses or []):
+            return earlier.id
+    return None
 
 
 # ── Codes across runs ─────────────────────────────────────────────────────────
@@ -379,26 +490,28 @@ def refresh_metrics(db: Session, run: AuditRun) -> None:
 # ── The stage ─────────────────────────────────────────────────────────────────
 
 
-async def run_review(db: Session, run: AuditRun, rec, checkpoint, record_stats) -> None:
+async def run_review(db: Session, run: AuditRun, rec, checkpoint, record_stats, unchanged: dict) -> None:
     """The content_integrity stage. ``record_stats(agent, tally)`` adds the
-    agent's tokens and counts to the run (shared with the other analyses)."""
+    agent's tokens and counts to the run; ``unchanged`` maps a page id to the
+    last audit's page with the same checksum (empty when forcing)."""
     key = "content_integrity"
     db.execute(delete(IntegrityFinding).where(IntegrityFinding.run_id == run.id))
     site = run.site
     centers = db.scalars(select(HelpCenter).where(HelpCenter.site_id == site.id).order_by(HelpCenter.position)).all()
+    every_root = [Root(c.id, c.name, c.url, c.language, c.is_primary) for c in centers]
     wanted = {str(i) for i in (run.help_center_ids or [])} or {str(c.id) for c in centers}
-    roots = [Root(c.id, c.name, c.url, c.language, c.is_primary) for c in centers if str(c.id) in wanted]
+    roots = [r for r in every_root if str(r.id) in wanted]
     if not roots:
         rec.stage(key, status="skipped", detail="No help center chosen for review")
         return
     by_id = {r.id: r for r in roots}
-    pages = db.scalars(
-        select(Page).where(Page.run_id == run.id, Page.http_status == 200, Page.help_center_id.in_(list(by_id)))
-    ).all()
     pages_by_center: dict[UUID, list[Page]] = defaultdict(list)
-    for p in pages:
+    for p in db.scalars(
+        select(Page).where(Page.run_id == run.id, Page.http_status == 200, Page.help_center_id.in_(list(by_id)))
+    ):
         if p.word_count >= 30:
             pages_by_center[p.help_center_id].append(p)
+    articles = [p for r in roots for p in sorted(pages_by_center[r.id], key=lambda p: p.path)]
 
     try:
         agent = review.load_agent(db, run.organization_id, (site.agent_assignments or {}).get(key))
@@ -408,72 +521,145 @@ async def run_review(db: Session, run: AuditRun, rec, checkpoint, record_stats) 
         return
 
     enabled = set(site.integrity_categories or CATEGORY_CODES)
-    shared = dict(site_focus=site.focus or "", run_focus=run.focus or "")
-    task_articles = review.instructions(key, task=_with_categories(TASK_ARTICLES, enabled), fmt=FORMAT, **shared)
-    task_pairs = review.instructions(key, task=_with_categories(TASK_PAIRS, enabled), fmt=FORMAT, **shared)
-
-    jobs: list[tuple[str, str, dict]] = []  # (task, material, refs)
-    for root in roots:
-        for batch in article_batches(pages_by_center[root.id]):
-            refs = {f"P{i}": (p, root) for i, p in enumerate(batch, 1)}
-            head = f"Help center: {root.name} ({root.language}{', primary' if root.is_primary else ''})\n\n"
-            jobs.append((task_articles, head + "\n\n".join(article(r, p, rt) for r, (p, rt) in refs.items()), refs))
-    pairs_by_center = {}
-    if "T" in enabled:
-        for other, original in pairings(roots):
-            matched = counterparts(pages_by_center[original.id], original, pages_by_center[other.id], other)
-            pairs_by_center[(other.id, original.id)] = matched
-            for batch in pack_pairs(matched):
-                refs, blocks = {}, []
-                for n, (orig, trans) in enumerate(batch, 1):
-                    a, b = f"P{2 * n - 1}", f"P{2 * n}"
-                    refs[a], refs[b] = (orig, original), (trans, other)
-                    blocks.append(f"## Pair {n}\n{article(a, orig, original)}\n\n{article(b, trans, other)}")
-                jobs.append((task_pairs, "\n\n".join(blocks), refs))
-
+    focus = dict(site_focus=site.focus or "", run_focus=run.focus or "")
     names = ", ".join(r.name for r in roots)
-    rec.stage(key, status="running", done=0, total=len(jobs), detail=f"{agent.name} · {agent.model} · {names}")
-    rec.log(
-        key,
-        "info",
-        f"{agent.name} started on {sum(len(v) for v in pages_by_center.values()):,} articles in {len(roots)} help "
-        f"center(s): {len(jobs)} batches, {len(enabled)} categories, focus attached.",
-    )
-    reviewer = review.Review(db, run, key, agent, rec.log, lambda d, t: rec.stage(key, done=d, total=t), checkpoint)
+    pairs = [
+        (orig, trans, original, other)
+        for other, original in (pairings(roots) if "T" in enabled else [])
+        for orig, trans in counterparts(pages_by_center[original.id], original, pages_by_center[other.id], other)
+    ]
+    total = len(articles) + len(pairs)
+    done = 0
+    rec.stage(key, status="running", done=0, total=total, detail=f"{agent.name} · {agent.model} · {names}")
+    rec.log(key, "info", f"{agent.name} started on {len(articles):,} articles and {len(pairs):,} translation pairs "
+                         f"in {names}, one per request, focus attached.")  # fmt: skip
+
+    def progress(n: int = 1) -> None:
+        nonlocal done
+        done += n
+        rec.stage(key, done=done, total=total)
+
+    reviewer = review.Review(db, run, key, agent, rec.log, lambda d, t: None, checkpoint)
+    kept = Counter()
+
+    # Pass 1: each article on its own.
+    task = review.instructions(key, task=_with_categories(TASK_ARTICLE, enabled), answer=ANSWER_ARTICLE, **focus)
+
+    async def one_article(page: Page) -> None:
+        prev = unchanged.get(page.id)
+        if prev is not None and prev.integrity is not None:
+            page.integrity = prev.integrity
+            kept["articles"] += 1
+        else:
+            raw = await reviewer.ask(page.path, article("P1", page, by_id[page.help_center_id]), task,
+                                     parse=review.parse_object)  # fmt: skip
+            if raw is None:
+                reviewer.failed()
+                progress()
+                return
+            reviewer.tally.failing = 0
+            page.integrity = {"issues": _dicts(raw.get("issues")), "claims": _claims(raw.get("claims"), page)}
+        progress()
+
+    await reviewer.each(articles, one_article)
+    if reviewer.tally.failed:
+        return _failed(db, rec, key, agent, reviewer.tally, record_stats)
+
+    # Pass 2: each translation against its original.
+    task = review.instructions(key, task=_with_categories(TASK_PAIR, enabled), fmt=ISSUE, **focus)
+
+    async def one_pair(pair) -> None:
+        orig, trans, original, other = pair
+        prev = unchanged.get(trans.id)
+        saved = prev.integrity_pair if prev is not None else None
+        if saved and saved.get("original_url") == orig.url and saved.get("original_checksum") == orig.content_hash:
+            trans.integrity_pair = saved
+            kept["pairs"] += 1
+        else:
+            material = f"{article('P1', orig, original)}\n\n{article('P2', trans, other)}"
+            raw = await reviewer.ask(f"{trans.path} vs {orig.path}", material, task)
+            if raw is None:
+                reviewer.failed()
+                progress()
+                return
+            reviewer.tally.failing = 0
+            trans.integrity_pair = {"original_url": orig.url, "original_checksum": orig.content_hash,
+                                    "issues": _dicts(raw)}  # fmt: skip
+        progress()
+
+    await reviewer.each(pairs, one_pair)
+
     candidates: list[Candidate] = []
     malformed = 0
-    reviewed: set[str] = set()  # pages in batches the reviewer answered
-    for n, (task, material, refs) in enumerate(jobs, 1):
-        raw = await reviewer.ask(f"batch {n}", material, task)
-        if raw is None:
-            if reviewer.failed():
-                break
-        else:
-            reviewer.tally.failing = 0
-            found, bad = verify(raw, refs, enabled)
+    reviewed: set[str] = set()
+    for page in articles:
+        if page.integrity is None:
+            continue
+        reviewed.add(page.url)
+        found, bad = verify(page.integrity["issues"], {"P1": (page, by_id[page.help_center_id])}, enabled)
+        candidates += found
+        malformed += bad
+    for orig, trans, original, other in pairs:
+        if trans.integrity_pair and trans.integrity_pair.get("original_url") == orig.url:
+            refs = {"P1": (orig, original), "P2": (trans, other)}
+            found, bad = verify(trans.integrity_pair["issues"], refs, enabled)
             candidates += found
             malformed += bad
-            reviewed |= {page.url for page, _ in refs.values()}
-        rec.stage(key, done=n, detail=f"{agent.name} · {len(merge(candidates)):,} candidates so far")
+
+    # Pass 3: statements about the same subject, compared across articles.
+    groups, method = await _claim_groups(db, run, rec, roots, pages_by_center)
+    total += len(groups)
+    rec.stage(key, total=total, detail=f"{agent.name} · comparing {len(groups):,} statement groups ({method})")
+    previous = {} if run.force_reevaluate else {
+        r.key: r for r in db.scalars(
+            select(ClaimGroupReview).where(ClaimGroupReview.site_id == site.id)
+            .order_by(ClaimGroupReview.run_number)
+        )
+    }  # fmt: skip
+    allowed = [c for c in CROSS_ARTICLE if c in enabled]
+    task = review.instructions(
+        key, task=f"{TASK_GROUP}\n\nLog these categories only: {', '.join(allowed)}.", fmt=GROUP_FINDING, **focus
+    )
+
+    async def one_group(group: list[claim_groups.Claim]) -> None:
+        nonlocal malformed
+        group_key = claim_groups.group_key(group)
+        refs = {f"S{i}": c for i, c in enumerate(group, 1)}
+        if group_key in previous:
+            issues = previous[group_key].issues
+            kept["groups"] += 1
+        else:
+            lines = [f"Subject: {group[0].subject}"]
+            lines += [f'{ref} · {by_id[c.center_id].name} · {c.slug}: "{c.statement}"' for ref, c in refs.items()]
+            raw = await reviewer.ask(f"statements about {group[0].subject!r}", "\n".join(lines), task)
+            if raw is None:
+                reviewer.failed()
+                progress()
+                return
+            reviewer.tally.failing = 0
+            issues = _dicts(raw)
+            db.add(ClaimGroupReview(site_id=site.id, key=group_key, run_number=run.number, issues=issues))
+        found, bad = verify_group(issues, refs, enabled)
+        candidates.extend(found)
+        malformed += bad
+        progress()
+
+    await reviewer.each(groups, one_group)
     if malformed:
         rec.log(key, "warn", f"{agent.name}: {malformed} malformed or out-of-scope candidate(s) dropped.")
 
-    tally = reviewer.tally
-    if tally.failed:
-        # Nothing to triage and nothing resolved: no answer isn't a clean bill.
-        record_stats(agent, tally)
-        detail = (
-            f"{agent.name} didn't review this audit: {tally.errors:,} failed batch(es)"
-            + (f", {tally.note}" if tally.note else "")
-            + ". See the run log, then analyze again."
-        )
-        rec.stage(key, status="failed", detail=detail)
-        rec.log(key, "error", detail)
-        db.commit()
-        return
-
+    # Findings that need no model.
+    if "N" in enabled:
+        candidates += code_findings(db, run, roots, every_root, pages_by_center)
     if "T" in enabled:
+        pairs_by_center: dict = defaultdict(list)
+        for orig, trans, original, other in pairs:
+            pairs_by_center[(other.id, original.id)].append((orig, trans))
+        for other, original in pairings(roots):
+            pairs_by_center.setdefault((other.id, original.id), [])
         candidates += missing_translations(pairs_by_center, by_id, pages_by_center)
+
+    tally = reviewer.tally
     findings, resolved = assign(db, run, merge(candidates), reviewed)
     center_names = {str(c.id): c.name for c in centers}
     for f in findings:
@@ -484,23 +670,85 @@ async def run_review(db: Session, run: AuditRun, rec, checkpoint, record_stats) 
     clean = not findings and not tally.errors
     run.triage = {"status": "confirmed", "confirmed_at": None} if clean else {"status": "pending"}
     run.metrics = {**(run.metrics or {}), "integrity": metrics(findings, resolved, confirmed=clean)}
-    reviewer.tally.findings = len(findings)
-    record_stats(agent, reviewer.tally)
+    tally.findings = len(findings)
+    record_stats(agent, tally)
 
     unverified = sum(1 for f in findings for q in f.quotes if not q["verified"])
     high = sum(1 for f in findings if f.severity == "High")
     parts = [f"{agent.name}: {len(findings):,} candidates ({high:,} High) in {names}"]
+    parts.append(
+        f"{len(articles):,} articles ({kept['articles']:,} unchanged kept), {len(pairs):,} translation pairs "
+        f"({kept['pairs']:,} kept), {len(groups):,} statement groups by {method} ({kept['groups']:,} kept)"
+    )
     if unverified:
         parts.append(f"{unverified:,} quotes not found on their page (sent to review)")
     if resolved:
         parts.append(f"{len(resolved):,} earlier findings resolved")
-    if reviewer.tally.errors:
-        parts.append(f"{reviewer.tally.errors:,} failed batches")
-    if reviewer.tally.note:
-        parts.append(reviewer.tally.note)
-    rec.stage(key, status="done", detail=", ".join(parts))
-    rec.log(key, "info", f"{', '.join(parts)}; {reviewer.tally.tokens:,} tokens. Triage before anything is counted.")
+    if tally.errors:
+        parts.append(f"{tally.errors:,} failed requests")
+    if tally.note:
+        parts.append(tally.note)
+    rec.stage(key, status="done", done=total, total=total, detail=", ".join(parts))
+    rec.log(key, "info", f"{', '.join(parts)}; {tally.tokens:,} tokens. Triage before anything is counted.")
     db.commit()
+
+
+def _failed(db: Session, rec, key: str, agent, tally, record_stats) -> None:
+    """Nothing to triage and nothing resolved: no answer isn't a clean bill."""
+    record_stats(agent, tally)
+    detail = (
+        f"{agent.name} didn't review this audit: {tally.errors:,} failed request(s)"
+        + (f", {tally.note}" if tally.note else "")
+        + ". See the run log, then analyze again."
+    )
+    rec.stage(key, status="failed", detail=detail)
+    rec.log(key, "error", detail)
+    db.commit()
+
+
+def _dicts(value) -> list[dict]:
+    return [v for v in value if isinstance(v, dict)] if isinstance(value, list) else []
+
+
+def _claims(value, page: Page) -> list[dict]:
+    """Claims with a subject and a statement that is really on the page."""
+    out = []
+    for item in _dicts(value):
+        subject, statement = str(item.get("subject", "")).strip(), str(item.get("statement", "")).strip()
+        if subject and statement and review.quote_found(statement, page.content.get("text", ""), page.title):
+            out.append({"subject": subject[:120], "statement": statement[:600]})
+    return out[:MAX_CLAIMS]
+
+
+async def _claim_groups(db: Session, run: AuditRun, rec, roots: list[Root], pages: dict) -> tuple[list, str]:
+    """Pass 3's groups worth asking about, per help center, and how they were
+    matched. Embeddings when the site's setting finds a key; keywords otherwise,
+    or when embedding fails."""
+    per_center = {
+        r.id: [
+            claim_groups.Claim(p.id, p.url, slug(p, r), r.id, c["subject"], c["statement"])
+            for p in pages[r.id]
+            if p.integrity
+            for c in p.integrity.get("claims", [])
+        ]
+        for r in roots
+    }
+    embedder = embeddings.choose(db, run.organization_id, run.site.claim_matching or "auto")
+    method = "keywords"
+    grouped: list[list[claim_groups.Claim]] = []
+    if embedder is not None:
+        try:
+            for found in per_center.values():
+                vectors = await embedder.embed([c.text for c in found]) if found else []
+                grouped += claim_groups.embedding_groups(found, vectors)
+            method = f"embeddings ({embedder.label})"
+        except embeddings.EmbeddingError as exc:
+            rec.log("content_integrity", "warn", f"Embedding failed ({exc}); matching statements by keywords instead.")
+            grouped = []
+    if method == "keywords":
+        for found in per_center.values():
+            grouped += claim_groups.keyword_groups(found)
+    return [claim_groups.trim(g) for g in grouped if claim_groups.worth_asking(g)], method
 
 
 def _with_categories(task: str, enabled: set[str]) -> str:

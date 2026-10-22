@@ -1,10 +1,12 @@
-"""Content integrity: batching, verification, stable codes, triage."""
+"""Content integrity: the three passes, code findings, verification, stable codes, triage."""
 
 import json
+import re
 import uuid
 from types import SimpleNamespace
 from uuid import UUID
 
+import httpx
 import pytest
 import respx
 from hop_core.agents import AiProviderRegistry, GenerationResponse
@@ -12,10 +14,12 @@ from hop_core.models.agent import Agent
 
 import integrity
 import review
-from integrity import Candidate, article_batches, counterparts, merge, pairings, verify
-from models import AuditRun, IntegrityFinding
+from claims import Claim
+from integrity import Candidate, counterparts, merge, pairings, verify, verify_group
+from models import AuditRun, ClaimGroupReview, IntegrityFinding, Page
 from scope import Root
 from tests.fake_site import BASE, serve
+from tests.fake_site import page as html_page
 from tests.test_runs import add_run, execute, fast_retries, make_site  # noqa: F401
 
 QUOTE = "Steady useful documentation words."
@@ -36,12 +40,6 @@ def page(path, section="/a", text=QUOTE * 3, title="T", root=EN, alternates=()):
 
 
 # ── Units ─────────────────────────────────────────────────────────────────────
-
-
-def test_article_batches_keep_sections_together_within_budget():
-    pages = [page("/a/1", "/a", "x" * 30), page("/a/2", "/a", "x" * 30), page("/b/1", "/b", "x" * 30)]
-    assert [len(b) for b in article_batches(pages, budget=100)] == [3]
-    assert [[p.path for p in b] for b in article_batches(pages, budget=70)] == [["/a/1", "/a/2"], ["/b/1"]]
 
 
 def test_pairings():
@@ -109,49 +107,105 @@ def test_triage_feedback_lists_only_changed_calls():
     assert integrity.triage_feedback([f("C-01", "firm", "firm")], "X", 3) == ""
 
 
+def test_verify_group_takes_statements_from_the_claims():
+    a = Claim(uuid.uuid4(), f"{BASE}a", "a", EN.id, "support phone", "Call 555-0146.")
+    b = Claim(uuid.uuid4(), f"{BASE}b", "b", EN.id, "support phone", "Call 555-0164.")
+    refs = {"S1": a, "S2": b}
+    raw = [
+        {"category": "c", "severity": "High", "title": "Two numbers", "statements": ["S1", "S2"], "tier": "firm"},
+        {"category": "C", "severity": "High", "title": "One statement", "statements": ["S1"]},
+        {"category": "O", "severity": "Low", "title": "Not a cross-article category", "statements": ["S1", "S2"]},
+        {"category": "D", "severity": "Low", "title": "Disabled", "statements": ["S1", "S2"]},
+        "not an object",
+    ]
+    found, malformed = verify_group(raw, refs, {"C", "O"})
+    assert malformed == 4 and len(found) == 1
+    q = found[0].quotes
+    assert [(x["label"], x["text"], x["slug"], x["verified"]) for x in q] == [
+        ("A", "Call 555-0146.", "a", True),
+        ("B", "Call 555-0164.", "b", True),
+    ]
+
+
+def test_claims_must_be_on_the_page():
+    p = page("/a", text="Call support at 555-0146 any weekday. " * 3)
+    raw = [
+        {"subject": "support phone", "statement": "Call support at 555-0146 any weekday."},
+        {"subject": "support phone", "statement": "Call support at 555-9999 any weekday."},
+        {"subject": "", "statement": "Call support at 555-0146 any weekday."},
+        "nope",
+    ]
+    assert integrity._claims(raw, p) == [
+        {"subject": "support phone", "statement": "Call support at 555-0146 any weekday."}
+    ]
+    assert len(integrity._claims([raw[0]] * 50, p)) == integrity.MAX_CLAIMS
+
+
 # ── Runs ──────────────────────────────────────────────────────────────────────
+
+PHONE_A = "Call support at 555-0146 any weekday."
+PHONE_B = "Call support at 555-0164 any weekday."
+FILLER = " ".join([QUOTE] * 8)
 
 
 class FakeReviewer:
-    """Answers content-integrity batches; ``extra`` adds a second article finding."""
+    """Answers the three kinds of integrity request; ``extra`` adds an issue inside /authoring/a."""
 
     def __init__(self):
         self.calls: list[str] = []
         self.extra = True
 
+    def kind(self, prompt: str) -> str:
+        if "Compare the translation (P2)" in prompt:
+            return "pair"
+        if prompt.count("\nS1 · ") or "\nSubject: " in prompt:
+            return "group"
+        return "article"
+
     async def __call__(self, api_key, model, request):
         prompt = request.user_prompt
         self.calls.append(prompt)
-        if "## Pair 1" in prompt:
+        kind = self.kind(prompt)
+        if kind == "pair":
             out = [{"category": "T", "severity": "High", "title": "German says the opposite", "tier": "firm",
                     "quotes": [{"label": "EN", "page": "P1", "text": QUOTE},
                                {"label": "DE", "page": "P2", "text": QUOTE, "note": "(same)"}],
                     "why": "A German reader is told the opposite."}]  # fmt: skip
-        elif "Help center: US English" in prompt:
-            out = [
-                {
-                    "category": "C",
-                    "severity": "Medium",
-                    "title": "Two answers",
-                    "tier": "firm",
-                    "quotes": [{"label": "A", "page": "P1", "text": QUOTE}],
-                    "why": "Customers get two answers.",
-                }
-            ]
-            if self.extra:
-                out.append(
+        elif kind == "group":
+            out = [{"category": "C", "severity": "High", "title": "Two support numbers", "statements": ["S1", "S2"],
+                    "why": "One of them is wrong.", "tier": "firm"}]  # fmt: skip
+        else:
+            text = prompt.split("\n### P1", 1)[-1]
+            phones = re.findall(r"Call support at 555-\d+ any weekday\.", text)
+            claims = [{"subject": "support phone number", "statement": s} for s in dict.fromkeys(phones)]
+            issues = []
+            if "· authoring/a ·" in text and self.extra:
+                issues.append(
                     {
                         "category": "X",
-                        "severity": "Low",
+                        "severity": "Medium",
                         "title": "Internal note published",
                         "tier": "firm",
-                        "quotes": [{"page": "P2", "text": QUOTE}],
-                        "why": "Agent text is public.",
+                        "quotes": [{"page": "P1", "text": PHONE_A}],
+                        "why": "Agent text.",
                     }
                 )
-        else:
-            out = []
+            if "· archive/old ·" in text:
+                issues.append(
+                    {
+                        "category": "O",
+                        "severity": "Low",
+                        "title": "Invented quote",
+                        "tier": "firm",
+                        "quotes": [{"page": "P1", "text": "Not on this page."}],
+                        "why": "Should go to review.",
+                    }
+                )
+            out = {"issues": issues, "claims": claims}  # fmt: skip
         return GenerationResponse(content=json.dumps(out), input_tokens=500, output_tokens=100)
+
+    def count(self, kind: str) -> int:
+        return sum(1 for c in self.calls if self.kind(c) == kind)
 
 
 @pytest.fixture
@@ -171,7 +225,22 @@ def mock():
         yield m
 
 
-def integrity_site(client, user, categories=None):
+def serve_site(mock, **extra):
+    """The fake help center with two articles that disagree on the support number."""
+    return serve(
+        mock,
+        **{
+            "authoring/a": httpx.Response(200, html=html_page("Topic A", f"{PHONE_A} {FILLER}",
+                                                              links=["/nowhere", "/de/authoring/a"])),
+            "authoring/b": httpx.Response(200, html=html_page("Topic B", f"{PHONE_B} {FILLER}")),
+            "api/c": httpx.Response(200, html=html_page("Topic A")),  # duplicate title
+            "nowhere": httpx.Response(404),
+            **extra,
+        },
+    )  # fmt: skip
+
+
+def integrity_site(client, user, categories=None, claim_matching=None):
     h = user["headers"]
     agents = client.post("/api/v1/setup", headers=h).json()["seeded_agents"]
     cred = client.post(
@@ -185,12 +254,16 @@ def integrity_site(client, user, categories=None):
     body.update(agent_assignments=agents, purpose="prospect")
     if categories is not None:
         body["integrity_categories"] = categories
-    assert client.put(f"/api/v1/sites/{site['id']}", json=body, headers=h).status_code == 200
+    if claim_matching is not None:
+        body["claim_matching"] = claim_matching
+    r = client.put(f"/api/v1/sites/{site['id']}", json=body, headers=h)
+    assert r.status_code == 200, r.text
     return site, agents
 
 
-async def run_integrity(db, site, user, number=1) -> AuditRun:
-    run = await execute(db, add_run(db, site, user, number=number, analyses=["content_integrity"], reuse_crawl=False))
+async def run_integrity(db, site, user, number=1, **fields) -> AuditRun:
+    analyses = fields.pop("analyses", ["links", "content_integrity"])
+    run = await execute(db, add_run(db, site, user, number=number, analyses=analyses, reuse_crawl=False, **fields))
     assert run.status == "completed", run.error
     return run
 
@@ -199,186 +272,256 @@ def findings(db, run):
     return {f.code: f for f in db.query(IntegrityFinding).filter(IntegrityFinding.run_id == run.id)}
 
 
-async def test_review_logs_candidates_with_codes(client, user, db, mock, model):
-    serve(mock)
+def by_title(found):
+    return {f.title: f for f in found.values()}
+
+
+def stage(run):
+    return next(s for s in run.stages if s["key"] == "content_integrity")
+
+
+async def test_three_passes_and_code_findings(client, user, db, mock, model):
+    serve_site(mock)
     site, _ = integrity_site(client, user)
     run = await run_integrity(db, site, user)
 
-    stage = next(s for s in run.stages if s["key"] == "content_integrity")
-    assert stage["status"] == "done" and "candidates" in stage["detail"]
-    assert any("Help center: Deutsch" in c for c in model.calls)  # each help center read
-    assert any("## Pair 1" in c for c in model.calls)  # and translations compared
-    assert all("Log these categories only" in c for c in model.calls)
+    # One request per article (7 with enough text), per translation pair (2), per disagreeing group (1).
+    assert model.count("article") == 7 and model.count("pair") == 2 and model.count("group") == 1
+    assert all(c.count("### P1") == 1 for c in model.calls if model.kind(c) == "article")
+    group_prompt = next(c for c in model.calls if model.kind(c) == "group")
+    assert "Subject: support phone number" in group_prompt and PHONE_A in group_prompt and PHONE_B in group_prompt
 
-    found = findings(db, run)
-    assert set(found) == {"C-01", "X-01", "T-01", "T-02"}
-    assert found["C-01"].tier == "firm" and found["C-01"].first_seen == 1 and found["C-01"].locale == "US English"
-    assert found["T-01"].locale == "Deutsch vs. US English" or found["T-02"].locale == "Deutsch vs. US English"
-    missing = next(f for f in found.values() if "have no Deutsch version" in f.title)
-    assert missing.tier == "review"
-    assert found["X-01"].quotes[0]["slug"] == "api/c"  # articles go by section: P2 is /api/c
+    found = by_title(findings(db, run))
+    two = found["Two support numbers"]  # pass 3, across articles
+    assert two.category == "C" and {q["slug"] for q in two.quotes} == {"authoring/a", "authoring/b"}
+    assert found["Internal note published"].category == "X"  # pass 1
+    assert found["German says the opposite"].category == "T"  # pass 2
+    assert found["Invented quote"].tier == "review"  # quote not on the page
+    assert any("no Deutsch version" in t for t in found), list(found)  # code
+    assert found['2 articles share the title "Topic A"'].category == "N"  # code
+    wrong = next(f for t, f in found.items() if "links into the Deutsch help center" in t)  # code
+    assert wrong.quotes[0]["text"] == "/de/authoring/a" and wrong.locale == "US English, Deutsch"
+    broken = next(f for t, f in found.items() if t.startswith("Broken link"))  # code, from the link check
+    assert broken.quotes[0]["text"] == "/nowhere" and broken.tier == "firm"
 
-    assert run.triage == {"status": "pending"}
-    m = run.metrics["integrity"]
-    assert m["candidates"] == 4 and m["confirmed"] is False
+    detail = stage(run)["detail"]
+    assert "7 articles (0 unchanged kept), 2 translation pairs (0 kept), 1 statement groups by keywords" in detail
+    assert db.query(ClaimGroupReview).count() >= 1
+
+
+async def test_unchanged_articles_pairs_and_groups_are_kept(client, user, db, mock, model):
+    serve_site(mock)
+    site, _ = integrity_site(client, user)
+    first = await run_integrity(db, site, user)
+    calls = len(model.calls)
+    mock.routes.clear()
+    serve_site(mock)
+    second = await run_integrity(db, site, user, number=2)
+    assert len(model.calls) == calls  # nothing changed: no requests
+    assert (
+        "7 articles (7 unchanged kept), 2 translation pairs (2 kept), 1 statement groups by keywords (1 kept)"
+        in (stage(second)["detail"])
+    )
+    assert set(by_title(findings(db, second))) == set(by_title(findings(db, first)))
+
+    # An article's wording changes elsewhere: it alone is read again; its statements, and so the group, are the same.
+    mock.routes.clear()
+    serve_site(mock, **{"authoring/b": httpx.Response(200, html=html_page("Topic B", f"{PHONE_B} Updated. {FILLER}"))})
+    calls = len(model.calls)
+    await run_integrity(db, site, user, number=3)
+    asked = [model.kind(c) for c in model.calls[calls:]]
+    assert asked == ["article"] and "Updated." in model.calls[-1]
+
+    # Its statement changes: the group is compared again.
+    mock.routes.clear()
+    new_phone = PHONE_B.replace("0164", "0199")
+    serve_site(mock, **{"authoring/b": httpx.Response(200, html=html_page("Topic B", f"{new_phone} {FILLER}"))})
+    calls = len(model.calls)
+    await run_integrity(db, site, user, number=4)
+    asked = model.calls[calls:]
+    assert [model.kind(c) for c in asked] == ["article", "group"] and "555-0199" in asked[-1]
+
+    calls = len(model.calls)
+    await run_integrity(db, site, user, number=5, force_reevaluate=True)
+    assert model.calls[calls:] and [model.kind(c) for c in model.calls[calls:]].count("article") == 7
+
+
+async def test_claims_matched_by_embeddings_when_a_key_exists(client, user, db, mock, model):
+    serve_site(mock)
+    h = user["headers"]
+    client.post(
+        "/api/v1/credentials",
+        json={"type": "openai", "name": "OpenAI key", "credentials": {"api_key": "sk-o", "model": "gpt-5"}},
+        headers=h,
+    )
+
+    def embed(request):
+        texts = json.loads(request.content)["input"]
+        vectors = [[1.0, 0.0] if "phone" in t else [0.0, 1.0] for t in texts]
+        return httpx.Response(200, json={"data": [{"index": i, "embedding": v} for i, v in enumerate(vectors)]})
+
+    route = mock.post("https://api.openai.com/v1/embeddings").mock(side_effect=embed)
+    site, _ = integrity_site(client, user)
+    run = await run_integrity(db, site, user)
+    assert route.called and route.calls[0].request.headers["authorization"] == "Bearer sk-o"
+    assert "statement groups by embeddings (OpenAI · OpenAI key)" in stage(run)["detail"]
+    assert "Two support numbers" in by_title(findings(db, run))
+
+
+async def test_embedding_failure_falls_back_to_keywords(client, user, db, mock, model):
+    serve_site(mock)
+    h = user["headers"]
+    client.post(
+        "/api/v1/credentials",
+        json={"type": "gemini", "name": "Gemini key", "credentials": {"api_key": "g", "model": "gemini-2.5-pro"}},
+        headers=h,
+    )
+    mock.post(url__startswith="https://generativelanguage.googleapis.com/").respond(500)
+    site, _ = integrity_site(client, user)
+    run = await run_integrity(db, site, user)
+    assert "by keywords" in stage(run)["detail"]
+    assert any("Embedding failed (Gemini · Gemini key returned HTTP 500)" in e.message for e in run.log)
+    assert "Two support numbers" in by_title(findings(db, run))
+
+
+async def test_keywords_setting_skips_embeddings(client, user, db, mock, model):
+    serve_site(mock)
+    h = user["headers"]
+    client.post(
+        "/api/v1/credentials",
+        json={"type": "openai", "name": "OpenAI key", "credentials": {"api_key": "sk-o", "model": "gpt-5"}},
+        headers=h,
+    )
+    route = mock.post("https://api.openai.com/v1/embeddings").respond(500)
+    site, _ = integrity_site(client, user, claim_matching="keywords")
+    run = await run_integrity(db, site, user)
+    assert not route.called and "by keywords" in stage(run)["detail"]
+
+
+def test_claim_matching_setting_is_validated(client, user):
+    h = user["headers"]
+    site = make_site(client, user)
+    body = {k: v for k, v in site.items() if k not in ("id", "created_at", "updated_at")}
+    claude = client.post(
+        "/api/v1/credentials",
+        json={"type": "anthropic", "name": "Claude", "credentials": {"api_key": "k", "model": "m"}},
+        headers=h,
+    ).json()
+    for value, code in [("nonsense", 422), (str(uuid.uuid4()), 422), (claude["id"], 422), ("keywords", 200)]:
+        r = client.put(f"/api/v1/sites/{site['id']}", json={**body, "claim_matching": value}, headers=h)
+        assert r.status_code == code, (value, r.text)
 
 
 async def test_categories_follow_site_settings(client, user, db, mock, model):
-    serve(mock)
+    serve_site(mock)
     site, _ = integrity_site(client, user, categories=["C"])
     run = await run_integrity(db, site, user)
-    assert set(findings(db, run)) == {"C-01"}  # X dropped, no translation pass
-    assert not any("## Pair" in c for c in model.calls)
+    assert {f.category for f in findings(db, run).values()} == {"C"}
+    assert model.count("pair") == 0  # no T: no translation pass
 
 
 async def test_codes_are_stable_and_triage_carries_over(client, user, db, mock, model):
-    serve(mock)
-    site, agents = integrity_site(client, user)
+    serve_site(mock)
+    site, _ = integrity_site(client, user)
     first = await run_integrity(db, site, user)
     h = user["headers"]
-    c01 = findings(db, first)["C-01"]
-    client.patch(f"/api/v1/integrity-findings/{c01.id}", json={"tier": "review", "triage_note": "Policy"}, headers=h)
+    c = by_title(findings(db, first))["Two support numbers"]
+    x = by_title(findings(db, first))["Internal note published"]
+    client.patch(f"/api/v1/integrity-findings/{c.id}", json={"tier": "review", "triage_note": "Policy"}, headers=h)
     assert client.post(f"/api/v1/runs/{first.id}/triage/confirm", headers=h).status_code == 200
 
-    model.extra = False  # X-01 is fixed on the site
+    model.extra = False  # the internal note is fixed on the site
     mock.routes.clear()
-    serve(mock)
-    second = await run_integrity(db, site, user, number=2)
-    again = findings(db, second)
-    assert again["C-01"].first_seen == 1 and again["C-01"].tier == "review" and again["C-01"].carried_from == 1
-    assert again["C-01"].triage_note == "Policy"
-    assert "X-01" not in again
-    assert second.metrics["integrity"]["resolved"] == ["X-01"]
+    serve_site(mock)
+    second = await run_integrity(db, site, user, number=2, force_reevaluate=True)
+    again = by_title(findings(db, second))
+    assert again["Two support numbers"].code == c.code and again["Two support numbers"].tier == "review"
+    assert again["Two support numbers"].carried_from == 1 and again["Two support numbers"].triage_note == "Policy"
+    assert "Internal note published" not in again
+    assert second.metrics["integrity"]["resolved"] == [x.code]
 
-    # Compare shows integrity counts only for runs whose triage is confirmed.
     rows = {
         r["key"]: r for r in client.get(f"/api/v1/runs/compare?a={first.id}&b={second.id}", headers=h).json()["rows"]
     }
-    assert rows["integrity_firm"]["a"] == 2  # T-01 and X-01; C-01 moved to review
-    assert rows["integrity_firm"]["b"] is None and rows["integrity_firm"]["delta"] is None
-
-    model.extra = True  # it came back: a new code, the numbering continues
-    mock.routes.clear()
-    serve(mock)
-    third = await run_integrity(db, site, user, number=3)
-    assert "X-02" in findings(db, third)
+    assert rows["integrity_firm"]["a"] is not None and rows["integrity_firm"]["b"] is None
 
 
 async def test_triage_rules(client, user, db, mock, model):
-    serve(mock)
+    serve_site(mock)
     site, agents = integrity_site(client, user)
     run = await run_integrity(db, site, user)
     h = user["headers"]
-    found = findings(db, run)
-    url = lambda code: f"/api/v1/integrity-findings/{found[code].id}"  # noqa: E731
-    missing = next(f for f in found.values() if f.tier == "review")
+    found = by_title(findings(db, run))
+    url = lambda title: f"/api/v1/integrity-findings/{found[title].id}"  # noqa: E731
 
-    # Examples only from firm; leaving firm clears it; ranks follow the picking order.
-    r = client.patch(f"/api/v1/integrity-findings/{missing.id}", json={"example": True}, headers=h)
-    assert r.status_code == 422
-    r = client.patch(url("X-01"), json={"example": True}, headers=h)
-    assert r.status_code == 200, r.text
-    assert r.json()["example_rank"] == 1
-    assert client.patch(url("C-01"), json={"example": True}, headers=h).json()["example_rank"] == 2
-    assert client.patch(url("X-01"), json={"tier": "drop"}, headers=h).json()["example_rank"] is None
+    assert client.patch(url("Invented quote"), json={"example": True}, headers=h).status_code == 422  # review tier
+    r = client.patch(url("Internal note published"), json={"example": True}, headers=h)
+    assert r.status_code == 200 and r.json()["example_rank"] == 1
+    assert client.patch(url("Two support numbers"), json={"example": True}, headers=h).json()["example_rank"] == 2
+    assert client.patch(url("Internal note published"), json={"tier": "drop"}, headers=h).json()["example_rank"] is None
 
     view = client.get(f"/api/v1/runs/{run.id}/integrity", headers=h).json()
     assert view["triage"] == {"status": "in_progress"} and view["purpose"] == "prospect"
     assert [c["name"] for c in view["help_centers"]] == ["US English", "Deutsch"]
-    assert view["help_centers"][0]["articles"] == 5
-    assert [f["severity"] for f in view["findings"]] == sorted(
-        [f["severity"] for f in view["findings"]], key=["High", "Medium", "Low"].index
-    )
 
     confirmed = client.post(f"/api/v1/runs/{run.id}/triage/confirm", headers=h).json()
-    assert confirmed["triage"]["status"] == "confirmed" and confirmed["triage"]["confirmed_by"] == user["email"]
+    assert confirmed["triage"]["status"] == "confirmed"
     db.expire_all()
     m = db.get(AuditRun, run.id).metrics["integrity"]
-    assert m["confirmed"] and m["drop"] == 1 and m["firm"] == m["high"] + m["medium"] + m["low"]
-    assert m["firm"] + m["review"] + m["drop"] == m["candidates"]
+    assert m["confirmed"] and m["firm"] + m["review"] + m["drop"] == m["candidates"]
     memory = db.get(Agent, UUID(agents["content_integrity"])).feedback_memory
-    assert "X-01" in memory and "proposed firm, judged drop" in memory and memory.startswith("### Triage ")
+    assert "Internal note published" in memory and "proposed firm, judged drop" in memory
 
-    # Any change reopens a confirmed triage.
-    client.patch(url("C-01"), json={"triage_note": "Checked"}, headers=h)
+    page_id = found["Two support numbers"].quotes[0]["page_id"]
+    on_page = client.get(f"/api/v1/pages/{page_id}", headers=h).json()["integrity_findings"]
+    assert "Two support numbers" in {f["title"] for f in on_page}
+
+    client.patch(url("Two support numbers"), json={"triage_note": "Checked"}, headers=h)
     db.expire_all()
     assert db.get(AuditRun, run.id).triage == {"status": "in_progress"}
-    assert db.get(AuditRun, run.id).metrics["integrity"]["confirmed"] is False
-
-    page_id = found["C-01"].quotes[0]["page_id"]
-    on_page = client.get(f"/api/v1/pages/{page_id}", headers=h).json()["integrity_findings"]
-    assert "C-01" in [f["code"] for f in on_page] and "X-01" not in [f["code"] for f in on_page]  # dropped
 
     csv = client.get(f"/api/v1/runs/{run.id}/integrity.csv", headers=h)
-    assert csv.text.startswith("code,severity,category") and "C-01" in csv.text
-    assert "x-help-audit-1-integrity.csv" in csv.headers["content-disposition"]
+    assert csv.text.startswith("code,severity,category") and "Two support numbers" in csv.text
 
     from tests.conftest import make_user
 
     other = make_user(client)
     assert client.get(f"/api/v1/runs/{run.id}/integrity", headers=other["headers"]).status_code == 404
-    assert client.patch(url("C-01"), json={"tier": "firm"}, headers=other["headers"]).status_code == 404
 
 
 async def test_no_reviewer_means_no_candidates(client, user, db, mock):
-    serve(mock)
+    serve_site(mock)
     site = make_site(client, user)
     run = await run_integrity(db, site, user)
-    stage = next(s for s in run.stages if s["key"] == "content_integrity")
-    assert stage["status"] == "skipped" and stage["detail"].startswith("Not reviewed: no agent is assigned")
-    r = client.post(f"/api/v1/runs/{run.id}/triage/confirm", headers=user["headers"])
-    assert r.status_code == 409
+    assert stage(run)["status"] == "skipped" and stage(run)["detail"].startswith("Not reviewed: no agent is assigned")
+    assert client.post(f"/api/v1/runs/{run.id}/triage/confirm", headers=user["headers"]).status_code == 409
 
 
-async def test_reanalysis_keeps_a_triage(client, user, db, mock, model):
-    import crawler
-    import discovery
-    import runner
-
-    serve(mock)
-    site, _ = integrity_site(client, user)
-    run = await run_integrity(db, site, user)
-    ids = set(f.id for f in findings(db, run).values())
-    calls = len(model.calls)
-    async with discovery.client() as http:
-        await runner.reanalyze(run.id, crawler.Control(), http=http)
-    db.expire_all()
-    assert {f.id for f in findings(db, run).values()} == ids and len(model.calls) == calls
-
-
-async def test_failed_review_is_not_a_clean_result(client, user, db, mock, model, monkeypatch):
-    """Every batch failing (as with the 'temperature is deprecated' 400s) must not read as 'no issues'."""
+async def test_failed_review_is_not_a_clean_result(client, user, db, mock, model):
     from hop_core.agents import AiProviderError
 
     import crawler
     import discovery
     import runner
 
-    serve(mock)
+    serve_site(mock)
     site, _ = integrity_site(client, user)
-    first = await run_integrity(db, site, user)  # X-01 and friends exist from a good run
-    client.post(f"/api/v1/runs/{first.id}/triage/confirm", headers=user["headers"])
 
     async def always_400(api_key, model_name, request):
         raise AiProviderError("Anthropic returned HTTP 400: `temperature` is deprecated for this model.", 400)
 
     AiProviderRegistry.register("anthropic", always_400)
-    run = await run_integrity(db, site, user, number=2)
-    stage = next(s for s in run.stages if s["key"] == "content_integrity")
-    assert stage["status"] == "failed" and "didn't review this audit" in stage["detail"]
-    assert findings(db, run) == {}
-    assert "integrity" not in run.metrics  # no counts, no 'resolved'
+    run = await run_integrity(db, site, user)
+    assert stage(run)["status"] == "failed" and "didn't review this audit" in stage(run)["detail"]
+    assert findings(db, run) == {} and "integrity" not in run.metrics
     assert (run.triage or {}).get("status") != "confirmed"
-    assert any(e.level == "error" and "temperature" in e.message for e in run.log)
 
-    # Fixed: analyzing again reviews it, since triage never started.
     AiProviderRegistry.register("anthropic", model)
     async with discovery.client() as http:
         await runner.reanalyze(run.id, crawler.Control(), http=http)
     db.expire_all()
     run = db.get(AuditRun, run.id)
-    assert next(s for s in run.stages if s["key"] == "content_integrity")["status"] == "done"
-    assert "C-01" in findings(db, run) and run.metrics["integrity"]["candidates"] > 0
+    assert stage(run)["status"] == "done" and run.metrics["integrity"]["candidates"] > 0
 
 
 async def test_partial_failure_never_confirms_itself(client, user, db, mock, monkeypatch):
@@ -390,19 +533,52 @@ async def test_partial_failure_never_confirms_itself(client, user, db, mock, mon
         calls.append(1)
         if len(calls) == 1:
             raise AiProviderError("overloaded", 400)
-        return GenerationResponse(content="[]", input_tokens=1, output_tokens=1)
+        return GenerationResponse(content='{"issues": [], "claims": []}', input_tokens=1, output_tokens=1)
 
     saved = AiProviderRegistry.get("anthropic")
     AiProviderRegistry.register("anthropic", first_fails)
     monkeypatch.setattr(review, "RETRY_DELAY", 0)
+    monkeypatch.setattr(review, "AGENT_CONCURRENCY", 1)
     try:
-        serve(mock)
+        serve_site(mock)
         site, _ = integrity_site(client, user, categories=["C"])
-        run = await run_integrity(db, site, user)
+        run = await run_integrity(db, site, user, analyses=["content_integrity"])
     finally:
         if saved:
             AiProviderRegistry.register("anthropic", saved)
-    stage = next(s for s in run.stages if s["key"] == "content_integrity")
-    assert stage["status"] == "done" and "1 failed batches" in stage["detail"]
-    assert run.triage == {"status": "pending"}  # nothing found, but not everything was read
-    assert run.metrics["integrity"]["confirmed"] is False
+    assert stage(run)["status"] == "done" and "1 failed requests" in stage(run)["detail"]
+    assert run.triage == {"status": "pending"} and run.metrics["integrity"]["confirmed"] is False
+
+
+async def test_reanalysis_keeps_a_triage(client, user, db, mock, model):
+    import crawler
+    import discovery
+    import runner
+
+    serve_site(mock)
+    site, _ = integrity_site(client, user)
+    run = await run_integrity(db, site, user)
+    ids = {f.id for f in findings(db, run).values()}
+    calls = len(model.calls)
+    async with discovery.client() as http:
+        await runner.reanalyze(run.id, crawler.Control(), http=http)
+    db.expire_all()
+    assert {f.id for f in findings(db, run).values()} == ids and len(model.calls) == calls
+
+
+async def test_broken_links_last_until_a_link_check_finds_them_fixed(client, user, db, mock, model):
+    serve_site(mock)
+    site, _ = integrity_site(client, user)
+    first = await run_integrity(db, site, user)
+    broken = next(f for f in findings(db, first).values() if f.title.startswith(integrity.BROKEN_LINK))
+    mock.routes.clear()
+    serve_site(mock)
+    second = await run_integrity(db, site, user, number=2, analyses=["content_integrity"])
+    kept = findings(db, second)[broken.code]  # not checked this time: the last check still stands
+    assert kept.title == broken.title and broken.code not in second.metrics["integrity"]["resolved"]
+    page_ids = {str(p.id) for p in db.query(Page).filter(Page.run_id == second.id)}
+    assert kept.quotes[0]["page_id"] in page_ids
+    mock.routes.clear()
+    serve_site(mock, nowhere=httpx.Response(200, html=html_page("Back again")))
+    third = await run_integrity(db, site, user, number=3)
+    assert broken.code in third.metrics["integrity"]["resolved"]

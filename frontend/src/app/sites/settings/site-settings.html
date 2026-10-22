@@ -274,6 +274,24 @@
               <mat-error>Content integrity needs at least one category.</mat-error>
             }
             <mat-form-field>
+              <mat-label>Match statements across articles</mat-label>
+              <mat-select formControlName="claim_matching">
+                <mat-option value="auto">Automatic</mat-option>
+                <mat-option value="keywords">Keywords only</mat-option>
+                @for (c of embedders(); track c.id) {
+                  <mat-option [value]="c.id"
+                    >Embeddings · {{ c.provider_label }} · {{ c.name }}</mat-option
+                  >
+                }
+              </mat-select>
+              <mat-hint
+                >Content integrity compares what different articles say about the same subject.
+                Automatic uses embeddings from your first OpenAI or Gemini configuration, or
+                keywords when there's none. Keywords need no extra provider but miss statements
+                worded differently.</mat-hint
+              >
+            </mat-form-field>
+            <mat-form-field>
               <mat-label>Additional focus for this site</mat-label>
               <textarea matInput rows="5" formControlName="focus"></textarea>
               <mat-hint
@@ -307,7 +325,8 @@
               }
             </div>
             <span class="sub"
-              >Pages are sent to each agent in batches; one agent may serve several analyses.</span
+              >Each page is sent to the agent on its own; one agent may serve several
+              analyses.</span
             >
           </mat-card>
         </div>

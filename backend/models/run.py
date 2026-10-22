@@ -106,6 +106,9 @@ class Page(Base):
     anchor_issues = Column(Integer, nullable=True)
     score = Column(Integer, nullable=True)
     reviews = Column(JSON, nullable=True)  # analysis -> review key: reviewed by an agent, findings or not
+    # Content integrity, kept for unchanged pages (see integrity.py):
+    integrity = Column(JSON, nullable=True)  # pass 1: {"issues": [...], "claims": [...]}
+    integrity_pair = Column(JSON, nullable=True)  # pass 2: {"original_url", "original_checksum", "issues"}
 
 
 class LinkResult(Base):
@@ -199,3 +202,17 @@ class IntegrityFinding(Base):
     carried_from = Column(Integer, nullable=True)  # run number whose confirmed triage set the tier
     agent_id = Column(Uuid, nullable=True)
     agent_name = Column(String(255), nullable=False, default="")
+
+
+class ClaimGroupReview(Base):
+    """Pass 3 of content integrity: the reviewer's verdict on one group of
+    statements about the same subject. ``key`` hashes the statements and
+    their pages, so a group seen again unchanged reuses its verdict."""
+
+    __tablename__ = "claim_group_reviews"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    site_id = Column(Uuid, ForeignKey("sites.id", ondelete="CASCADE"), nullable=False, index=True)
+    key = Column(String(64), nullable=False, index=True)
+    run_number = Column(Integer, nullable=False)
+    issues = Column(JSON, nullable=False, default=list)  # raw, claims referenced as S1, S2…

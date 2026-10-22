@@ -110,7 +110,9 @@ async def analyze(
         link_counts = await _links(db, run, rec, http, pages, readable, checkpoint)
 
     if "content_integrity" in keys and integrity_review:
-        await integrity.run_review(db, run, rec, checkpoint, lambda agent, tally: record_stats(run, agent, tally))
+        await integrity.run_review(
+            db, run, rec, checkpoint, lambda agent, tally: record_stats(run, agent, tally), unchanged
+        )
 
     for page in pages:
         page.score = page_score(

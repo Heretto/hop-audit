@@ -121,6 +121,7 @@ export function siteForm(site: SiteInput) {
           CATEGORIES.map((cat) => [cat.code, flag(categories.has(cat.code))]),
         ) as Record<string, FormControl<boolean>>,
       ),
+      claim_matching: text(site.claim_matching || 'auto'),
       focus: text(site.focus),
       agent_assignments: new FormGroup(
         Object.fromEntries(
@@ -168,6 +169,7 @@ export function toSiteInput(form: SiteForm, prospect: Prospect): SiteInput {
     },
     analyses: ANALYSIS_KEYS.filter((k) => v.analyses[k]),
     integrity_categories: CATEGORIES.map((c) => c.code).filter((code) => v.categories[code]),
+    claim_matching: v.claim_matching,
     focus: v.focus.trim(),
     agent_assignments: v.agent_assignments,
     schedule: v.schedule,

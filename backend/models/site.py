@@ -28,6 +28,10 @@ class Site(Base):
     analyses = Column(JSON, nullable=False, default=list)
     integrity_categories = Column(JSON, nullable=False, default=list)
     focus = Column(Text, nullable=False, default="")
+    # How content integrity matches statements across articles: "auto" (embeddings
+    # when an OpenAI or Gemini configuration exists, else keywords), "keywords",
+    # or the id of the OpenAI / Gemini credential to embed with.
+    claim_matching = Column(String(64), nullable=False, default="auto", server_default="auto")
     agent_assignments = Column(JSON, nullable=False, default=dict)  # analysis -> agent id
     schedule = Column(JSON, nullable=False, default=dict)
     prospect = Column(JSON, nullable=False, default=dict)

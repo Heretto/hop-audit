@@ -229,6 +229,34 @@ re-read this file before starting the next.
       progress card candidates count
 - [x] Frontend tests; checks green; smoke test with a fake model; commit
 
+## Content integrity in three passes
+
+- [x] Models + migration: `Page.integrity` (pass 1 issues and claims),
+      `Page.integrity_pair` (pass 2 result with the original's URL and
+      checksum), `ClaimGroupReview` (pass 3 verdict by group key, per site),
+      `Site.claim_matching` (auto | keywords | an OpenAI/Gemini credential)
+- [x] Pass 1, per article (one request each, 4 at a time): issues inside the
+      article plus its checkable claims (subject + exact statement); claims
+      not found on the page dropped; kept for unchanged pages (checksum)
+      unless forced
+- [x] Pass 2, per translation pair: original vs. translation, one request
+      each; kept when the translation is unchanged and the original's
+      checksum matches
+- [x] Pass 3, across articles: claims grouped by subject within each help
+      center, by embeddings (OpenAI or Gemini key) or by keywords (no extra
+      service; also the fallback when embeddings fail); groups whose
+      statements all agree skipped; one request per group; a group seen
+      before with the same statements reuses its verdict
+- [x] Code-only findings: duplicate titles, links into another language's
+      help center, broken links (when links ran), missing translations
+- [x] `embeddings.py` (OpenAI, Gemini; batched); `claims.py` (keyword and
+      embedding grouping, group keys)
+- [x] Site settings: "Match statements across articles" select; the stage
+      says which method ran
+- [x] Tests: each pass and its reuse, grouping both ways, embedding
+      fallback, code-only findings, force; frontend setting
+- [x] Checks green; smoke test with a fake model; commit
+
 ## Later milestones (from the handoff)
 
 - [ ] 7 Full findings report + exports
