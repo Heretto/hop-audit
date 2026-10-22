@@ -8,7 +8,7 @@ from sqlalchemy import text
 
 import models  # noqa: F401  register our tables before hop-core's startup
 from migrate import migrate
-from routes import setup
+from routes import setup, sites
 from settings import get_settings
 
 # Model keys for the agents (Claude, OpenAI, Gemini), plus Heretto connections
@@ -20,7 +20,7 @@ app = create_hop_app(
     title="HOP Audit",
     description="Audits documentation websites and help centers",
     version="0.1.0",
-    extra_routers=[setup.router],
+    extra_routers=[setup.router, sites.router],
 )
 
 _hop_lifespan = app.router.lifespan_context

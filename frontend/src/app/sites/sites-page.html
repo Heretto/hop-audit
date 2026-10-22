@@ -1,0 +1,103 @@
+<div class="hop-page page">
+  <header class="page-header">
+    <div>
+      <h1>Sites</h1>
+      <span class="sub">
+        Documentation websites and help centers this organization audits. Each audit crawls every
+        language version, runs the analysis agents (readability, links, SEO, content integrity) and
+        keeps a report.
+      </span>
+    </div>
+    <a mat-flat-button color="primary" routerLink="/sites/new"><mat-icon>add</mat-icon>Add site</a>
+  </header>
+
+  @if (error(); as message) {
+    <div class="hop-status-message error" role="alert">{{ message }}</div>
+  }
+
+  @if (rows(); as sites) {
+    @if (sites.length) {
+      <mat-card>
+        <hop-data-table
+          [columns]="columns"
+          [data]="sites"
+          [filterable]="true"
+          filterPlaceholder="Filter sites"
+        >
+          <ng-template hopCell="name" let-s>
+            <div class="site-cell">
+              <a class="site-name" [routerLink]="['/sites', s.id, 'edit']">{{ s.name }}</a>
+              <span class="sub">{{ details(s) }}</span>
+            </div>
+          </ng-template>
+          <ng-template hopCell="pages"><span class="sub">—</span></ng-template>
+          <ng-template hopCell="last"><span class="sub">Never audited</span></ng-template>
+          <ng-template hopCell="score"><span class="sub">—</span></ng-template>
+          <ng-template hopCell="integrity"><span class="sub">—</span></ng-template>
+          <ng-template hopCell="broken"><span class="sub">—</span></ng-template>
+          <ng-template hopCell="status"
+            ><span class="hop-status-chip">Not audited</span></ng-template
+          >
+          <ng-template hopCell="actions" let-s>
+            <div class="row-actions">
+              <a
+                mat-icon-button
+                [routerLink]="['/sites', s.id, 'edit']"
+                aria-label="Edit site"
+                matTooltip="Edit"
+              >
+                <mat-icon>edit</mat-icon>
+              </a>
+              <button
+                mat-icon-button
+                (click)="confirmDelete(s)"
+                aria-label="Delete site"
+                matTooltip="Delete"
+              >
+                <mat-icon>delete</mat-icon>
+              </button>
+            </div>
+          </ng-template>
+        </hop-data-table>
+      </mat-card>
+    } @else {
+      <mat-card>
+        <div class="empty-state">
+          <mat-icon>language</mat-icon>
+          <h2>No sites yet</h2>
+          <span
+            >Add a documentation site or help center, with every language version, to audit
+            it.</span
+          >
+          <a mat-stroked-button routerLink="/sites/new"><mat-icon>add</mat-icon>Add site</a>
+        </div>
+      </mat-card>
+    }
+
+    <div class="stats">
+      <mat-card class="hop-stat-card">
+        <span class="hop-icon-badge accent"><mat-icon>travel_explore</mat-icon></span>
+        <div>
+          <span class="hop-stat-value">{{ sites.length }}</span>
+          <span class="hop-stat-label">Sites in {{ languageCount() }} languages</span>
+        </div>
+      </mat-card>
+      <mat-card class="hop-stat-card">
+        <span class="hop-icon-badge error"><mat-icon>link_off</mat-icon></span>
+        <div>
+          <span class="hop-stat-value">—</span>
+          <span class="hop-stat-label">Confirmed integrity issues, after triage</span>
+        </div>
+      </mat-card>
+      <mat-card class="hop-stat-card">
+        <span class="hop-icon-badge"><mat-icon>smart_toy</mat-icon></span>
+        <div>
+          <span class="hop-stat-value">{{ agentCount() ?? '—' }}</span>
+          <span class="hop-stat-label"
+            >Analysis agents configured · <a routerLink="/agents">Agents</a></span
+          >
+        </div>
+      </mat-card>
+    </div>
+  }
+</div>

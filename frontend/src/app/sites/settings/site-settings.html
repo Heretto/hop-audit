@@ -1,0 +1,410 @@
+<div class="hop-page page">
+  <a class="back" routerLink="/sites"><mat-icon>arrow_back</mat-icon>Sites</a>
+
+  @if (form(); as f) {
+    <form [formGroup]="f" (ngSubmit)="save()" class="page" novalidate>
+      <header class="page-header sticky">
+        <div>
+          <h1>{{ title() }}</h1>
+          <span class="sub">
+            What to crawl, every language version to compare, what the agents should focus on beyond
+            the standard guidance, and which agent runs each analysis.
+          </span>
+        </div>
+        <div class="page-actions">
+          <a mat-stroked-button routerLink="/sites">Cancel</a>
+          <button mat-flat-button color="primary" type="submit" [disabled]="saving()">Save</button>
+        </div>
+      </header>
+
+      @if (errors().length) {
+        <div class="hop-status-message error" role="alert">
+          @for (e of errors(); track e) {
+            <div>{{ e }}</div>
+          }
+        </div>
+      }
+
+      <div class="layout">
+        <div class="column">
+          <mat-card class="section">
+            <div class="card-title">
+              <h2>Site</h2>
+              <span class="sub">The public documentation site to audit.</span>
+            </div>
+            <div class="grid-2">
+              <mat-form-field>
+                <mat-label>Name</mat-label>
+                <input matInput formControlName="name" required />
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Start URL</mat-label>
+                <input
+                  matInput
+                  class="mono"
+                  formControlName="start_url"
+                  required
+                  (change)="startUrlChanged()"
+                />
+                @if (f.controls.start_url.hasError('httpUrl')) {
+                  <mat-error>Must be an http(s) URL</mat-error>
+                }
+              </mat-form-field>
+            </div>
+            <mat-form-field>
+              <mat-label>Description (optional)</mat-label>
+              <input matInput formControlName="description" />
+            </mat-form-field>
+          </mat-card>
+
+          <mat-card class="section">
+            <div class="card-title">
+              <h2>Help centers and languages</h2>
+              <span class="sub">
+                Every locale and language version is reviewed. Non-primary languages are compared
+                against the primary for translation defects; each help center is counted separately.
+              </span>
+            </div>
+            <div formArrayName="help_centers" class="centers">
+              @for (g of f.controls.help_centers.controls; track g; let i = $index) {
+                <div class="center-row" [formGroupName]="i">
+                  <mat-form-field>
+                    <mat-label>Help center</mat-label>
+                    <input matInput formControlName="name" />
+                  </mat-form-field>
+                  <mat-form-field>
+                    <mat-label>URL</mat-label>
+                    <input matInput class="mono" formControlName="url" />
+                  </mat-form-field>
+                  <mat-form-field>
+                    <mat-label>Language</mat-label>
+                    <mat-select formControlName="language">
+                      @for (tag of languageOptions(); track tag) {
+                        <mat-option [value]="tag"
+                          >{{ languageName(tag) }}{{ i === 0 ? ' · primary' : '' }}</mat-option
+                        >
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  <div class="center-actions">
+                    @if (i > 0) {
+                      <button
+                        mat-icon-button
+                        type="button"
+                        (click)="makePrimary(i)"
+                        aria-label="Make primary"
+                        matTooltip="Make primary"
+                      >
+                        <mat-icon>star</mat-icon>
+                      </button>
+                      <button
+                        mat-icon-button
+                        type="button"
+                        (click)="removeHelpCenter(i)"
+                        aria-label="Remove help center"
+                        matTooltip="Remove"
+                      >
+                        <mat-icon>close</mat-icon>
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+            <div class="row">
+              <button mat-stroked-button type="button" (click)="addHelpCenter()">
+                <mat-icon>add</mat-icon>Add help center
+              </button>
+              @if (missingAlternates().length) {
+                <span class="sub">
+                  Detected from hreflang on the start URL:
+                  @for (a of missingAlternates(); track a.url; let last = $last) {
+                    {{ a.language }}{{ last ? '.' : ', ' }}
+                  }
+                </span>
+                <button mat-button type="button" (click)="addDetected()">
+                  Add {{ missingAlternates().length }} detected
+                </button>
+              } @else {
+                <span class="sub"
+                  >Two versions of one language (fr and fr-CA, say) are compared with each other
+                  too.</span
+                >
+              }
+            </div>
+          </mat-card>
+
+          <mat-card class="section" formGroupName="crawl">
+            <div class="card-title">
+              <h2>Discovery and crawling</h2>
+              <span class="sub"
+                >Pages are found from the sitemap first; the crawler follows links for anything the
+                sitemap misses.</span
+              >
+            </div>
+            @if (detecting()) {
+              <div class="callout">
+                <mat-spinner diameter="18" />Checking the start URL and sitemap…
+              </div>
+            } @else if (discovery(); as d) {
+              <div class="callout" [class]="d.status">
+                <mat-icon>{{
+                  d.status === 'ok' ? 'check_circle' : d.status === 'blocked' ? 'block' : 'info'
+                }}</mat-icon>
+                <span>
+                  @switch (d.status) {
+                    @case ('ok') {
+                      Sitemap found at <span class="mono">{{ d.sitemap_url }}</span
+                      >: {{ d.url_count | number }} URLs in {{ d.sections.length }} sections
+                      @if (d.last_modified) {
+                        , last modified {{ d.last_modified | date: 'mediumDate' }}
+                      }
+                      .
+                    }
+                    @case ('blocked') {
+                      {{ d.message }}. The audit will report this help center as blocked and won't
+                      work around it.
+                    }
+                    @default {
+                      {{ d.message }}.
+                    }
+                  }
+                </span>
+                <span class="spacer"></span>
+                <button mat-stroked-button type="button" (click)="detect()">Re-check</button>
+              </div>
+            }
+            <div class="grid-2">
+              <mat-form-field>
+                <mat-label>Sitemap URL (blank = auto-detect)</mat-label>
+                <input matInput class="mono" formControlName="sitemap_url" (change)="detect()" />
+                <mat-error>Must be an http(s) URL</mat-error>
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Section grouping</mat-label>
+                <mat-select formControlName="section_grouping">
+                  <mat-option value="path">First path segment (/authoring/…)</mat-option>
+                  <mat-option value="sitemap">Sitemap file (sitemap index entries)</mat-option>
+                  <mat-option value="breadcrumb">Breadcrumb from page metadata</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Include paths</mat-label>
+                <textarea matInput class="mono" rows="3" formControlName="include"></textarea>
+                <mat-hint>One pattern per line, blank = all</mat-hint>
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Exclude paths</mat-label>
+                <textarea matInput class="mono" rows="3" formControlName="exclude"></textarea>
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Max pages</mat-label>
+                <input matInput type="number" formControlName="max_pages" />
+                <mat-error>1 to 100,000</mat-error>
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Max link depth from start URL</mat-label>
+                <input matInput type="number" formControlName="max_depth" />
+                <mat-error>0 to 50</mat-error>
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Crawl delay (ms)</mat-label>
+                <input matInput type="number" formControlName="delay_ms" />
+                <mat-error>0 to 60,000</mat-error>
+              </mat-form-field>
+              <mat-form-field>
+                <mat-label>Concurrency</mat-label>
+                <input matInput type="number" formControlName="concurrency" />
+                <mat-error>1 to 16</mat-error>
+              </mat-form-field>
+            </div>
+            <div class="row toggles">
+              <mat-slide-toggle formControlName="respect_robots"
+                >Respect robots.txt</mat-slide-toggle
+              >
+              <mat-slide-toggle formControlName="follow_links"
+                >Follow links not in the sitemap</mat-slide-toggle
+              >
+              <mat-slide-toggle formControlName="render_js"
+                >Render JavaScript (slower)</mat-slide-toggle
+              >
+            </div>
+          </mat-card>
+
+          <mat-card class="section">
+            <div class="card-title">
+              <h2>Analyses and focus</h2>
+              <span class="sub"
+                >Standard guidance is always applied. Add what matters for this site; it's given to
+                every agent in every run.</span
+              >
+            </div>
+            <div class="grid-2" formGroupName="analyses">
+              @for (a of analyses; track a.key) {
+                <label
+                  class="option"
+                  [class.wide]="a.key === 'content_integrity'"
+                  [class.on]="f.controls.analyses.controls[a.key].value"
+                >
+                  <mat-checkbox [formControlName]="a.key" />
+                  <span
+                    ><strong>{{ a.label }}</strong
+                    ><br /><span class="sub">{{ a.description }}</span></span
+                  >
+                </label>
+              }
+            </div>
+            <fieldset
+              class="categories"
+              formGroupName="categories"
+              [disabled]="!f.controls.analyses.controls.content_integrity.value"
+            >
+              <legend>Content integrity categories</legend>
+              @for (c of categories; track c.code) {
+                <mat-checkbox [formControlName]="c.code"
+                  ><span class="mono code">{{ c.code }}</span
+                  >{{ c.label }}</mat-checkbox
+                >
+              }
+            </fieldset>
+            @if (f.hasError('noCategories')) {
+              <mat-error>Content integrity needs at least one category.</mat-error>
+            }
+            <mat-form-field>
+              <mat-label>Additional focus for this site</mat-label>
+              <textarea matInput rows="5" formControlName="focus"></textarea>
+              <mat-hint
+                >Be concrete about thresholds. Agents cite the pages they used for each
+                finding.</mat-hint
+              >
+            </mat-form-field>
+          </mat-card>
+
+          <mat-card class="section" formGroupName="agent_assignments">
+            <div class="card-title">
+              <h2>Agents</h2>
+              <span class="sub">
+                Which agent runs each part of the analysis. Agents and their models are defined
+                under
+                <a routerLink="/agents">Agents</a>; the model keys come from
+                <a routerLink="/credentials">Credentials</a>.
+              </span>
+            </div>
+            <div class="grid-3">
+              @for (a of assignments; track a.key) {
+                <mat-form-field>
+                  <mat-label>{{ a.label }}</mat-label>
+                  <mat-select [formControlName]="a.key">
+                    <mat-option [value]="null">Not assigned</mat-option>
+                    @for (agent of agents(); track agent.id) {
+                      <mat-option [value]="agent.id">{{ agentLabel(agent) }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              }
+            </div>
+            <span class="sub"
+              >Pages are sent to each agent in batches; one agent may serve several analyses.</span
+            >
+          </mat-card>
+        </div>
+
+        <aside class="column">
+          <mat-card class="section">
+            <div class="card-title">
+              <h2>Purpose</h2>
+              <span class="sub">Decides which deliverables a run can build.</span>
+            </div>
+            <mat-form-field>
+              <mat-label>This site is</mat-label>
+              <mat-select formControlName="purpose">
+                <mat-option value="own">Our own documentation (internal quality)</mat-option>
+                <mat-option value="prospect">A prospect's help center (sales review)</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <span class="sub">
+              For a prospect review, triage must be confirmed before the one-sheets and full
+              findings report are built, and the one-sheets carry the Heretto wordmark, "Prepared
+              for", and the sender's details.
+            </span>
+          </mat-card>
+
+          @if (id()) {
+            <mat-card class="section">
+              <div class="card-title"><h2>Last audit</h2></div>
+              <span class="sub"
+                >No audits yet. Results, history and the site score appear here after the first
+                run.</span
+              >
+            </mat-card>
+          }
+
+          <mat-card class="section">
+            <div class="card-title">
+              <h2>Sections discovered</h2>
+              <span class="sub"
+                >From the sitemap, grouped by first path segment. Pick sections when you rerun part
+                of the site.</span
+              >
+            </div>
+            @if (discovery()?.sections?.length) {
+              <div class="sections">
+                @for (s of discovery()!.sections; track s.path) {
+                  <div>
+                    <span class="mono">{{ s.path }}</span
+                    ><span class="sub">{{ s.count | number }}</span>
+                  </div>
+                }
+              </div>
+            } @else {
+              <span class="sub">Enter the start URL to find the sitemap and its sections.</span>
+            }
+          </mat-card>
+
+          <mat-card class="section" formGroupName="schedule">
+            <div class="card-title">
+              <h2>Schedule</h2>
+              <span class="sub">Optional. You can always run on demand.</span>
+            </div>
+            <mat-form-field>
+              <mat-label>Frequency</mat-label>
+              <mat-select formControlName="frequency">
+                <mat-option value="manual">Manual only</mat-option>
+                <mat-option value="weekly">Weekly</mat-option>
+                <mat-option value="monthly">Monthly</mat-option>
+              </mat-select>
+            </mat-form-field>
+            @if (f.controls.schedule.controls.frequency.value !== 'manual') {
+              <div class="grid-2">
+                <mat-form-field>
+                  <mat-label>Day</mat-label>
+                  <mat-select formControlName="day">
+                    @for (
+                      d of f.controls.schedule.controls.frequency.value === 'weekly'
+                        ? weekdays
+                        : monthdays;
+                      track d.value
+                    ) {
+                      <mat-option [value]="d.value">{{ d.label }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field>
+                  <mat-label>Time</mat-label>
+                  <input matInput type="time" formControlName="time" />
+                </mat-form-field>
+              </div>
+              @if (scheduleText(); as next) {
+                <span class="sub">Next run: {{ next }}</span>
+              }
+            }
+          </mat-card>
+        </aside>
+      </div>
+    </form>
+  } @else if (errors().length) {
+    <div class="hop-status-message error" role="alert">{{ errors().join(' ') }}</div>
+  } @else {
+    <mat-spinner diameter="32" />
+  }
+</div>

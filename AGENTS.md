@@ -43,6 +43,11 @@ Read those instead of inferring from this project's code. Do not copy them here.
   are `backend/agent_context/<slug>/*.md`, mostly from the audit-asset-maker
   skill in `_reference/`. Model keys are hop-core credentials (Claude, OpenAI,
   Gemini, registered in `backend/main.py`).
+- **Discovery** (`backend/discovery.py`): sitemap, sections and hreflang for
+  a start URL, reused by the crawler. It sends an honest user agent and
+  reports 401/403/429 and robots.txt refusals as `blocked`; never add retries
+  with another agent. In this sandbox every outbound site returns 403 from the
+  egress proxy, so live detection reads as blocked here.
 - **Platform-specific installs**: `backend/.venv` and `frontend/node_modules`
   carry a `.platform` stamp; `./dev.sh` reinstalls when the checkout moves
   between macOS and a Linux container.

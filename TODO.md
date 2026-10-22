@@ -50,37 +50,37 @@ re-read this file before starting the next.
 
 ## Milestone 2: sites, help centers, settings screen
 
-- [ ] Models: `Site` (all fields from the data-model sketch, JSON columns
+- [x] Models: `Site` (all fields from the data-model sketch, JSON columns
       for crawl rules / analyses / categories / agent assignments /
       schedule / prospect), `HelpCenter` (name, URL, language, `is_primary`,
       position). Migration.
-- [ ] Schemas with validation: URL fields http(s), exactly one primary help
+- [x] Schemas with validation: URL fields http(s), exactly one primary help
       center, unique help-center URLs, known analyses and category codes,
       agent ids belong to the org, max pages / depth / delay / concurrency
       bounds, schedule shape
-- [ ] Routes: `GET/POST /sites/`, `GET/PUT/DELETE /sites/{id}`, org-scoped;
+- [x] Routes: `GET/POST /sites/`, `GET/PUT/DELETE /sites/{id}`, org-scoped;
       list includes help-center summary and (until M3) empty last-audit stats
-- [ ] Discovery helpers: `POST /sites/detect` → sitemap auto-detect
+- [x] Discovery helpers: `POST /sites/detect` → sitemap auto-detect
       (robots.txt `Sitemap:` then `/sitemap.xml`), URL count, sections by
       first path segment, last modified; hreflang languages from the start
       URL. Blocked/unreachable reported, never worked around. HTTP mocked in
       tests.
-- [ ] Backend tests: CRUD normal path, validation errors, org isolation,
+- [x] Backend tests: CRUD normal path, validation errors, org isolation,
       delete cascade, detection parsing (sitemap, sitemap index, hreflang,
       blocked)
-- [ ] Frontend: `SitesService`, Sites list page (`/sites`) per `Main.dc.html`:
+- [x] Frontend: `SitesService`, Sites list page (`/sites`) per `Main.dc.html`:
       `hop-data-table` in `mat-card`, filter, count, row actions (run,
       results, history, edit, delete with confirm), stat cards, empty state
-- [ ] Frontend: Site settings page (`/sites/new`, `/sites/:id/edit`) per
+- [x] Frontend: Site settings page (`/sites/new`, `/sites/:id/edit`) per
       `SiteSettings.dc.html`: sticky header with Cancel / Save and run / Save,
       Site, Help centers and languages (add/remove, primary, hreflang
       detection), Discovery and crawling (sitemap check), Analyses and
       focus (5 analyses + 10 categories + focus text), Agents (select per
       analysis from hop-core agents), Purpose, Last audit, Sections
       discovered, Schedule
-- [ ] Frontend tests: service, list page rendering/delete, settings form
+- [x] Frontend tests: service, list page rendering/delete, settings form
       validation and payload mapping
-- [ ] Checks green (tests, lint, build, hop-doctor); commit with decisions
+- [x] Checks green (tests, lint, build, hop-doctor); commit with decisions
 
 ## Later milestones (from the handoff)
 

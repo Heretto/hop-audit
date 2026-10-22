@@ -1,0 +1,22 @@
+.site-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.site-name {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}

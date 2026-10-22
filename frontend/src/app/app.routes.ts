@@ -17,6 +17,14 @@ export const routes: Routes = [
     children: [
       { path: 'sites', loadComponent: () => import('./sites/sites-page').then((m) => m.SitesPage) },
       {
+        path: 'sites/new',
+        loadComponent: () => import('./sites/settings/site-settings').then((m) => m.SiteSettings),
+      },
+      {
+        path: 'sites/:id/edit',
+        loadComponent: () => import('./sites/settings/site-settings').then((m) => m.SiteSettings),
+      },
+      {
         path: 'audits',
         loadComponent: () => import('./audits/audits-page').then((m) => m.AuditsPage),
       },
