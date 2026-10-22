@@ -31,6 +31,8 @@ class AuditRun(Base):
     created_by = Column(String(255), nullable=True)
     status = Column(String(16), nullable=False, default="queued")  # queued running paused completed failed cancelled
     reuse_crawl = Column(Boolean, nullable=False, default=True)
+    # Evaluate readability and SEO even for pages whose checksum hasn't changed.
+    force_reevaluate = Column(Boolean, nullable=False, default=False, server_default="0")
     recheck_external = Column(Boolean, nullable=False, default=False)
     focus = Column(Text, nullable=False, default="")
     stages = Column(JSON, nullable=False, default=list)

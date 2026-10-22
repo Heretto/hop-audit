@@ -48,8 +48,13 @@ export class RunsService {
     return this.http.get<LogEntry[]>(`${this.api}/runs/${runId}/log`);
   }
 
-  control(runId: string, action: 'pause' | 'resume' | 'cancel' | 'analyze'): Observable<RunDetail> {
+  control(runId: string, action: 'pause' | 'resume' | 'cancel'): Observable<RunDetail> {
     return this.http.post<RunDetail>(`${this.api}/runs/${runId}/${action}`, {});
+  }
+
+  /** Analyze a finished run's stored pages again; ``force`` re-evaluates unchanged pages too. */
+  analyze(runId: string, force = false): Observable<RunDetail> {
+    return this.http.post<RunDetail>(`${this.api}/runs/${runId}/analyze`, { force });
   }
 
   dashboard(runId: string): Observable<Dashboard> {

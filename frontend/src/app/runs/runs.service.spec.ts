@@ -16,6 +16,7 @@ describe('RunsService', () => {
       help_center_ids: [],
       reuse_crawl: true,
       recheck_external: false,
+      force_reevaluate: false,
       focus: '',
     };
     service.preview('s1').subscribe();
@@ -25,6 +26,7 @@ describe('RunsService', () => {
     service.get('r1').subscribe();
     service.log('r1').subscribe();
     service.control('r1', 'pause').subscribe();
+    service.analyze('r1', true).subscribe();
     expect(http.match(() => true).map((r) => `${r.request.method} ${r.request.url}`)).toEqual([
       'GET /api/v1/sites/s1/runs/preview',
       'POST /api/v1/sites/s1/runs',
@@ -33,6 +35,7 @@ describe('RunsService', () => {
       'GET /api/v1/runs/r1',
       'GET /api/v1/runs/r1/log',
       'POST /api/v1/runs/r1/pause',
+      'POST /api/v1/runs/r1/analyze',
     ]);
   });
 });

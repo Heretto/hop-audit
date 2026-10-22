@@ -24,7 +24,7 @@ import httpx
 
 import discovery
 from discovery import BLOCKED_STATUSES, MAX_BYTES, USER_AGENT, Blocked
-from extract import PageContent, content_hash, extract, page_url
+from extract import PageContent, checksum, extract, page_url
 from schemas.site import CrawlRules
 from scope import (
     Root,
@@ -318,15 +318,18 @@ class Crawler:
             and target.lastmod <= prev.lastmod
         ):
             self.stats.reused += 1
+            # Same content as last time; it counts as unchanged when the checksum
+            # agrees (a checksum from an older definition doesn't).
+            digest = checksum(prev.content)
             return Result(
                 target,
                 section=target.section,
                 http_status=prev.http_status,
                 content=prev.content,
-                content_hash=prev.content_hash,
+                content_hash=digest,
                 title=prev.title,
                 word_count=prev.word_count,
-                reused_from=prev.id,
+                reused_from=prev.id if digest == prev.content_hash else None,
                 fetched=False,
             )
 
@@ -354,7 +357,7 @@ class Crawler:
         content: PageContent = extract(response.text, str(response.url))
         if page_url(str(response.url)) != target.url:
             content.final_url = str(response.url)  # reached through a redirect
-        digest = content_hash(content.text)
+        digest = checksum(content.as_json())
         unchanged = prev is not None and prev.content_hash == digest
         if self.mode == "changed" and unchanged:
             self.stats.unchanged += 1

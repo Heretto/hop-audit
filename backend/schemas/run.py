@@ -28,7 +28,12 @@ class RunIn(BaseModel):
     help_center_ids: list[UUID] = []  # reviewed for content integrity; empty = all
     reuse_crawl: bool = True
     recheck_external: bool = False
+    force_reevaluate: bool = False  # readability and SEO for unchanged pages too
     focus: str = Field("", max_length=5000)
+
+
+class AnalyzeIn(BaseModel):
+    force: bool = False  # re-evaluate pages whose checksum hasn't changed
 
 
 class Stage(BaseModel):
@@ -83,6 +88,7 @@ class RunDetail(RunListItem):
     help_center_ids: list[UUID]
     reuse_crawl: bool
     recheck_external: bool
+    force_reevaluate: bool
     focus: str
     tokens: dict[str, int]
     agent_stats: dict[str, dict]  # agent id -> name, model, provider, tokens, findings, errors, retries, status

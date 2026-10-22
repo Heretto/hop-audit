@@ -37,6 +37,17 @@ describe('PageDetailPage', () => {
     expect(page.change()).toBe('−3');
   });
 
+  it('shows the checksum, and when results were kept for an unchanged page', () => {
+    let { el } = render();
+    expect(el.textContent).toContain('checksum 3f2a9c1e');
+    expect(el.textContent).not.toContain('unchanged since the last audit');
+    TestBed.resetTestingModule();
+    ({ el } = render(samplePageDetail({ reused_from_id: 'p0' })));
+    expect(el.textContent).toContain(
+      'unchanged since the last audit: its readability and SEO results are kept',
+    );
+  });
+
   it('lists problem links first, external ones in full', () => {
     const { fixture, page, el } = render();
     expect(page.links().map((l) => l.outcome)).toEqual(['broken', 'broken', 'anchor']);

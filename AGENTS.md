@@ -64,6 +64,14 @@ Read those instead of inferring from this project's code. Do not copy them here.
   stored pages, so `POST /runs/{id}/analyze` can redo them without a crawl.
   Scores and run metrics are in `scoring.py`; the dashboard footnote states
   the same scoring rules, so change both together.
+- **Checksum** (`extract.checksum`, stored as `Page.content_hash`): SHA-256
+  of every extraction field the analyses read. A page whose checksum matches
+  the last completed audit's (`Page.reused_from_id` set) keeps that audit's
+  readability metrics, SEO checks and Readability Reviewer / SEO Analyst
+  findings: nothing is recomputed and no tokens are spent. Only
+  `run.force_reevaluate` (Run audit toggle, dashboard "Re-evaluate
+  everything") evaluates them again. Links and content integrity always run.
+  Add a field to `CHECKSUM_FIELDS` when an analysis starts reading it.
 - **Agent review** (`backend/review.py`): each analysis's agent is built
   from its hop-core row and AI configuration the way hop-core's chat route
   does; pages go in batches with the site's and the run's focus; replies
@@ -90,6 +98,9 @@ Read those instead of inferring from this project's code. Do not copy them here.
   `/sites/:id` opens the latest dashboard.
 - **Timestamps**: use `models.types.UTCDateTime`, not `DateTime`. SQLite
   drops offsets, and naive values compare and serialize as local time.
+- **Frontend tests** run Vitest in worker threads (`frontend/vitest.config.ts`,
+  wired via `runnerConfig`): forked workers were occasionally killed with
+  SIGTERM at shutdown under load, failing green runs.
 - **Platform-specific installs**: the checkout may be shared between a Mac
   and a Linux container. Each platform has its own venv
   (`backend/.venv-<os>-<cpu>`); `frontend/node_modules` swaps its native

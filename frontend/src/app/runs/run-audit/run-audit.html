@@ -176,6 +176,10 @@
                 Reuse pages from the last audit where unchanged (no audit yet)
               }
             </mat-slide-toggle>
+            <mat-slide-toggle [(ngModel)]="forceReevaluate">
+              Re-evaluate unchanged pages (readability and SEO are otherwise kept for pages whose
+              checksum hasn't changed; uses model tokens)
+            </mat-slide-toggle>
             <mat-slide-toggle [(ngModel)]="recheckExternal">
               Re-check external links even if checked in the last 7 days
             </mat-slide-toggle>

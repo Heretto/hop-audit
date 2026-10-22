@@ -1,4 +1,4 @@
-from extract import content_hash, extract
+from extract import checksum, extract
 
 HTML = """<html lang="de-DE"><head>
 <title> Publish a  map </title>
@@ -72,6 +72,18 @@ def test_flags_javascript_shells():
     assert p.looks_like_shell and p.word_count == 1
 
 
-def test_hash_ignores_whitespace_only_changes():
-    assert content_hash("A  b\nc") == content_hash("A b c")
-    assert content_hash("A b c") != content_hash("A b d")
+def test_checksum_covers_what_the_analyses_read():
+    page = extract(HTML, "https://help.x.com/de/publish").as_json()
+    same = checksum(page)
+    assert checksum({**page, "text": page["text"].replace(" ", "  ")}) == same  # whitespace only
+    assert checksum({**page, "final_url": "https://x"}) == same  # not something the analyses read
+    for field, value in [
+        ("text", page["text"] + " More."),
+        ("title", "Another title"),
+        ("description", None),
+        ("images", []),
+        ("headings", [[1, "Publish a map"]]),
+        ("links", []),
+    ]:
+        assert checksum({**page, field: value}) != same, field
+    assert len(same) == 64

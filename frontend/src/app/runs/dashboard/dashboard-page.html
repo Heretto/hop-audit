@@ -33,6 +33,11 @@
         <button mat-stroked-button (click)="exportCsv()">
           <mat-icon>download</mat-icon>Export
         </button>
+        @if (d.run.status === 'completed' && d.analyzed) {
+          <button mat-stroked-button (click)="reevaluate()" [disabled]="analyzing()">
+            <mat-icon>refresh</mat-icon>Re-evaluate everything
+          </button>
+        }
         <a mat-flat-button color="primary" [routerLink]="['/sites', d.run.site_id, 'run']">
           <mat-icon>play_arrow</mat-icon>Run audit
         </a>

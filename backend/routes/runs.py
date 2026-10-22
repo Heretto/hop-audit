@@ -14,7 +14,7 @@ import discovery
 import runner
 from models import ACTIVE_STATUSES, AuditRun, RunLogEntry, Site
 from routes.sites import get_site
-from schemas.run import LogEntry, Preview, PreviewHelpCenter, PreviewSection, RunDetail, RunIn, RunListItem
+from schemas.run import AnalyzeIn, LogEntry, Preview, PreviewHelpCenter, PreviewSection, RunDetail, RunIn, RunListItem
 from schemas.site import CrawlRules
 
 router = APIRouter(tags=["runs"])
@@ -116,6 +116,7 @@ async def start_run(site_id: UUID, body: RunIn, ctx: CurrentUserContext = Ctx, d
         created_by=ctx.user.email,
         reuse_crawl=body.reuse_crawl,
         recheck_external=body.recheck_external,
+        force_reevaluate=body.force_reevaluate,
         focus=body.focus.strip(),
         stages=runner.initial_stages(body.analyses),
     )
@@ -188,15 +189,21 @@ def resume(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(ge
 
 
 @router.post("/runs/{run_id}/analyze", response_model=RunDetail)
-async def analyze(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
-    """Analyze a finished run's stored pages again (readability, SEO, links)."""
+async def analyze(
+    run_id: UUID, body: AnalyzeIn | None = None, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)
+):
+    """Analyze a finished run's stored pages again. Pages whose checksum is
+    unchanged since the last audit keep its readability and SEO results
+    unless ``force`` is set."""
     run = get_run(db, ctx, run_id)
     if run.status != "completed":
         raise HTTPException(status.HTTP_409_CONFLICT, "Only a completed audit can be analyzed again")
     if not set(run.analyses) & {*runner.MECHANICAL, "content_integrity"}:
         raise HTTPException(status.HTTP_409_CONFLICT, "This audit didn't include an analysis to repeat")
     run.status = "running"
-    log(db, run, f"Analysis requested by {ctx.user.email}.")
+    run.force_reevaluate = bool(body and body.force)
+    forced = ", re-evaluating every page" if run.force_reevaluate else ""
+    log(db, run, f"Analysis requested by {ctx.user.email}{forced}.")
     db.commit()
     runner.start(run.id, runner.reanalyze)
     return detail(run)

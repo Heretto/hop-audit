@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
 import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { SitesService } from '../../sites/sites.service';
@@ -23,7 +24,7 @@ describe('DashboardPage', () => {
           }),
         ]),
       ),
-      control: vi.fn(() => of(dashboard.run)),
+      analyze: vi.fn(() => of(dashboard.run)),
       pagesCsv: vi.fn(() => of(new Blob(['url\n']))),
     };
     TestBed.configureTestingModule({
@@ -135,7 +136,7 @@ describe('DashboardPage', () => {
     const { page, runs, navigate, el } = render(sampleDashboard({ analyzed: false }));
     expect(el.textContent).toContain('Analyze now');
     page.analyze();
-    expect(runs.control).toHaveBeenCalledWith('r1', 'analyze');
+    expect(runs.analyze).toHaveBeenCalledWith('r1', false);
     expect(navigate).toHaveBeenCalledWith(['/audits', 'r1', 'progress']);
   });
 
@@ -156,7 +157,17 @@ describe('DashboardPage', () => {
     expect(page.failedStages()).toEqual(['Content integrity']);
     expect(el.textContent).toContain("Content integrity didn't complete");
     page.analyze();
-    expect(runs.control).toHaveBeenCalledWith('r1', 'analyze');
+    expect(runs.analyze).toHaveBeenCalledWith('r1', false);
+  });
+
+  it('re-evaluates everything after a confirmation', () => {
+    const { page, runs } = render();
+    const open = vi
+      .spyOn(TestBed.inject(MatDialog), 'open')
+      .mockReturnValue({ afterClosed: () => of(true) } as never);
+    page.reevaluate();
+    expect(open).toHaveBeenCalled();
+    expect(runs.analyze).toHaveBeenCalledWith('r1', true);
   });
 
   it('sends active runs to their progress view', () => {

@@ -12,7 +12,7 @@ from hop_core.models.agent import Agent
 import review
 from models import AgentFinding, AuditRun, Page
 from review import FindingIn, instructions, link_groups, parse_findings, quote_found
-from tests.fake_site import BASE, serve
+from tests.fake_site import BASE, page, serve
 from tests.test_runs import add_run, execute, fast_retries, make_site  # noqa: F401
 
 QUOTE = "Steady useful documentation words."
@@ -257,23 +257,46 @@ async def test_run_with_agent_review(client, user, db, mock, model):
     assert a["findings"] == len(detail["agent_findings"])
 
 
-async def test_unchanged_pages_reuse_their_findings(client, user, db, mock, model):
+async def test_unchanged_checksum_keeps_readability_and_seo(client, user, db, mock, model):
+    """Pages whose checksum hasn't changed keep last audit's metrics and findings,
+    whatever changed in the agent or the focus; a forced run evaluates everything."""
     serve(mock)
     site, _ = configured_site(client, user)
-    first = await execute(db, add_run(db, site, user, analyses=["readability"]))
+    analyses = ["readability", "seo"]
+    first = await execute(db, add_run(db, site, user, analyses=analyses))
     first_count = db.query(AgentFinding).filter(AgentFinding.run_id == first.id).count()
+    before = {p.url: (p.flesch, p.seo) for p in db.query(Page).filter(Page.run_id == first.id)}
     calls = len(model.calls)
-    second = await execute(db, add_run(db, site, user, number=2, analyses=["readability"], reuse_crawl=True))
-    assert len(model.calls) == calls  # every page unchanged: no new batches
-    assert db.query(AgentFinding).filter(AgentFinding.run_id == second.id).count() == first_count
-    assert "unchanged pages' findings reused" in second.stages[2]["detail"]
 
-    # A new focus means a new review.
+    # A new focus alone doesn't re-evaluate unchanged pages.
     body = client.get(f"/api/v1/sites/{site['id']}", headers=user["headers"]).json()
     body["focus"] = "Something else."
     client.put(f"/api/v1/sites/{site['id']}", json=body, headers=user["headers"])
-    await execute(db, add_run(db, site, user, number=3, analyses=["readability"], reuse_crawl=True))
+    second = await execute(db, add_run(db, site, user, number=2, analyses=analyses, reuse_crawl=False))
+    assert len(model.calls) == calls  # fetched again, same checksum: no new batches
+    assert db.query(AgentFinding).filter(AgentFinding.run_id == second.id).count() == first_count
+    stages = {s["key"]: s["detail"] for s in second.stages}
+    assert (
+        "7 unchanged pages kept" in stages["readability"] and "unchanged pages' findings kept" in stages["readability"]
+    )
+    assert "unchanged pages kept" in stages["seo"]
+    after = {p.url: (p.flesch, p.seo) for p in db.query(Page).filter(Page.run_id == second.id)}
+    assert after == before
+
+    # A changed page is evaluated again; the rest are kept.
+    mock.routes.clear()
+    serve(mock, **{"authoring/b": httpx.Response(200, html=page("Topic B, rewritten"))})
+    third = await execute(db, add_run(db, site, user, number=3, analyses=analyses, reuse_crawl=False))
+    asked = model.calls[calls:]
+    assert asked and all("Topic B, rewritten" in c for c in asked if "for readability" in c)
+    assert "6 unchanged pages kept" in {s["key"]: s["detail"] for s in third.stages}["readability"]
+
+    # Forcing evaluates every page again.
+    calls = len(model.calls)
+    forced = await execute(db, add_run(db, site, user, number=4, analyses=analyses, force_reevaluate=True))
     assert len(model.calls) > calls
+    assert "unchanged pages kept" not in {s["key"]: s["detail"] for s in forced.stages}["readability"]
+    assert any("Re-evaluating every page" in e.message for e in forced.log)
 
 
 async def test_retries_rate_limits_and_asks_again_for_json(client, user, db, mock, model):

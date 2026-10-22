@@ -208,12 +208,17 @@ def started(monkeypatch):
 
 def test_start_run_creates_queued_run(client, user, started):
     site = make_site(client, user)
-    body = {"scope": {"mode": "sections", "sections": ["/api"]}, "analyses": ["links"], "focus": " Check X "}
+    body = {
+        "scope": {"mode": "sections", "sections": ["/api"]},
+        "analyses": ["links"],
+        "focus": " Check X ",
+        "force_reevaluate": True,
+    }
     r = client.post(f"/api/v1/sites/{site['id']}/runs", json=body, headers=user["headers"])
     assert r.status_code == 201, r.text
     run = r.json()
     assert run["number"] == 1 and run["status"] == "queued" and run["site_name"] == "X Help"
-    assert run["focus"] == "Check X" and run["created_by"] == user["email"]
+    assert run["focus"] == "Check X" and run["created_by"] == user["email"] and run["force_reevaluate"]
     assert [s["key"] for s in run["stages"]] == ["discover", "crawl", "links"]
     assert len(run["help_center_ids"]) == 2  # all help centers by default
     assert started == [uuid.UUID(run["id"])]
@@ -287,8 +292,13 @@ def test_analyze_route(client, user, db, started, monkeypatch):
     jobs = []
     monkeypatch.setattr(runner, "start", lambda run_id, job=None: jobs.append((run_id, job)))
     r = client.post(url, headers=h)
-    assert r.status_code == 200 and r.json()["status"] == "running"
+    assert r.status_code == 200 and r.json()["status"] == "running" and r.json()["force_reevaluate"] is False
     assert jobs == [(run.id, runner.reanalyze)]
+    db.refresh(run)
+    run.status = "completed"
+    db.commit()
+    forced = client.post(url, json={"force": True}, headers=h).json()
+    assert forced["force_reevaluate"] is True
     other = add_run(db, site, user, number=2, status="completed", analyses=["summary"])
     assert client.post(f"/api/v1/runs/{other.id}/analyze", headers=h).status_code == 409
 

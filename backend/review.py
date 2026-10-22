@@ -421,41 +421,36 @@ class Review:
 
     # ── Pages (readability, SEO) ──
 
-    def reuse(self, pages: list[Page]) -> list[Page]:
-        """Copy findings for unchanged pages reviewed the same way; return the rest."""
-        sources = {p.reused_from_id: p for p in pages if p.reused_from_id}
+    def reuse(self, pages: list[Page], unchanged: dict) -> list[Page]:
+        """Keep the findings of pages whose checksum hasn't changed since the
+        last audit reviewed them (``unchanged``: page id -> that audit's page;
+        empty when the run forces re-evaluation). Returns the pages still to review."""
+        sources = {
+            prev.id: page
+            for page in pages
+            if (prev := unchanged.get(page.id)) is not None and self.analysis in (prev.reviews or {})
+        }
         if not sources:
             return pages
         previous = self.db.scalars(
-            select(AgentFinding).where(
-                AgentFinding.page_id.in_(list(sources)),
-                AgentFinding.analysis == self.analysis,
-                AgentFinding.review_key == self.key,
-            )
+            select(AgentFinding).where(AgentFinding.page_id.in_(list(sources)), AgentFinding.analysis == self.analysis)
         ).all()
-        # Pages reviewed the same way last time, with or without findings.
-        reviewed = {
-            p.id
-            for p in self.db.scalars(select(Page).where(Page.id.in_(list(sources))))
-            if (p.reviews or {}).get(self.analysis) == self.key
-        }
-        previous = [f for f in previous if f.page_id in reviewed]
         for f in previous:
-            copy = {c.name: getattr(f, c.name) for c in AgentFinding.__table__.columns if c.name not in ("id",)}
+            copy = {c.name: getattr(f, c.name) for c in AgentFinding.__table__.columns if c.name != "id"}
             self.db.add(AgentFinding(**{**copy, "run_id": self.run.id, "page_id": sources[f.page_id].id}))
             self.tally.findings += 1
             self.tally.on_focus += f.on_focus
-        kept = [p for p in pages if p.reused_from_id not in reviewed]
-        self.mark_reviewed([p for p in pages if p.reused_from_id in reviewed])
-        self.tally.reused = len(pages) - len(kept)
-        return kept
+        for page in sources.values():
+            page.reviews = {**(page.reviews or {}), self.analysis: unchanged[page.id].reviews[self.analysis]}
+        self.tally.reused = len(sources)
+        return [p for p in pages if p not in sources.values()]
 
     def mark_reviewed(self, pages: list[Page]) -> None:
         for page in pages:
             page.reviews = {**(page.reviews or {}), self.analysis: self.key}
 
-    async def pages(self, pages: list[Page], languages: dict[UUID, str]) -> Tally:
-        todo = self.reuse(pages)
+    async def pages(self, pages: list[Page], languages: dict[UUID, str], unchanged: dict | None = None) -> Tally:
+        todo = self.reuse(pages, unchanged or {})
         size = BATCH_SIZE[self.analysis]
         done = len(pages) - len(todo)
         self.progress(done, len(pages))

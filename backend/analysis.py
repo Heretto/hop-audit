@@ -49,13 +49,25 @@ async def analyze(
     centers = select(HelpCenter.id, HelpCenter.language).where(HelpCenter.site_id == run.site_id)
     languages = {hc_id: language for hc_id, language in db.execute(centers)}
     keys = {s["key"] for s in run.stages}
+    force = run.force_reevaluate
+    # Pages whose checksum matches the last audit's keep its readability and SEO results.
+    unchanged = {} if force else unchanged_sources(db, readable)
+    if force:
+        rec.log("run", "info", "Re-evaluating every page, unchanged ones included.")
 
     if "readability" in keys:
         rec.stage("readability", status="running", done=0, total=len(readable), detail="")
+        kept = 0
         for i, page in enumerate(readable, 1):
-            r = readability.measure(page.content.get("text", ""), languages.get(page.help_center_id, "en"))
-            page.flesch, page.grade, page.words_per_sentence = r.flesch, r.grade, r.words_per_sentence
-            page.passive_pct, page.sentences = r.passive_pct, r.sentences
+            prev = unchanged.get(page.id)
+            if prev is not None and prev.sentences is not None:
+                page.flesch, page.grade, page.words_per_sentence = prev.flesch, prev.grade, prev.words_per_sentence
+                page.passive_pct, page.sentences = prev.passive_pct, prev.sentences
+                kept += 1
+            else:
+                r = readability.measure(page.content.get("text", ""), languages.get(page.help_center_id, "en"))
+                page.flesch, page.grade, page.words_per_sentence = r.flesch, r.grade, r.words_per_sentence
+                page.passive_pct, page.sentences = r.passive_pct, r.sentences
             if i % PROGRESS_EVERY == 0:
                 await checkpoint()
                 rec.stage("readability", done=i)
@@ -65,22 +77,32 @@ async def analyze(
             if scored
             else "No page had enough text in a measurable language"
         )
+        if kept:
+            detail += f" · {kept:,} unchanged pages kept"
         rec.log("readability", "info", f"{len(scored):,} of {len(readable):,} pages scored. {detail}.")
         reviewable = [p for p in readable if p.word_count >= readability.MIN_WORDS]
-        await _review(db, run, rec, "readability", reviewable, detail, checkpoint, languages)
+        await _review(db, run, rec, "readability", reviewable, detail, checkpoint, languages, unchanged)
 
     if "seo" in keys:
         rec.stage("seo", status="running", done=0, total=len(readable), detail="")
         titles = Counter(p.content.get("title") for p in readable if p.content.get("title"))
         descriptions = Counter(p.content.get("description") for p in readable if p.content.get("description"))
+        kept = 0
         for page in readable:
-            checks = seo.check(page.content, page.url, titles, descriptions)
-            page.seo, page.seo_issues = seo.as_json(checks), seo.issues(checks)
+            prev = unchanged.get(page.id)
+            if prev is not None and prev.seo is not None:
+                page.seo, page.seo_issues = prev.seo, prev.seo_issues
+                kept += 1
+            else:
+                checks = seo.check(page.content, page.url, titles, descriptions)
+                page.seo, page.seo_issues = seo.as_json(checks), seo.issues(checks)
         issues = sum(p.seo_issues for p in readable)
         affected = sum(1 for p in readable if p.seo_issues)
-        detail = f"{issues:,} issues on {affected:,} pages"
+        detail = f"{issues:,} issues on {affected:,} pages" + (f" · {kept:,} unchanged pages kept" if kept else "")
         rec.log("seo", "info", f"SEO checks complete: {detail}.")
-        await _review(db, run, rec, "seo", [p for p in readable if p.seo_issues], detail, checkpoint, languages)
+        await _review(
+            db, run, rec, "seo", [p for p in readable if p.seo_issues], detail, checkpoint, languages, unchanged
+        )
     await checkpoint()
 
     link_counts: Counter = Counter()
@@ -202,7 +224,7 @@ async def _links(db, run, rec, http, pages, readable, checkpoint) -> Counter:
 
 
 async def _review(db: Session, run: AuditRun, rec, analysis: str, items: list, mechanical: str, checkpoint,
-                  languages: dict | None = None) -> None:  # fmt: skip
+                  languages: dict | None = None, unchanged: dict | None = None) -> None:  # fmt: skip
     """The analysis's agent reviews ``items`` (pages, or link groups); the stage ends here."""
     db.execute(delete(AgentFinding).where(AgentFinding.run_id == run.id, AgentFinding.analysis == analysis))
     try:
@@ -222,13 +244,16 @@ async def _review(db: Session, run: AuditRun, rec, analysis: str, items: list, m
         rec.stage(analysis, done=done, total=total)
 
     reviewer = review.Review(db, run, analysis, agent, rec.log, progress, checkpoint)
-    tally = await (reviewer.links(items) if analysis == "links" else reviewer.pages(items, languages or {}))
+    if analysis == "links":
+        tally = await reviewer.links(items)
+    else:
+        tally = await reviewer.pages(items, languages or {}, unchanged or {})
 
     record_stats(run, agent, tally)
     plural = "" if tally.findings == 1 else "s"
     parts = [f"{agent.name}: {tally.findings:,} finding{plural} ({tally.on_focus:,} on focus)"]
     if tally.reused:
-        parts.append(f"{tally.reused:,} unchanged pages' findings reused")
+        parts.append(f"{tally.reused:,} unchanged pages' findings kept")
     if tally.quotes_removed:
         parts.append(f"{tally.quotes_removed:,} quotes not on the page removed")
     if tally.errors:
@@ -240,6 +265,15 @@ async def _review(db: Session, run: AuditRun, rec, analysis: str, items: list, m
     rec.stage(analysis, status="failed" if tally.failed else "done", detail=f"{mechanical} · " + ", ".join(parts))
     rec.log(analysis, "info", f"{', '.join(parts)}; {tally.tokens:,} tokens.")
     db.commit()
+
+
+def unchanged_sources(db: Session, pages: list[Page]) -> dict:
+    """Page id -> the last audit's page it's unchanged from (same checksum)."""
+    ids = {p.reused_from_id for p in pages if p.reused_from_id}
+    if not ids:
+        return {}
+    sources = {p.id: p for p in db.scalars(select(Page).where(Page.id.in_(list(ids))))}
+    return {p.id: sources[p.reused_from_id] for p in pages if p.reused_from_id in sources}
 
 
 def record_stats(run: AuditRun, agent, tally) -> None:

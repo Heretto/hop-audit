@@ -76,9 +76,20 @@ def squash(text: str) -> str:
     return re.sub(r"\s+", " ", text).strip()
 
 
-def content_hash(text: str) -> str:
-    """Of the normalized main text, so markup churn doesn't read as a change."""
-    return hashlib.sha256(squash(text).encode()).hexdigest()
+# Everything the analyses read. A page whose checksum matches the last audit's
+# keeps its readability and SEO results instead of being evaluated again.
+CHECKSUM_FIELDS = (
+    "title", "description", "canonical", "robots", "lang", "og", "alternates",
+    "headings", "images", "links", "anchors", "breadcrumb", "text",
+)  # fmt: skip
+
+
+def checksum(content: dict) -> str:
+    """SHA-256 of what the analyses read, whitespace-normalized, so markup
+    churn (scripts, classes, layout) doesn't read as a change."""
+    material = {k: content.get(k) for k in CHECKSUM_FIELDS}
+    material["text"] = squash(material["text"] or "")
+    return hashlib.sha256(json.dumps(material, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 
 
 def _meta(soup: BeautifulSoup, **attrs) -> str | None:

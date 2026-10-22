@@ -27,6 +27,15 @@
           @if (p.lastmod) {
             · lastmod {{ p.lastmod | date: 'MMM d, y' }}
           }
+          @if (p.content_hash) {
+            ·
+            <span class="mono" [title]="p.content_hash"
+              >checksum {{ p.content_hash.slice(0, 8) }}</span
+            >
+            @if (p.reused_from_id) {
+              (unchanged since the last audit: its readability and SEO results are kept)
+            }
+          }
           @if (p.previous_run_number) {
             · score {{ p.previous_score }} in #{{ p.previous_run_number }} ({{ change() }})
           }

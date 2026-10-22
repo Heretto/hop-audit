@@ -92,6 +92,7 @@ export interface RunDetail extends RunListItem {
   help_center_ids: string[];
   reuse_crawl: boolean;
   recheck_external: boolean;
+  force_reevaluate: boolean;
   focus: string;
   tokens: Record<string, number>;
   agent_stats: Record<string, AgentStats>;
@@ -104,6 +105,7 @@ export interface RunInput {
   help_center_ids: string[];
   reuse_crawl: boolean;
   recheck_external: boolean;
+  force_reevaluate: boolean;
   focus: string;
 }
 
@@ -231,6 +233,7 @@ export interface PageDetail extends PageRow {
   lastmod: string | null;
   fetched_at: string | null;
   reused_from_id: string | null;
+  content_hash: string | null;
   grade: number | null;
   words_per_sentence: number | null;
   passive_pct: number | null;

@@ -90,6 +90,7 @@ export class RunAudit implements OnInit {
   readonly helpCenters = signal<Set<string>>(new Set());
   reuse = true;
   recheckExternal = false;
+  forceReevaluate = false;
   focus = '';
 
   readonly languageName = languageName;
@@ -206,6 +207,7 @@ export class RunAudit implements OnInit {
         help_center_ids: [...this.helpCenters()],
         reuse_crawl: this.reuse,
         recheck_external: this.recheckExternal,
+        force_reevaluate: this.forceReevaluate,
         focus: this.focus.trim(),
       })
       .subscribe({

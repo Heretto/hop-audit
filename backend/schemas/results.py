@@ -88,7 +88,8 @@ class PageDetail(PageRow):
     language: str
     lastmod: datetime | None
     fetched_at: datetime | None
-    reused_from_id: UUID | None
+    reused_from_id: UUID | None  # set when the checksum matches the last audit's page
+    content_hash: str | None  # the checksum
     grade: float | None
     words_per_sentence: float | None
     passive_pct: float | None

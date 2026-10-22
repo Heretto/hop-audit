@@ -117,6 +117,7 @@ describe('RunAudit', () => {
     page.toggle(page.sections, '/api');
     page.toggle(page.analyses, 'seo');
     page.focus = '  renamed workspaces  ';
+    page.forceReevaluate = true;
     page.start();
     expect(runs.start).toHaveBeenCalledWith('s1', {
       scope: { mode: 'sections', sections: ['/api'], pages: [] },
@@ -124,6 +125,7 @@ describe('RunAudit', () => {
       help_center_ids: ['hc-en', 'hc-de'],
       reuse_crawl: true,
       recheck_external: false,
+      force_reevaluate: true,
       focus: 'renamed workspaces',
     });
     expect(navigate).toHaveBeenCalledWith(['/audits', 'new-run']);
