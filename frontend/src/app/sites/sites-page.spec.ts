@@ -6,6 +6,7 @@ import { of } from 'rxjs';
 import { SiteSummary } from './site.model';
 import { siteDetails, SitesPage } from './sites-page';
 import { SitesService } from './sites.service';
+import { sampleRun } from '../runs/testing';
 import { sampleSite } from './testing';
 
 const summary = (id: string, name: string, extra: Partial<SiteSummary> = {}): SiteSummary => {
@@ -58,6 +59,27 @@ describe('SitesPage', () => {
     expect(el.textContent).toContain('Not audited');
     expect(el.querySelector('a[href="/sites/1/edit"]')).not.toBeNull();
     expect(el.textContent).toMatch(/2\s*Analysis agents configured/);
+  });
+
+  it("shows each site's latest run, with progress for a running one", () => {
+    const { el } = render([
+      summary('1', 'Running site', { last_run: sampleRun({ status: 'running', progress: 61 }) }),
+      summary('2', 'Done site', {
+        last_run: sampleRun({
+          id: 'r2',
+          status: 'completed',
+          progress: 100,
+          finished_at: new Date().toISOString(),
+          started_at: new Date(Date.now() - 42 * 60_000).toISOString(),
+        }),
+      }),
+    ]);
+    expect(el.textContent).toContain('Running · 61%');
+    expect(el.querySelector('a[href="/audits/r1"][aria-label="View progress"]')).not.toBeNull();
+    expect(el.querySelector('a[href="/sites/2/run"]')).not.toBeNull();
+    expect(el.textContent).toContain('#15 · /authoring, /api');
+    expect(el.textContent).toContain('Audit #15 of Done site completed 42 min after it started.');
+    expect(el.textContent).toMatch(/744\s*Pages under audit/);
   });
 
   it('shows the empty state', () => {

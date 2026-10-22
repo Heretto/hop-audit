@@ -2,40 +2,54 @@
 # HOP Audit developer entry point.
 #
 #   ./dev.sh          set up if needed, then run backend + frontend (Ctrl+C stops both)
-#   ./dev.sh setup    create backend/.venv, install frontend deps, create .env
+#   ./dev.sh setup    create the backend venv, install frontend deps, create .env
 #   ./dev.sh test     backend and frontend test suites
 #   ./dev.sh check    everything the definition of done asks for: lint, types,
 #                     tests, production build, hop-doctor --strict
 #   ./dev.sh doctor   hop-doctor only
+#   ./dev.sh alembic …   run Alembic in backend/ (e.g. revision --autogenerate -m "…")
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKEND="$ROOT/backend"
 FRONTEND="$ROOT/frontend"
-VENV="$BACKEND/.venv"
+# Installs hold native code (wheels, esbuild). The checkout may be shared
+# between a Mac and a Linux container, so each platform gets its own venv,
+# and node_modules swaps its native packages when the platform changes.
+OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+case "$(uname -m)" in aarch64 | arm64) CPU=arm64 ;; x86_64) CPU=x64 ;; *) CPU="$(uname -m)" ;; esac
+VENV="$BACKEND/.venv-$OS-$CPU"
 PY="$VENV/bin/python"
-PLATFORM="$(uname -sm)"
 
 die() { echo "Error: $*" >&2; exit 1; }
 step() { printf '\n\033[1m%s\033[0m\n' "$*"; }
 
 # ── Setup ─────────────────────────────────────────────────────────────────────
 
-# Installs are platform-specific (native wheels, esbuild binaries); a checkout
-# shared between a Mac and a Linux container must reinstall when it moves.
-stale() { [ ! -f "$1/.platform" ] || [ "$(cat "$1/.platform")" != "$PLATFORM" ]; }
+fingerprint() { cat "$@" | cksum | cut -d' ' -f1; }
+# True when the stamp file in $1 doesn't hold $2.
+stale() { [ "$(cat "$1" 2>/dev/null)" != "$2" ]; }
 
 setup_backend() {
-  if stale "$VENV" || ! "$PY" -c 'import hop_core' &>/dev/null; then
-    step "Installing backend dependencies"
-    rm -rf "$VENV"
+  local want
+  want=$(fingerprint "$BACKEND/requirements.txt" "$BACKEND/requirements-dev.txt")
+  [ -x "$PY" ] || {
+    step "Creating $(basename "$VENV")"
     if command -v uv &>/dev/null; then
-      uv venv -q "$VENV" && VIRTUAL_ENV="$VENV" uv pip install -q -r "$BACKEND/requirements-dev.txt"
+      uv venv -q "$VENV"
     else
       python3 -c 'import sys; sys.exit(sys.version_info < (3, 11))' || die "Python 3.11+ required"
-      python3 -m venv "$VENV" && "$VENV/bin/pip" install -q -r "$BACKEND/requirements-dev.txt"
+      python3 -m venv "$VENV"
     fi
-    echo "$PLATFORM" > "$VENV/.platform"
+  }
+  if stale "$VENV/.requirements" "$want" || ! "$PY" -c 'import hop_core' &>/dev/null; then
+    step "Installing backend dependencies"
+    if command -v uv &>/dev/null; then
+      VIRTUAL_ENV="$VENV" uv pip install -q -r "$BACKEND/requirements-dev.txt"
+    else
+      "$VENV/bin/pip" install -q -r "$BACKEND/requirements-dev.txt"
+    fi
+    echo "$want" > "$VENV/.requirements"
   fi
 }
 
@@ -44,10 +58,17 @@ setup_frontend() {
   node -e 'const [a,b,c]=process.versions.node.split(".").map(Number);
     process.exit((a===22&&(b>22||b===22&&c>=3))||(a===24&&b>=15)||a>24?0:1)' \
     || die "Node $(node --version) is too old; Angular 22 needs >= 22.22.3 or >= 24.15"
-  if stale "$FRONTEND/node_modules"; then
+  local modules="$FRONTEND/node_modules" lock
+  lock=$(fingerprint "$FRONTEND/package-lock.json")
+  if stale "$modules/.lock" "$lock"; then
     step "Installing frontend dependencies"
-    (cd "$FRONTEND" && rm -rf node_modules && npm ci --no-audit --no-fund --loglevel=error)
-    echo "$PLATFORM" > "$FRONTEND/node_modules/.platform"
+    (cd "$FRONTEND" && npm ci --no-audit --no-fund --loglevel=error)
+    echo "$lock" > "$modules/.lock"
+    echo "$OS-$CPU" > "$modules/.platform"
+  elif stale "$modules/.platform" "$OS-$CPU"; then
+    step "Swapping frontend native packages to $OS-$CPU"
+    (cd "$FRONTEND" && npm install --no-save --no-audit --no-fund --loglevel=error --os="$OS" --cpu="$CPU")
+    echo "$OS-$CPU" > "$modules/.platform"
   fi
 }
 
@@ -152,5 +173,6 @@ case "${1:-start}" in
   test) setup_backend; setup_frontend; run_tests ;;
   check) setup; check ;;
   doctor) setup_backend; setup_env; doctor ;;
-  *) die "unknown command '$1' (start | setup | test | check | doctor)" ;;
+  alembic) setup_backend; setup_env; shift; cd "$BACKEND" && exec "$VENV/bin/alembic" "$@" ;;
+  *) die "unknown command '$1' (start | setup | test | check | doctor | alembic)" ;;
 esac

@@ -1,9 +1,11 @@
 import uuid
 
 from hop_core.db import Base
-from sqlalchemy import JSON, Boolean, Column, DateTime, ForeignKey, Integer, String, Text, Uuid
+from sqlalchemy import JSON, Boolean, Column, ForeignKey, Integer, String, Text, Uuid
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+
+from models.types import UTCDateTime
 
 
 class Site(Base):
@@ -30,8 +32,8 @@ class Site(Base):
     schedule = Column(JSON, nullable=False, default=dict)
     prospect = Column(JSON, nullable=False, default=dict)
     created_by = Column(String(255), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    created_at = Column(UTCDateTime, server_default=func.now())
+    updated_at = Column(UTCDateTime, server_default=func.now(), onupdate=func.now())
 
     help_centers = relationship(
         "HelpCenter",

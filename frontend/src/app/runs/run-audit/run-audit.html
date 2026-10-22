@@ -1,0 +1,253 @@
+<div class="hop-page page">
+  <a class="back" routerLink="/sites"><mat-icon>arrow_back</mat-icon>Sites</a>
+
+  @if (site(); as s) {
+    <header class="page-header">
+      <div>
+        <h1>Run audit: {{ s.name }}</h1>
+        <span class="sub">
+          Audit the whole site, or rerun a subset. Results merge into the site's current picture;
+          every run is kept in history.
+        </span>
+      </div>
+    </header>
+  }
+
+  @if (errors().length) {
+    <div class="hop-status-message error" role="alert">
+      @for (e of errors(); track e) {
+        <div>{{ e }}</div>
+      }
+    </div>
+  }
+
+  @if (preview(); as p) {
+    @for (note of p.notes; track note) {
+      <div class="callout warn"><mat-icon>warning</mat-icon>{{ note }}</div>
+    }
+
+    <div class="layout">
+      <div class="column">
+        <mat-card class="section">
+          <div class="card-title">
+            <h2>Scope</h2>
+            <span class="sub">What to analyze this time.</span>
+          </div>
+          <mat-button-toggle-group
+            [value]="mode()"
+            (change)="mode.set($event.value)"
+            aria-label="Scope"
+          >
+            <mat-button-toggle value="site">Whole site</mat-button-toggle>
+            <mat-button-toggle value="sections">Sections</mat-button-toggle>
+            <mat-button-toggle value="changed">Changed since last audit</mat-button-toggle>
+            <mat-button-toggle value="pages">Specific pages</mat-button-toggle>
+          </mat-button-toggle-group>
+
+          @switch (mode()) {
+            @case ('sections') {
+              <div class="row between">
+                <span class="sub">{{ p.sections.length }} sections from the sitemap.</span>
+                <span class="row">
+                  <button mat-button type="button" (click)="selectAll(true)">Select all</button>
+                  <button mat-button type="button" (click)="selectAll(false)">Clear</button>
+                </span>
+              </div>
+              <div class="pick-list">
+                @for (sec of p.sections; track sec.path) {
+                  <label class="pick" [class.on]="sections().has(sec.path)">
+                    <mat-checkbox
+                      [checked]="sections().has(sec.path)"
+                      (change)="toggle(sections, sec.path)"
+                    />
+                    <span class="mono grow">{{ sec.path }}</span>
+                    <span class="sub">{{ sec.count | number }} pages</span>
+                  </label>
+                }
+              </div>
+            }
+            @case ('changed') {
+              <div class="note">
+                @if (p.last_run_number) {
+                  <span>
+                    Pages whose sitemap <span class="mono">lastmod</span> or content hash changed
+                    since audit #{{ p.last_run_number }} on
+                    {{ p.last_run_at | date: 'mediumDate' }}.
+                  </span>
+                  <span class="sub">
+                    The count is from the sitemap just read. Pages without a lastmod are fetched and
+                    kept only if their content changed.
+                  </span>
+                } @else {
+                  <span>No completed audit yet, so every page counts as changed.</span>
+                }
+              </div>
+            }
+            @case ('pages') {
+              <mat-form-field>
+                <mat-label>Page URLs or paths, one per line</mat-label>
+                <textarea
+                  matInput
+                  class="mono"
+                  rows="6"
+                  [ngModel]="pagesText()"
+                  (ngModelChange)="pagesText.set($event)"
+                ></textarea>
+                <mat-hint>Paths are read under the primary help center.</mat-hint>
+              </mat-form-field>
+            }
+            @default {
+              <span class="sub">
+                All {{ p.site_pages | number }} pages in the sitemap plus any new pages the crawler
+                finds, within the include and exclude rules in
+                <a [routerLink]="['/sites', id(), 'edit']">site settings</a>.
+              </span>
+            }
+          }
+        </mat-card>
+
+        <mat-card class="section">
+          <div class="card-title">
+            <h2>Analyses</h2>
+            <span class="sub">Each analysis is run by the agent assigned in site settings.</span>
+          </div>
+          <div class="grid-2">
+            @for (a of siteAnalyses(); track a.key) {
+              <mat-checkbox
+                [class.wide]="a.key === 'content_integrity'"
+                [checked]="analyses().has(a.key)"
+                (change)="toggle(analyses, a.key)"
+              >
+                {{ a.label }}
+                <span class="sub">
+                  · {{ agentName(a.key) }}
+                  @if (a.key === 'content_integrity') {
+                    ·
+                    {{
+                      site()!.integrity_categories.length === categoryCount
+                        ? 'all ' + categoryCount + ' categories'
+                        : site()!.integrity_categories.length + ' categories'
+                    }}
+                  }
+                </span>
+              </mat-checkbox>
+            }
+          </div>
+
+          @if (analyses().has('content_integrity')) {
+            <div class="subsection">
+              <span class="label">Help centers to review for content integrity</span>
+              @for (hc of p.help_centers; track hc.id) {
+                <mat-checkbox
+                  [checked]="helpCenters().has(hc.id)"
+                  [disabled]="!!hc.blocked"
+                  (change)="toggle(helpCenters, hc.id)"
+                >
+                  {{ hc.name }}
+                  <span class="sub">
+                    @if (hc.blocked) {
+                      · blocked: {{ hc.blocked }}
+                    } @else {
+                      ·
+                      {{
+                        hc.is_primary
+                          ? 'primary'
+                          : 'vs. ' + languageName(primary()?.language ?? 'en')
+                      }}
+                      · {{ hc.pages | number }} articles
+                    }
+                  </span>
+                </mat-checkbox>
+              }
+              <span class="sub">
+                Candidates land in Findings for triage; nothing is counted or built until you
+                confirm what counts. A help center that blocks the crawler is reported, never worked
+                around.
+              </span>
+            </div>
+          }
+
+          <div class="toggles">
+            <mat-slide-toggle [(ngModel)]="reuse" [disabled]="!p.last_run_number">
+              @if (p.last_run_at) {
+                Reuse pages crawled on {{ p.last_run_at | date: 'MMM d' }} where unchanged (faster,
+                fewer requests)
+              } @else {
+                Reuse pages from the last audit where unchanged (no audit yet)
+              }
+            </mat-slide-toggle>
+            <mat-slide-toggle [(ngModel)]="recheckExternal">
+              Re-check external links even if checked in the last 7 days
+            </mat-slide-toggle>
+          </div>
+
+          <mat-form-field>
+            <mat-label
+              >Focus for this run only (optional, added to the site's standing focus)</mat-label
+            >
+            <textarea
+              matInput
+              rows="3"
+              [(ngModel)]="focus"
+              placeholder="Example: we renamed 'workspaces' to 'projects' last week; flag any page still using the old term."
+            ></textarea>
+          </mat-form-field>
+        </mat-card>
+      </div>
+
+      <aside class="column">
+        <mat-card class="section">
+          <div class="card-title"><h2>This run</h2></div>
+          <dl class="facts">
+            <dt>Scope</dt>
+            <dd>{{ scopeText() }}</dd>
+            <dt>Pages to analyze</dt>
+            <dd>{{ pageCount() | number }}</dd>
+            <dt>Estimated duration</dt>
+            <dd>{{ duration() }}</dd>
+            <dt>Estimated tokens</dt>
+            <dd>{{ tokenText() }}</dd>
+            <dt>Help centers</dt>
+            <dd>{{ p.help_centers.length }}</dd>
+            <dt>Agents</dt>
+            <dd>{{ agentCount() }}</dd>
+          </dl>
+          <button
+            mat-flat-button
+            color="primary"
+            class="big"
+            [disabled]="!canStart()"
+            (click)="start()"
+          >
+            <mat-icon>play_arrow</mat-icon>Start audit
+          </button>
+          <span class="sub"
+            >Runs in the background. You can leave this page; progress shows on the site row and
+            under Audits.</span
+          >
+        </mat-card>
+
+        <mat-card class="section">
+          <div class="card-title"><h2>Recent runs</h2></div>
+          @for (r of recent(); track r.id) {
+            <div class="row between">
+              <a [routerLink]="['/audits', r.id]"
+                >#{{ r.number }} · {{ r.created_at | date: 'MMM d' }}</a
+              >
+              <span class="sub">{{
+                r.status === 'completed' ? (r.page_count | number) + ' pages' : r.status
+              }}</span>
+            </div>
+          } @empty {
+            <span class="sub">No audits yet.</span>
+          }
+          <a routerLink="/audits" [queryParams]="{ site: id() }">All runs</a>
+        </mat-card>
+      </aside>
+    </div>
+  } @else if (!errors().length) {
+    <div class="row">
+      <mat-spinner diameter="24" /><span class="sub">Reading the sitemaps…</span>
+    </div>
+  }
+</div>

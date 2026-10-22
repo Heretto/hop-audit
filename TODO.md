@@ -82,9 +82,48 @@ re-read this file before starting the next.
       validation and payload mapping
 - [x] Checks green (tests, lint, build, hop-doctor); commit with decisions
 
+## Milestone 3: crawler, runs, stages and run log
+
+- [x] Models + migration: `AuditRun` (number per site, scope, help centers,
+      analyses, trigger, status, timings, stages, tokens by agent, reuse /
+      re-check flags, run focus, error), `RunLogEntry` (time, stage, level,
+      message: no keys, prompts or page text), `Page` (per run and help
+      center: URL, path, section, title, status, content hash, lastmod,
+      word count, extracted text and structure, links, reused-from)
+- [x] Extraction (`extract.py`): main content text, title, description,
+      canonical, robots, Open Graph, headings, images and alt, links with
+      text, breadcrumb, `lang`; hash of the normalized text
+- [x] Discovery per help center: sitemaps per host, each URL assigned to the
+      help center with the longest matching prefix, sections relative to
+      the help center root (path, sitemap file, or breadcrumb grouping)
+- [x] Scope rules: include/exclude globs, max pages, depth, robots,
+      sections / changed since last / listed pages, run-only focus
+- [x] Crawler (`crawler.py`): concurrency + delay, retries on 5xx and
+      timeouts (logged), follow links within help centers, reuse unchanged
+      pages from the last completed run (lastmod, then content hash),
+      blocked help centers reported and skipped, never worked around;
+      pages that look like an empty JavaScript shell flagged
+- [x] Runner (`runner.py`): in-process background task per run, stage
+      progress, pause / resume / cancel, analyses not built yet marked
+      skipped, runs interrupted by a restart marked failed at startup,
+      one active run per site
+- [x] Routes: preview (page counts, sections, changed count, help-center
+      article counts, estimates), start, list per site and org, detail,
+      log, pause, resume, cancel; Sites list carries the last run
+- [x] Backend tests: extraction, globs and scope, discovery assignment,
+      crawler against a mocked site (reuse, retries, blocked, robots,
+      depth, max pages, follow links), runner stages and controls, routes
+- [x] Frontend: Run audit page (`/sites/:id/run`) per `RunAudit.dc.html`
+      with live page count and estimate; "Save and run audit" on settings
+- [x] Frontend: Audit page (`/audits/:runId`) per `AuditRunning.dc.html`
+      polling while active: progress, stages, agents, run log with copy,
+      pause / resume / cancel
+- [x] Frontend: Sites list run action, status chip, pages, last audit;
+      Audits page lists runs (History and compare arrive in M4)
+- [x] Frontend tests; checks green; smoke test; commit with decisions
+
 ## Later milestones (from the handoff)
 
-- [ ] 3 Crawler + run model with stages and run log
 - [ ] 4 Mechanical analyses, dashboard, page detail, history and compare
 - [ ] 5 Agent batching + Readability/SEO/Link agents
 - [ ] 6 Content integrity reviewer, findings, triage screen

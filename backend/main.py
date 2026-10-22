@@ -3,12 +3,13 @@ from contextlib import asynccontextmanager
 from fastapi.responses import JSONResponse
 from hop_core.app_factory import create_hop_app
 from hop_core.credentials import AI_PROVIDER_TYPES, register_builtin_types
-from hop_core.db import get_engine
+from hop_core.db import get_engine, get_session_factory
 from sqlalchemy import text
 
 import models  # noqa: F401  register our tables before hop-core's startup
+import runner
 from migrate import migrate
-from routes import setup, sites
+from routes import runs, setup, sites
 from settings import get_settings
 
 # Model keys for the agents (Claude, OpenAI, Gemini), plus Heretto connections
@@ -20,7 +21,7 @@ app = create_hop_app(
     title="HOP Audit",
     description="Audits documentation websites and help centers",
     version="0.1.0",
-    extra_routers=[setup.router, sites.router],
+    extra_routers=[setup.router, sites.router, runs.router],
 )
 
 _hop_lifespan = app.router.lifespan_context
@@ -29,6 +30,8 @@ _hop_lifespan = app.router.lifespan_context
 @asynccontextmanager
 async def lifespan(app):
     migrate()  # before hop-core's create_all; see migrate.py
+    with get_session_factory()() as db:
+        runner.recover_interrupted(db)
     async with _hop_lifespan(app):
         yield
 

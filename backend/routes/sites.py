@@ -7,10 +7,12 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from hop_core.api.dependencies import CurrentUserContext, get_current_active_user_with_org
 from hop_core.db import get_db
 from hop_core.models.agent import Agent
+from sqlalchemy import func
 from sqlalchemy.orm import Session, selectinload
 
 import discovery
-from models import HelpCenter, OrgSetup, Site
+from models import AuditRun, HelpCenter, OrgSetup, Site
+from schemas.run import RunSummary, SiteListItem
 from schemas.site import DetectRequest, SiteIn, SiteOut, SiteSummary
 
 router = APIRouter(prefix="/sites", tags=["sites"])
@@ -51,15 +53,34 @@ def apply(site: Site, data: SiteIn) -> None:
     site.help_centers = centers
 
 
-@router.get("", response_model=list[SiteSummary])
+@router.get("", response_model=list[SiteListItem])
 def list_sites(ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
-    return (
+    sites = (
         db.query(Site)
         .options(selectinload(Site.help_centers))
         .filter(Site.organization_id == ctx.organization_id)
         .order_by(Site.name)
         .all()
     )
+    latest = (
+        db.query(AuditRun.site_id, func.max(AuditRun.number).label("number"))
+        .filter(AuditRun.organization_id == ctx.organization_id)
+        .group_by(AuditRun.site_id)
+        .subquery()
+    )
+    runs = {
+        r.site_id: r
+        for r in db.query(AuditRun).join(
+            latest, (AuditRun.site_id == latest.c.site_id) & (AuditRun.number == latest.c.number)
+        )
+    }
+    return [
+        SiteListItem(
+            **SiteSummary.model_validate(site).model_dump(),
+            last_run=RunSummary.model_validate(runs[site.id]) if site.id in runs else None,
+        )
+        for site in sites
+    ]
 
 
 @router.get("/defaults")

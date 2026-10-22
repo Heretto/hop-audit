@@ -13,6 +13,9 @@
         </div>
         <div class="page-actions">
           <a mat-stroked-button routerLink="/sites">Cancel</a>
+          <button mat-stroked-button type="button" [disabled]="saving()" (click)="save(true)">
+            Save and run audit
+          </button>
           <button mat-flat-button color="primary" type="submit" [disabled]="saving()">Save</button>
         </div>
       </header>

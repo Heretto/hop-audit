@@ -50,6 +50,7 @@ def test_list_and_read(client, user):
     create(client, user, name="A site", start_url="https://a.example.com/")
     listed = client.get(URL, headers=user["headers"]).json()
     assert [s["name"] for s in listed] == ["A site", "B site"]
+    assert listed[0]["last_run"] is None
     assert listed[1]["help_centers"][0]["language"] == "en"
     assert client.get(f"{URL}/{a['id']}", headers=user["headers"]).json()["name"] == "B site"
 
@@ -192,3 +193,9 @@ def test_defaults_assign_seeded_agents(client, user):
 
 def test_defaults_before_setup(client, user):
     assert client.get(f"{URL}/defaults", headers=user["headers"]).json()["agent_assignments"] == {}
+
+
+def test_timestamps_carry_their_zone(client, user):
+    """SQLite drops offsets; UTCDateTime puts UTC back so browsers don't read local time."""
+    site = create(client, user)
+    assert site["created_at"].endswith(("Z", "+00:00"))

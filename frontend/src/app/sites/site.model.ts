@@ -1,3 +1,5 @@
+import { RunSummary } from '../runs/run.model';
+
 /** Shapes of the /sites API (backend/schemas/site.py) and the catalogs the screens show. */
 
 export type Purpose = 'own' | 'prospect';
@@ -70,6 +72,7 @@ export interface SiteSummary {
   purpose: Purpose;
   help_centers: HelpCenter[];
   crawl: CrawlRules;
+  last_run?: RunSummary | null;
 }
 
 export interface Discovery {

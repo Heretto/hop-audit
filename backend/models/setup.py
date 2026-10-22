@@ -1,5 +1,7 @@
 from hop_core.db import Base
-from sqlalchemy import JSON, Column, DateTime, ForeignKey, Uuid
+from sqlalchemy import JSON, Column, ForeignKey, Uuid
+
+from models.types import UTCDateTime
 
 
 class OrgSetup(Base):
@@ -13,5 +15,5 @@ class OrgSetup(Base):
     __tablename__ = "org_setup"
 
     organization_id = Column(Uuid, ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True)
-    agents_seeded_at = Column(DateTime(timezone=True), nullable=False)
+    agents_seeded_at = Column(UTCDateTime, nullable=False)
     seeded_agents = Column(JSON, nullable=False, default=dict)

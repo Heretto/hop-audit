@@ -31,8 +31,8 @@ Read those instead of inferring from this project's code. Do not copy them here.
   *before* hop-core's `create_all` (`backend/migrate.py`), so our tables are
   always versioned. Add a model to `backend/models/` and import it in
   `models/__init__.py`, then
-  `cd backend && .venv/bin/alembic revision --autogenerate -m "..."` (with a
-  scratch `DATABASE_URL`). `tests/test_app.py` fails if models and
+  `./dev.sh alembic revision --autogenerate -m "..."` (with a scratch
+  `DATABASE_URL` that is already at head). `tests/test_app.py` fails if models and
   migrations disagree.
 - **Routes**: our routers live in `backend/routes/` and are mounted under
   `/api/v1`. Collections have no trailing slash, matching hop-core's own
@@ -48,9 +48,22 @@ Read those instead of inferring from this project's code. Do not copy them here.
   reports 401/403/429 and robots.txt refusals as `blocked`; never add retries
   with another agent. In this sandbox every outbound site returns 403 from the
   egress proxy, so live detection reads as blocked here.
-- **Platform-specific installs**: `backend/.venv` and `frontend/node_modules`
-  carry a `.platform` stamp; `./dev.sh` reinstalls when the checkout moves
-  between macOS and a Linux container.
+- **Runs** (`backend/runner.py`): each audit is an asyncio task in this
+  process with a pause/resume/cancel `Control`; active runs left by a
+  restart are marked failed at startup. `crawler.plan()` reads sitemaps per
+  host and checks each help center's root; `Crawler` fetches, reuses
+  unchanged pages from the last completed run (sitemap `lastmod`, then
+  content hash) and follows links within help centers. Paths, sections and
+  include/exclude globs are relative to each help center's root
+  (`backend/scope.py`), so `/de/authoring/x` is in section `/authoring`.
+  Pages keep the extraction (`backend/extract.py`), not raw HTML.
+- **Timestamps**: use `models.types.UTCDateTime`, not `DateTime`. SQLite
+  drops offsets, and naive values compare and serialize as local time.
+- **Platform-specific installs**: the checkout may be shared between a Mac
+  and a Linux container. Each platform has its own venv
+  (`backend/.venv-<os>-<cpu>`); `frontend/node_modules` swaps its native
+  packages (`npm install --no-save --os --cpu`, under a second) when the
+  platform changes. Both reinstall when their requirements or lockfile change.
 - **UI**: hop-ui components and tokens only. Shared page patterns from the
   mockups (header, subtitle, empty state) are in
   `frontend/src/app/shared/_page.scss`. The top-bar mark

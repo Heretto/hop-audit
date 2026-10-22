@@ -166,6 +166,12 @@ describe('SiteSettings', () => {
     ]);
   });
 
+  it('goes on to the Run audit page with "Save and run audit"', () => {
+    const { page, navigate } = render('s1');
+    page.save(true);
+    expect(navigate).toHaveBeenCalledWith(['/sites', 's1', 'run']);
+  });
+
   it('shows the API validation message when saving fails', () => {
     const { page, sites, navigate } = render('s1');
     sites.update.mockReturnValue(

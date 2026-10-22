@@ -1,0 +1,166 @@
+<div class="hop-page page">
+  @if (run(); as r) {
+    <a class="back" routerLink="/audits" [queryParams]="{ site: r.site_id }">
+      <mat-icon>arrow_back</mat-icon>{{ r.site_name }} · Audits
+    </a>
+
+    <header class="page-header">
+      <div>
+        <div class="title-row">
+          <h1>Audit #{{ r.number }}</h1>
+          <span class="hop-status-chip" [class]="chip().cls">
+            @if (r.status === 'running') {
+              <mat-icon class="spin">progress_activity</mat-icon>
+            }
+            {{ r.status === 'running' ? 'Running' : chip().label }}
+          </span>
+        </div>
+        <span class="sub">
+          Started {{ r.started_at ?? r.created_at | date: 'MMM d, y HH:mm' }} by
+          {{ r.created_by ?? 'schedule' }} · {{ scope() }} ({{ r.page_count | number }} pages) ·
+          {{ r.help_center_ids.length }} help centers · {{ r.analyses.length }} analyses
+        </span>
+      </div>
+      @if (active()) {
+        <div class="page-actions">
+          @if (r.status === 'paused') {
+            <button mat-stroked-button (click)="control('resume')" [disabled]="busy()">
+              <mat-icon>play_arrow</mat-icon>Resume
+            </button>
+          } @else {
+            <button
+              mat-stroked-button
+              (click)="control('pause')"
+              [disabled]="busy() || r.status !== 'running'"
+            >
+              <mat-icon>pause</mat-icon>Pause
+            </button>
+          }
+          <button mat-stroked-button class="danger" (click)="cancel()">
+            <mat-icon>stop_circle</mat-icon>Cancel run
+          </button>
+        </div>
+      }
+    </header>
+
+    @if (r.error) {
+      <div class="hop-status-message error" role="alert">{{ r.error }}</div>
+    }
+
+    <mat-card class="section progress" [class.hop-shimmer]="r.status === 'running'">
+      <div class="row between">
+        <div class="row">
+          <span class="big">{{ r.progress }}%</span>
+          <span class="sub">
+            {{ crawl()?.done ?? 0 | number }} of {{ crawl()?.total ?? 0 | number }} pages crawled ·
+            {{ elapsed() }}
+            {{ active() ? 'elapsed' : 'in total' }}
+            @if (active() && remaining()) {
+              · {{ remaining() }} left
+            }
+          </span>
+        </div>
+      </div>
+      <div
+        class="bar"
+        role="progressbar"
+        [attr.aria-valuenow]="r.progress"
+        aria-valuemin="0"
+        aria-valuemax="100"
+      >
+        <span [style.width.%]="r.progress"></span>
+      </div>
+    </mat-card>
+
+    <div class="layout">
+      <mat-card class="section">
+        <div class="card-title">
+          <h2>Stages</h2>
+          <span class="sub"
+            >Crawling runs ahead; each analysis agent works through pages as they arrive.</span
+          >
+        </div>
+        @for (s of r.stages; track s.key) {
+          <div class="stage">
+            <mat-icon [class]="s.status" [class.spin]="s.status === 'running'">{{
+              icons[s.status]
+            }}</mat-icon>
+            <div class="stage-text">
+              <strong>{{ s.label }}</strong>
+              <span class="sub">{{ s.detail }}</span>
+            </div>
+            <div class="bar" [class.done]="s.status === 'done'">
+              <span [style.width.%]="stagePercent(s)"></span>
+            </div>
+            <span class="sub count">{{ stageCount(s) }}</span>
+          </div>
+        }
+      </mat-card>
+
+      <mat-card class="section">
+        <div class="card-title"><h2>Agents in this run</h2></div>
+        @for (a of runAgents(); track a.stage.key) {
+          <div class="row between agent">
+            <div class="stage-text">
+              <strong>{{ a.name }}</strong>
+              <span class="sub">{{ a.model }}</span>
+            </div>
+            <div class="agent-status">
+              <span class="hop-status-chip" [class]="agentChip(a.stage).cls">{{
+                agentChip(a.stage).label
+              }}</span>
+              <span class="sub">{{ a.tokens ? (a.tokens | number) + ' tokens' : '—' }}</span>
+            </div>
+          </div>
+        } @empty {
+          <span class="sub">No agents are assigned to this run's analyses.</span>
+        }
+        <div class="stats">
+          <div>
+            <span class="value">{{ tokenTotal() }}</span
+            ><span class="sub">Tokens so far</span>
+          </div>
+          <div>
+            <span class="value">{{ r.page_count | number }}</span
+            ><span class="sub">Pages read</span>
+          </div>
+        </div>
+      </mat-card>
+    </div>
+
+    <mat-card class="section">
+      <div class="row between">
+        <button
+          class="log-toggle"
+          type="button"
+          (click)="logOpen.set(!logOpen())"
+          [attr.aria-expanded]="logOpen()"
+        >
+          <mat-icon>{{ logOpen() ? 'expand_more' : 'chevron_right' }}</mat-icon>
+          <h2>Run log</h2>
+          <span class="sub">{{ log().length }} steps</span>
+        </button>
+        <button mat-stroked-button (click)="copyLog()">
+          <mat-icon>content_copy</mat-icon>Copy log
+        </button>
+      </div>
+      <span class="sub">
+        Each step of the run, in your timezone. Holds no API keys, prompts or page text, so it's
+        safe to share when reporting a problem.
+      </span>
+      @if (logOpen()) {
+        <ol class="log">
+          @for (e of log(); track $index) {
+            <li [class]="e.level">
+              <span class="t">{{ e.at | date: 'HH:mm:ss' }}</span
+              ><span class="s">{{ e.stage }}</span
+              ><span class="m">{{ e.message }}</span>
+            </li>
+          }
+        </ol>
+      }
+    </mat-card>
+  } @else if (error(); as message) {
+    <div class="hop-status-message error" role="alert">{{ message }}</div>
+  }
+</div>

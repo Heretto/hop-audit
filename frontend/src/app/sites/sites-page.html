@@ -15,6 +15,15 @@
     <div class="hop-status-message error" role="alert">{{ message }}</div>
   }
 
+  @if (justFinished(); as f) {
+    <div class="hop-status-message success" role="status">
+      <mat-icon>check_circle</mat-icon>
+      Audit #{{ f.run.number }} of {{ f.site.name }} completed {{ duration(f.run) }} after it
+      started.
+      <a [routerLink]="['/audits', f.run.id]">View results</a>
+    </div>
+  }
+
   @if (rows(); as sites) {
     @if (sites.length) {
       <mat-card>
@@ -30,16 +39,61 @@
               <span class="sub">{{ details(s) }}</span>
             </div>
           </ng-template>
-          <ng-template hopCell="pages"><span class="sub">—</span></ng-template>
-          <ng-template hopCell="last"><span class="sub">Never audited</span></ng-template>
+          <ng-template hopCell="pages" let-s>
+            @if (s.last_run) {
+              {{ s.last_run.page_count | number }}
+            } @else {
+              <span class="sub">—</span>
+            }
+          </ng-template>
+          <ng-template hopCell="last" let-s>
+            @if (s.last_run; as r) {
+              <div class="site-cell">
+                <span>{{ r.started_at ?? r.created_at | date: 'MMM d, y HH:mm' }}</span>
+                <span class="sub">#{{ r.number }} · {{ scope(r.scope) }} · {{ duration(r) }}</span>
+              </div>
+            } @else {
+              <span class="sub">Never audited</span>
+            }
+          </ng-template>
           <ng-template hopCell="score"><span class="sub">—</span></ng-template>
           <ng-template hopCell="integrity"><span class="sub">—</span></ng-template>
           <ng-template hopCell="broken"><span class="sub">—</span></ng-template>
-          <ng-template hopCell="status"
-            ><span class="hop-status-chip">Not audited</span></ng-template
-          >
+          <ng-template hopCell="status" let-s>
+            <span class="hop-status-chip" [class]="chip(s).cls">{{ chip(s).label }}</span>
+          </ng-template>
           <ng-template hopCell="actions" let-s>
             <div class="row-actions">
+              @if (isActive(s)) {
+                <a
+                  mat-icon-button
+                  [routerLink]="['/audits', s.last_run.id]"
+                  aria-label="View progress"
+                  matTooltip="Progress"
+                >
+                  <mat-icon>pending</mat-icon>
+                </a>
+              } @else {
+                <a
+                  mat-icon-button
+                  [routerLink]="['/sites', s.id, 'run']"
+                  aria-label="Run audit"
+                  matTooltip="Run audit"
+                >
+                  <mat-icon>play_arrow</mat-icon>
+                </a>
+              }
+              @if (s.last_run) {
+                <a
+                  mat-icon-button
+                  routerLink="/audits"
+                  [queryParams]="{ site: s.id }"
+                  aria-label="Audit history"
+                  matTooltip="History"
+                >
+                  <mat-icon>history</mat-icon>
+                </a>
+              }
               <a
                 mat-icon-button
                 [routerLink]="['/sites', s.id, 'edit']"
@@ -78,8 +132,8 @@
       <mat-card class="hop-stat-card">
         <span class="hop-icon-badge accent"><mat-icon>travel_explore</mat-icon></span>
         <div>
-          <span class="hop-stat-value">{{ sites.length }}</span>
-          <span class="hop-stat-label">Sites in {{ languageCount() }} languages</span>
+          <span class="hop-stat-value">{{ pageCount() | number }}</span>
+          <span class="hop-stat-label">Pages under audit across all sites</span>
         </div>
       </mat-card>
       <mat-card class="hop-stat-card">

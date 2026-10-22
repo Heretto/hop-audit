@@ -30,7 +30,15 @@ describe('routes', () => {
 
   it('opens on Sites', () => {
     expect(child('sites')?.loadComponent).toBeDefined();
-    expect(child('audits')?.loadComponent).toBeDefined();
+    for (const path of [
+      'audits',
+      'audits/:runId',
+      'sites/new',
+      'sites/:id/edit',
+      'sites/:id/run',
+    ]) {
+      expect(child(path)?.loadComponent, path).toBeDefined();
+    }
     expect(shell.children!.find((r) => r.path === '' && r.redirectTo)?.redirectTo).toBe('sites');
   });
 });

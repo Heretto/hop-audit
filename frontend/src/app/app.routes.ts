@@ -25,8 +25,16 @@ export const routes: Routes = [
         loadComponent: () => import('./sites/settings/site-settings').then((m) => m.SiteSettings),
       },
       {
+        path: 'sites/:id/run',
+        loadComponent: () => import('./runs/run-audit/run-audit').then((m) => m.RunAudit),
+      },
+      {
         path: 'audits',
-        loadComponent: () => import('./audits/audits-page').then((m) => m.AuditsPage),
+        loadComponent: () => import('./runs/audits-page').then((m) => m.AuditsPage),
+      },
+      {
+        path: 'audits/:runId',
+        loadComponent: () => import('./runs/audit/audit-page').then((m) => m.AuditPage),
       },
       // hop-core's pages, mounted as-is.
       { path: 'agents', children: HOP_AGENT_ROUTES },

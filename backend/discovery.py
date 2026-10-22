@@ -61,18 +61,18 @@ def _local(tag: str) -> str:
     return tag.rsplit("}", 1)[-1]
 
 
-def parse_sitemap(data: bytes) -> tuple[list[str], list[str], list[datetime]]:
-    """(page URLs, child sitemap URLs, lastmod dates) from a urlset or sitemapindex.
+def parse_sitemap(data: bytes) -> tuple[list[tuple[str, datetime | None]], list[str]]:
+    """([(page URL, lastmod)], child sitemap URLs) from a urlset or sitemapindex.
 
     The XML is untrusted: the size cap in ``fetch`` and expat's own
-    entity-amplification limits (expat 2.4 and later)
-    bound what a hostile sitemap can cost.
+    entity-amplification limits (expat 2.4 and later) bound what a hostile
+    sitemap can cost.
     """
     if data[:2] == b"\x1f\x8b":
         data = gzip.decompress(data)
     root = ET.fromstring(data)
-    pages, children, dates = [], [], []
-    target = children if _local(root.tag) == "sitemapindex" else pages
+    pages, children = [], []
+    is_index = _local(root.tag) == "sitemapindex"
     for entry in root:
         loc = lastmod = None
         for child in entry:
@@ -81,11 +81,11 @@ def parse_sitemap(data: bytes) -> tuple[list[str], list[str], list[datetime]]:
                 loc = child.text.strip()
             elif name == "lastmod" and child.text:
                 lastmod = parse_lastmod(child.text.strip())
-        if loc:
-            target.append(loc)
-        if lastmod:
-            dates.append(lastmod)
-    return pages, children, dates
+        if loc and is_index:
+            children.append(loc)
+        elif loc:
+            pages.append((loc, lastmod))
+    return pages, children
 
 
 def parse_lastmod(text: str) -> datetime | None:
@@ -174,21 +174,48 @@ async def robots(http: httpx.AsyncClient, start_url: str) -> RobotFileParser:
     return rp
 
 
-async def read_sitemaps(http: httpx.AsyncClient, url: str) -> tuple[list[str], int, list[datetime]] | None:
-    """All page URLs under a sitemap or sitemap index; None when it doesn't exist."""
-    queue, pages, dates, read = [url], [], [], 0
+@dataclass
+class SitemapEntry:
+    url: str
+    lastmod: datetime | None
+    sitemap: str  # the sitemap file that listed it
+
+
+async def read_sitemaps(http: httpx.AsyncClient, url: str) -> tuple[list[SitemapEntry], int] | None:
+    """Every page under a sitemap or sitemap index, and how many sitemap files
+    were read; None when the sitemap doesn't exist."""
+    queue, entries, read = [url], [], 0
     while queue and read < MAX_SITEMAPS:
-        response = await fetch(http, queue.pop(0))
+        source = queue.pop(0)
+        response = await fetch(http, source)
         if response is None:
             if read == 0:
                 return None
             continue
         read += 1
-        found, children, lastmods = parse_sitemap(response.content)
-        pages += found
+        pages, children = parse_sitemap(response.content)
+        entries += [SitemapEntry(loc, lastmod, source) for loc, lastmod in pages]
         queue += children
-        dates += lastmods
-    return pages, read, dates
+    return entries, read
+
+
+async def find_sitemap(
+    http: httpx.AsyncClient, start_url: str, sitemap_url: str, rules: RobotFileParser
+) -> tuple[str, list[SitemapEntry], int] | None:
+    """The given sitemap, else those robots.txt names, else /sitemap.xml:
+    (its URL, its entries on the start URL's host, files read)."""
+    candidates = [sitemap_url] if sitemap_url else [*(rules.site_maps() or []), urljoin(start_url, "/sitemap.xml")]
+    for candidate in dict.fromkeys(candidates):
+        result = await read_sitemaps(http, candidate)
+        if result is not None:
+            entries, count = result
+            seen, kept = set(), []
+            for e in entries:
+                if same_site(e.url, start_url) and e.url not in seen:
+                    seen.add(e.url)
+                    kept.append(e)
+            return candidate, kept, count
+    return None
 
 
 async def detect(start_url: str, sitemap_url: str = "", respect_robots: bool = True, http=None) -> Discovery:
@@ -206,13 +233,11 @@ async def detect(start_url: str, sitemap_url: str = "", respect_robots: bool = T
         if page is not None and "html" in page.headers.get("content-type", "html"):
             alternates = parse_hreflang(page.text, str(page.url))
 
-        candidates = [sitemap_url] if sitemap_url else [*(rules.site_maps() or []), urljoin(start_url, "/sitemap.xml")]
-        for candidate in dict.fromkeys(candidates):
-            result = await read_sitemaps(http, candidate)
-            if result is None:
-                continue
-            pages, count, dates = result
-            pages = list(dict.fromkeys(u for u in pages if same_site(u, start_url)))
+        found = await find_sitemap(http, start_url, sitemap_url, rules)
+        if found:
+            candidate, entries, count = found
+            pages = [e.url for e in entries]
+            dates = [e.lastmod for e in entries if e.lastmod]
             sections = group_sections(pages)
             return Discovery(
                 "ok",

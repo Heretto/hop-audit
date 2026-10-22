@@ -231,7 +231,8 @@ export class SiteSettings implements OnInit {
 
   // ── Save ──────────────────────────────────────────────────────────────────
 
-  save(): void {
+  /** Save, then return to the list, or go on to run an audit of the site. */
+  save(andRun = false): void {
     const form = this.form()!;
     form.markAllAsTouched();
     if (form.invalid) {
@@ -245,7 +246,7 @@ export class SiteSettings implements OnInit {
     (id ? this.sites.update(id, body) : this.sites.create(body)).subscribe({
       next: (site) => {
         this.snack.open(`Saved ${site.name}`, undefined, { duration: 4000 });
-        this.router.navigate(['/sites']);
+        this.router.navigate(andRun ? ['/sites', site.id, 'run'] : ['/sites']);
       },
       error: (e) => {
         this.saving.set(false);

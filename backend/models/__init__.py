@@ -6,10 +6,20 @@ this package has imported.
 
 from hop_core.db import Base
 
+from models.run import ACTIVE_STATUSES, AuditRun, Page, RunLogEntry
 from models.setup import OrgSetup
 from models.site import HelpCenter, Site
 
-__all__ = ["HelpCenter", "OrgSetup", "Site", "our_tables"]
+__all__ = [
+    "ACTIVE_STATUSES",
+    "AuditRun",
+    "HelpCenter",
+    "OrgSetup",
+    "Page",
+    "RunLogEntry",
+    "Site",
+    "our_tables",
+]
 
 
 def our_tables() -> set[str]:

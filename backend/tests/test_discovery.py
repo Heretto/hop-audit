@@ -8,7 +8,7 @@ import pytest
 import respx
 
 import discovery
-from discovery import group_sections, parse_hreflang, parse_sitemap, section_of
+from discovery import group_sections, parse_hreflang, parse_lastmod, parse_sitemap, section_of
 
 URLSET = b"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -37,13 +37,15 @@ START = "https://help.example.com/"
 
 
 def test_parse_urlset():
-    pages, children, dates = parse_sitemap(URLSET)
+    pages, children = parse_sitemap(URLSET)
     assert len(pages) == 5 and children == []
-    assert [d.date().isoformat() for d in dates] == ["2026-10-20", "2026-10-18"]
+    assert pages[0] == ("https://help.example.com/authoring/a", parse_lastmod("2026-10-20"))
+    assert pages[1][1] is None
+    assert pages[2][1].isoformat() == "2026-10-18T09:00:00+00:00"
 
 
 def test_parse_index_and_gzip():
-    pages, children, _ = parse_sitemap(gzip.compress(INDEX))
+    pages, children = parse_sitemap(gzip.compress(INDEX))
     assert pages == [] and len(children) == 2
 
 
@@ -170,8 +172,6 @@ def test_detect_route(client, user, monkeypatch):
 
 
 def test_lastmod_is_always_aware():
-    from discovery import parse_lastmod
-
     assert parse_lastmod("2026-10-20").tzinfo is not None
     assert parse_lastmod("2026-10-20T10:00:00+02:00").utcoffset().total_seconds() == 7200
     assert parse_lastmod("last tuesday") is None
