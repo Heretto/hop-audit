@@ -61,6 +61,8 @@ class PageContent:
     headings: list[list] = field(default_factory=list)  # [[level, text]]
     images: list[dict] = field(default_factory=list)  # [{src, alt}]; alt None when missing
     links: list[dict[str, str]] = field(default_factory=list)  # [{url, text}], main content only
+    anchors: list[str] = field(default_factory=list)  # element ids and <a name>, for #fragment checks
+    final_url: str | None = None  # set by the crawler when the page was reached through a redirect
     breadcrumb: list[str] = field(default_factory=list)
     text: str = ""
     word_count: int = 0
@@ -142,6 +144,9 @@ def extract(html: str, url: str) -> PageContent:
         for img in soup.find_all("img")
     ]
 
+    page.anchors = sorted(
+        {t["id"] for t in soup.find_all(id=True)} | {a["name"] for a in soup.find_all("a", attrs={"name": True})}
+    )
     main = _main(soup)
     for a in main.find_all("a", href=True):
         href = a["href"].strip()

@@ -1,0 +1,66 @@
+@use '../../shared/form-layout';
+
+.layout {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+}
+
+.table-card {
+  padding: 0;
+}
+
+.head {
+  padding: 16px 16px 0;
+
+  h2 {
+    margin: 0;
+    font-size: 1.125rem;
+  }
+}
+
+.stats {
+  gap: 32px;
+
+  div {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+.value {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  overflow-x: auto;
+  padding-top: 8px;
+}
+
+.bar-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 56px;
+  text-decoration: none;
+}
+
+.spark {
+  display: flex;
+  align-items: flex-end;
+  width: 28px;
+  height: 120px;
+
+  span {
+    width: 100%;
+    border-radius: 4px 4px 0 0;
+    background: var(--border-strong);
+
+    &.cur {
+      background: var(--color-accent);
+    }
+  }
+}

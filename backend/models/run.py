@@ -1,7 +1,7 @@
 import uuid
 
 from hop_core.db import Base
-from sqlalchemy import JSON, Boolean, Column, ForeignKey, Integer, String, Text, UniqueConstraint, Uuid
+from sqlalchemy import JSON, Boolean, Column, Float, ForeignKey, Integer, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -36,6 +36,7 @@ class AuditRun(Base):
     stages = Column(JSON, nullable=False, default=list)
     tokens = Column(JSON, nullable=False, default=dict)
     page_count = Column(Integer, nullable=False, default=0)
+    metrics = Column(JSON, nullable=False, default=dict, server_default="{}")  # see scoring.run_metrics
     error = Column(Text, nullable=True)
     created_at = Column(UTCDateTime, server_default=func.now())
     started_at = Column(UTCDateTime, nullable=True)
@@ -83,3 +84,49 @@ class Page(Base):
     error = Column(Text, nullable=True)
     reused_from_id = Column(Uuid, ForeignKey("pages.id", ondelete="SET NULL"), nullable=True)
     fetched_at = Column(UTCDateTime, nullable=True)
+
+    # Analyses (None until measured, or when not measurable)
+    flesch = Column(Float, nullable=True)
+    grade = Column(Float, nullable=True)
+    words_per_sentence = Column(Float, nullable=True)
+    passive_pct = Column(Float, nullable=True)
+    sentences = Column(Integer, nullable=True)
+    seo = Column(JSON, nullable=True)  # [{key, label, status, detail}]
+    seo_issues = Column(Integer, nullable=True)
+    links_internal = Column(Integer, nullable=True)
+    links_external = Column(Integer, nullable=True)
+    broken_links = Column(Integer, nullable=True)
+    redirects = Column(Integer, nullable=True)
+    anchor_issues = Column(Integer, nullable=True)
+    score = Column(Integer, nullable=True)
+
+
+class LinkResult(Base):
+    """One link on one page and what its target answered."""
+
+    __tablename__ = "link_results"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    run_id = Column(Uuid, ForeignKey("audit_runs.id", ondelete="CASCADE"), nullable=False, index=True)
+    page_id = Column(Uuid, ForeignKey("pages.id", ondelete="CASCADE"), nullable=False, index=True)
+    url = Column(String(2048), nullable=False)
+    text = Column(Text, nullable=False, default="")
+    internal = Column(Boolean, nullable=False)
+    outcome = Column(String(16), nullable=False)  # ok | redirect | broken | blocked | anchor
+    status = Column(Integer, nullable=True)
+    final_url = Column(String(2048), nullable=True)
+    note = Column(Text, nullable=False, default="")
+
+
+class LinkCache(Base):
+    """External link outcomes, per organization, reused for a week."""
+
+    __tablename__ = "link_cache"
+
+    organization_id = Column(Uuid, ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True)
+    url = Column(String(2048), primary_key=True)
+    outcome = Column(String(16), nullable=False)
+    status = Column(Integer, nullable=True)
+    final_url = Column(String(2048), nullable=True)
+    note = Column(Text, nullable=False, default="")
+    checked_at = Column(UTCDateTime, nullable=False)

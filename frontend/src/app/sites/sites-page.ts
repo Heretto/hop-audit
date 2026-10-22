@@ -23,7 +23,7 @@ import {
   HopTableColumn,
 } from '@heretto/hop-ui';
 import { filter, switchMap } from 'rxjs';
-import { duration, scopeLabel, statusChip } from '../runs/run-format';
+import { duration, scopeLabel, scoreClass, statusChip } from '../runs/run-format';
 import { ACTIVE } from '../runs/run.model';
 import { SiteSummary } from './site.model';
 import { apiErrors, SitesService } from './sites.service';
@@ -109,6 +109,7 @@ export class SitesPage implements OnInit {
   readonly details = siteDetails;
   readonly chip = (s: SiteSummary) => statusChip(s.last_run ?? null);
   readonly scope = scopeLabel;
+  readonly scoreClass = scoreClass;
   readonly duration = duration;
   readonly isActive = (s: SiteSummary) => !!s.last_run && ACTIVE.includes(s.last_run.status);
 

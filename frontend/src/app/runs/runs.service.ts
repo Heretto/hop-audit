@@ -2,7 +2,17 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { HOP_API_URL } from '@heretto/hop-ui';
 import { Observable } from 'rxjs';
-import { LogEntry, Preview, RunDetail, RunInput, RunListItem } from './run.model';
+import {
+  Comparison,
+  Dashboard,
+  LogEntry,
+  PageDetail,
+  PageRow,
+  Preview,
+  RunDetail,
+  RunInput,
+  RunListItem,
+} from './run.model';
 
 @Injectable({ providedIn: 'root' })
 export class RunsService {
@@ -34,7 +44,28 @@ export class RunsService {
     return this.http.get<LogEntry[]>(`${this.api}/runs/${runId}/log`);
   }
 
-  control(runId: string, action: 'pause' | 'resume' | 'cancel'): Observable<RunDetail> {
+  control(runId: string, action: 'pause' | 'resume' | 'cancel' | 'analyze'): Observable<RunDetail> {
     return this.http.post<RunDetail>(`${this.api}/runs/${runId}/${action}`, {});
+  }
+
+  dashboard(runId: string): Observable<Dashboard> {
+    return this.http.get<Dashboard>(`${this.api}/runs/${runId}/dashboard`);
+  }
+
+  pages(runId: string): Observable<PageRow[]> {
+    return this.http.get<PageRow[]>(`${this.api}/runs/${runId}/pages`);
+  }
+
+  /** The pages as CSV; fetched rather than linked, since the API needs the auth header. */
+  pagesCsv(runId: string): Observable<Blob> {
+    return this.http.get(`${this.api}/runs/${runId}/pages.csv`, { responseType: 'blob' });
+  }
+
+  page(pageId: string): Observable<PageDetail> {
+    return this.http.get<PageDetail>(`${this.api}/pages/${pageId}`);
+  }
+
+  compare(a: string, b: string): Observable<Comparison> {
+    return this.http.get<Comparison>(`${this.api}/runs/compare`, { params: { a, b } });
   }
 }

@@ -78,14 +78,16 @@ async def test_run_crawls_and_records_stages_log_and_pages(client, user, db, moc
     site = make_site(client, user)
     run = await execute(db, add_run(db, site, user))
 
-    assert run.status == "completed" and run.error is None
+    assert run.status == "completed", run.error
     assert run.started_at and run.finished_at and run.page_count == 7
     stages = {s["key"]: s for s in run.stages}
     assert list(stages) == ["discover", "crawl", "readability", "links"]
     assert stages["discover"] == {**stages["discover"], "status": "done", "done": 7, "detail": "sitemap.xml read"}
     assert stages["crawl"]["status"] == "done" and stages["crawl"]["done"] == 7
     assert stages["crawl"]["detail"] == "7 fetched"
-    assert stages["readability"]["status"] == "skipped" and "isn't available yet" in stages["readability"]["detail"]
+    assert stages["readability"]["status"] == "done" and stages["readability"]["detail"].startswith("Mean Flesch")
+    assert stages["links"]["status"] == "done" and "links to" in stages["links"]["detail"]
+    assert run.metrics["pages"] == 7 and run.metrics["score"] is not None and run.metrics["compared_with"] is None
 
     pages = db.query(Page).filter(Page.run_id == run.id).all()
     de = next(p for p in pages if p.url == f"{BASE}de/authoring/a")
@@ -93,9 +95,13 @@ async def test_run_crawls_and_records_stages_log_and_pages(client, user, db, moc
     assert de.help_center_id == uuid.UUID(site["help_centers"][1]["id"])
     assert de.content["text"].startswith("Thema A") and de.fetched_at
 
+    assert de.flesch is not None and de.score is not None and de.links_internal is not None
+    assert de.seo is None  # SEO wasn't asked for
+
     log = [e.message for e in db.query(RunLogEntry).filter(RunLogEntry.run_id == run.id).order_by(RunLogEntry.id)]
     assert log[0].startswith("Read https://help.x.com/sitemap.xml: 7 URLs")
-    assert "Crawl complete: 7 pages" in log[-1]
+    assert any("Crawl complete: 7 pages" in m for m in log)
+    assert log[-1].startswith("Link check complete")
 
 
 async def test_second_run_reuses_and_reports_new_pages(client, user, db, mock):
@@ -114,6 +120,28 @@ async def test_second_run_reuses_and_reports_new_pages(client, user, db, mock):
     assert not routes["authoring/a"].called
     reused = db.query(Page).filter(Page.run_id == run.id, Page.url == f"{BASE}authoring/a").one()
     assert reused.reused_from_id and reused.fetched_at is None and reused.title == "Topic A"
+
+
+async def test_reanalyze_a_finished_run(client, user, db, mock):
+    """Runs crawled before the analyses existed get their results without a new crawl."""
+    serve(mock)
+    site = make_site(client, user)
+    run = await execute(db, add_run(db, site, user, analyses=["readability", "seo", "links", "summary"]))
+    db.query(Page).filter(Page.run_id == run.id).update({"flesch": None, "score": None, "seo": None})
+    run.metrics = {}
+    db.commit()
+    crawled = mock.calls.call_count
+
+    async with discovery.client() as http:
+        await runner.reanalyze(run.id, crawler.Control(), http=http)
+    db.expire_all()
+    run = db.get(AuditRun, run.id)
+    assert run.status == "completed" and run.metrics["pages"] == 7
+    assert {s["key"]: s["status"] for s in run.stages}["summary"] == "skipped"
+    page = db.query(Page).filter(Page.run_id == run.id, Page.url == f"{BASE}authoring/a").one()
+    assert page.flesch is not None and page.score is not None and page.seo
+    page_fetches = [c for c in mock.calls[crawled:] if c.request.method == "GET"]
+    assert page_fetches == []  # nothing re-crawled
 
 
 async def test_run_fails_when_every_help_center_refuses(client, user, db, mock):
@@ -245,6 +273,22 @@ def test_controls(client, user, db, started):
     assert client.post(f"{url}/cancel", headers=h).status_code == 409
     messages = [e["message"] for e in client.get(f"{url}/log", headers=h).json()]
     assert messages[:2] == [f"Paused by {user['email']}.", f"Resumed by {user['email']}."]
+
+
+def test_analyze_route(client, user, db, started, monkeypatch):
+    site = make_site(client, user)
+    run = add_run(db, site, user, status="running")
+    url, h = f"/api/v1/runs/{run.id}/analyze", user["headers"]
+    assert client.post(url, headers=h).status_code == 409  # still running
+    run.status = "completed"
+    db.commit()
+    jobs = []
+    monkeypatch.setattr(runner, "start", lambda run_id, job=None: jobs.append((run_id, job)))
+    r = client.post(url, headers=h)
+    assert r.status_code == 200 and r.json()["status"] == "running"
+    assert jobs == [(run.id, runner.reanalyze)]
+    other = add_run(db, site, user, number=2, status="completed", analyses=["summary"])
+    assert client.post(f"/api/v1/runs/{other.id}/analyze", headers=h).status_code == 409
 
 
 def test_preview(client, user, db, mock):

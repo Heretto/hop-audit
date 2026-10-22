@@ -53,6 +53,20 @@ def apply(site: Site, data: SiteIn) -> None:
     site.help_centers = centers
 
 
+def latest_runs(db: Session, organization_id: UUID, completed: bool = False) -> dict[UUID, AuditRun]:
+    """Each site's highest-numbered run (only completed ones, if asked)."""
+    query = db.query(AuditRun.site_id, func.max(AuditRun.number).label("number")).filter(
+        AuditRun.organization_id == organization_id
+    )
+    if completed:
+        query = query.filter(AuditRun.status == "completed")
+    latest = query.group_by(AuditRun.site_id).subquery()
+    rows = db.query(AuditRun).join(
+        latest, (AuditRun.site_id == latest.c.site_id) & (AuditRun.number == latest.c.number)
+    )
+    return {r.site_id: r for r in rows}
+
+
 @router.get("", response_model=list[SiteListItem])
 def list_sites(ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
     sites = (
@@ -62,22 +76,17 @@ def list_sites(ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
         .order_by(Site.name)
         .all()
     )
-    latest = (
-        db.query(AuditRun.site_id, func.max(AuditRun.number).label("number"))
-        .filter(AuditRun.organization_id == ctx.organization_id)
-        .group_by(AuditRun.site_id)
-        .subquery()
-    )
-    runs = {
-        r.site_id: r
-        for r in db.query(AuditRun).join(
-            latest, (AuditRun.site_id == latest.c.site_id) & (AuditRun.number == latest.c.number)
-        )
-    }
+    runs = latest_runs(db, ctx.organization_id)
+    completed = latest_runs(db, ctx.organization_id, completed=True)
+
+    def summary(run):
+        return RunSummary.model_validate(run) if run else None
+
     return [
         SiteListItem(
             **SiteSummary.model_validate(site).model_dump(),
-            last_run=RunSummary.model_validate(runs[site.id]) if site.id in runs else None,
+            last_run=summary(runs.get(site.id)),
+            last_completed=summary(completed.get(site.id)),
         )
         for site in sites
     ]

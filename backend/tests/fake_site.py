@@ -58,4 +58,8 @@ def serve(mock: respx.MockRouter, entries=SITEMAP, robots: str = "User-agent: *\
         route = mock.get(f"{BASE}{path}")  # respx returns the existing route for the same pattern
         sequence = isinstance(response, list) or callable(response)
         routes[path] = route.mock(side_effect=response) if sequence else route.mock(return_value=response)
+        if not sequence:  # link checks HEAD what the crawl didn't read
+            mock.head(f"{BASE}{path}").respond(response.status_code)
+    routes["external"] = mock.head("https://elsewhere.org/x").respond(200)
+    routes["head"] = mock.head(url__startswith=BASE).respond(200)
     return routes

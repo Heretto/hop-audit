@@ -1,0 +1,213 @@
+<div class="hop-page page">
+  @if (page(); as p) {
+    <a class="back" [routerLink]="['/audits', p.run_id]"
+      ><mat-icon>arrow_back</mat-icon>{{ p.site_name }} · Audit #{{ p.run_number }}</a
+    >
+
+    <header class="page-header">
+      <div>
+        <div class="title-row">
+          <h1>{{ p.title || p.path }}</h1>
+          <span class="score-chip" [class]="scoreClass(p.score)">{{ p.score ?? '—' }}</span>
+        </div>
+        <span class="mono sub">
+          {{ p.url }}
+          <a [href]="p.url" target="_blank" rel="noopener" aria-label="Open page in a new tab"
+            ><mat-icon class="inline">open_in_new</mat-icon></a
+          >
+        </span>
+        <span class="sub block">
+          Section {{ p.section }} · {{ p.help_center_name }} ·
+          {{
+            p.fetched_at
+              ? 'crawled ' + (p.fetched_at | date: 'MMM d, y HH:mm')
+              : 'unchanged, reused from the previous audit'
+          }}
+          · HTTP {{ p.http_status ?? '—' }} · {{ p.word_count | number }} words
+          @if (p.lastmod) {
+            · lastmod {{ p.lastmod | date: 'MMM d, y' }}
+          }
+          @if (p.previous_run_number) {
+            · score {{ p.previous_score }} in #{{ p.previous_run_number }} ({{ change() }})
+          }
+        </span>
+      </div>
+    </header>
+
+    @if (p.error) {
+      <div class="hop-status-message error" role="alert">
+        This page couldn't be read: {{ p.error }}
+      </div>
+    }
+    @if (p.content.final_url) {
+      <div class="callout warn">
+        <mat-icon>alt_route</mat-icon>Reached through a redirect to {{ p.content.final_url }}
+      </div>
+    }
+
+    <div class="cards">
+      <mat-card class="section">
+        <div class="card-head">
+          <h2>Readability</h2>
+          <span class="sev" [class]="band().sev">{{ band().label }}</span>
+        </div>
+        @if (p.flesch !== null) {
+          <div class="big-row">
+            <span class="big">{{ p.flesch }}</span>
+            <span class="sub"
+              >Flesch Reading Ease{{
+                p.section_flesch !== null ? ' · section avg ' + p.section_flesch : ''
+              }}</span
+            >
+          </div>
+          <div class="meter"><span [style.width.%]="meter()"></span></div>
+        } @else {
+          <span class="sub">
+            Not scored: the page has too little text, or {{ p.language }} has no Flesch formula.
+          </span>
+        }
+        <div class="stats">
+          @if (p.grade !== null) {
+            <div>
+              <b>{{ p.grade }}</b
+              ><span class="sub">Flesch–Kincaid grade</span>
+            </div>
+          }
+          <div>
+            <b>{{ p.words_per_sentence ?? '—' }}</b
+            ><span class="sub">Words per sentence</span>
+          </div>
+          @if (p.passive_pct !== null) {
+            <div>
+              <b>{{ p.passive_pct }}%</b><span class="sub">Passive sentences</span>
+            </div>
+          }
+          <div>
+            <b>{{ p.sentences ?? '—' }}</b
+            ><span class="sub">Sentences · {{ p.word_count | number }} words</span>
+          </div>
+        </div>
+        <span class="sub"
+          >60+ is plain; reference pages may be denser. The site's focus can set its own
+          targets.</span
+        >
+      </mat-card>
+
+      <mat-card class="section">
+        <div class="card-head">
+          <h2>Links</h2>
+          <span class="sev" [class.error]="broken()" [class.ok]="!broken()">{{
+            broken() ? broken() + ' broken' : 'None broken'
+          }}</span>
+        </div>
+        <div class="stats">
+          <div>
+            <b>{{ p.links.length }}</b
+            ><span class="sub">Total</span>
+          </div>
+          <div>
+            <b>{{ p.links_internal ?? '—' }}</b
+            ><span class="sub">Internal</span>
+          </div>
+          <div>
+            <b>{{ p.links_external ?? '—' }}</b
+            ><span class="sub">External</span>
+          </div>
+        </div>
+        @if (links().length) {
+          <table class="plain-table">
+            <thead>
+              <tr>
+                <th>Target</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (l of links(); track $index) {
+                <tr>
+                  <td>
+                    <span class="mono wrap">{{ target(l) }}</span>
+                    <span class="sub block">{{ l.note || 'anchor text "' + l.text + '"' }}</span>
+                  </td>
+                  <td>
+                    <span class="sev" [class]="outcomes[l.outcome].sev">{{
+                      l.status && l.outcome === 'broken' ? l.status : outcomes[l.outcome].label
+                    }}</span>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        } @else if (p.links.length) {
+          <span class="sub">Every link works.</span>
+        }
+        @if (p.links.length) {
+          <button mat-button (click)="allLinks.set(!allLinks())">
+            {{ allLinks() ? 'Problems only' : 'All ' + p.links.length + ' links' }}
+          </button>
+        }
+      </mat-card>
+
+      <mat-card class="section">
+        <div class="card-head">
+          <h2>SEO and metadata</h2>
+          @if (p.seo) {
+            <span class="sev" [class.warn]="seoIssues()" [class.ok]="!seoIssues()">{{
+              seoIssues() ? seoIssues() + ' issues' : 'No issues'
+            }}</span>
+          }
+        </div>
+        @if (p.seo; as checks) {
+          <table class="plain-table">
+            <tbody>
+              @for (c of checks; track c.key) {
+                <tr>
+                  <td>{{ c.label }}</td>
+                  <td class="num">
+                    <span class="sev" [class]="c.status">{{ c.detail }}</span>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          <div>
+            <span class="sub block">Title as crawled</span>
+            <span>{{ p.content.title || '(none)' }}</span>
+          </div>
+        } @else {
+          <span class="sub">SEO wasn't part of this audit.</span>
+        }
+      </mat-card>
+    </div>
+
+    <mat-card class="section">
+      <mat-tab-group animationDuration="0">
+        <mat-tab label="Headings outline">
+          <ol class="outline">
+            @for (h of p.content.headings; track $index) {
+              <li [style.padding-left.px]="(h[0] - 1) * 20">
+                <span class="mono sub">H{{ h[0] }}</span> {{ h[1] }}
+              </li>
+            } @empty {
+              <li class="sub">No headings.</li>
+            }
+          </ol>
+        </mat-tab>
+        <mat-tab label="Crawled text">
+          <p class="sub">
+            The main content as read, collapsed sections included. Navigation, headers and footers
+            are left out.
+          </p>
+          <pre class="text">{{ p.content.text }}</pre>
+        </mat-tab>
+        <mat-tab label="Raw metrics (JSON)">
+          <div class="hop-code-panel">
+            <pre>{{ p | json }}</pre>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    </mat-card>
+  } @else if (error(); as message) {
+    <div class="hop-status-message error" role="alert">{{ message }}</div>
+  }
+</div>

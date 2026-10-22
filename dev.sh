@@ -53,6 +53,16 @@ setup_backend() {
   fi
 }
 
+# A clean install. On a folder shared with another OS, a stale entry can
+# make node_modules undeletable from this side; it's moved aside instead
+# (delete .node_modules-stale-* from the other side).
+clean_install() {
+  (cd "$FRONTEND" && npm ci --no-audit --no-fund --loglevel=error) || {
+    mv "$FRONTEND/node_modules" "$FRONTEND/.node_modules-stale-$(date +%s)"
+    (cd "$FRONTEND" && npm ci --no-audit --no-fund --loglevel=error)
+  }
+}
+
 setup_frontend() {
   command -v node &>/dev/null || die "node not found; Angular 22 needs Node >= 22.22.3 or >= 24.15"
   node -e 'const [a,b,c]=process.versions.node.split(".").map(Number);
@@ -62,12 +72,16 @@ setup_frontend() {
   lock=$(fingerprint "$FRONTEND/package-lock.json")
   if stale "$modules/.lock" "$lock"; then
     step "Installing frontend dependencies"
-    (cd "$FRONTEND" && npm ci --no-audit --no-fund --loglevel=error)
+    clean_install
     echo "$lock" > "$modules/.lock"
     echo "$OS-$CPU" > "$modules/.platform"
   elif stale "$modules/.platform" "$OS-$CPU"; then
     step "Swapping frontend native packages to $OS-$CPU"
-    (cd "$FRONTEND" && npm install --no-save --no-audit --no-fund --loglevel=error --os="$OS" --cpu="$CPU")
+    # Fast when it works; npm sometimes fails to create nested optional
+    # packages, and then a clean install is the reliable way back.
+    (cd "$FRONTEND" && npm install --no-save --no-audit --no-fund --loglevel=error --os="$OS" --cpu="$CPU") \
+      || clean_install
+    echo "$lock" > "$modules/.lock"
     echo "$OS-$CPU" > "$modules/.platform"
   fi
 }

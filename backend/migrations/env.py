@@ -20,6 +20,15 @@ from models import our_tables  # noqa: E402
 OUR_TABLES = our_tables()
 
 
+def render_item(type_, obj, autogen_context):
+    """Migrations import only alembic and sqlalchemy: write our column types as their impl."""
+    from models.types import UTCDateTime
+
+    if type_ == "type" and isinstance(obj, UTCDateTime):
+        return "sa.DateTime(timezone=True)"
+    return False
+
+
 def include_object(obj, name, type_, reflected, compare_to):
     return name in OUR_TABLES if type_ == "table" else True
 
@@ -40,6 +49,7 @@ with engine().connect() as connection:
         connection=connection,
         target_metadata=Base.metadata,
         include_object=include_object,
+        render_item=render_item,
         compare_type=True,
         render_as_batch=True,
     )

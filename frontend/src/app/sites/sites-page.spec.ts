@@ -82,6 +82,22 @@ describe('SitesPage', () => {
     expect(el.textContent).toMatch(/744\s*Pages under audit/);
   });
 
+  it('shows the score and broken links from the last completed audit', () => {
+    const { el } = render([
+      summary('1', 'Scored site', {
+        last_run: sampleRun({ status: 'running', progress: 10 }),
+        last_completed: sampleRun({
+          id: 'r0',
+          status: 'completed',
+          metrics: { score: 82, broken: 37 },
+        }),
+      }),
+    ]);
+    expect(el.querySelector('.score-chip.good')?.textContent?.trim()).toBe('82');
+    expect(el.textContent).toContain('37');
+    expect(el.querySelector('a.site-name')?.getAttribute('href')).toBe('/sites/1');
+  });
+
   it('shows the empty state', () => {
     const { el } = render([]);
     expect(el.textContent).toContain('No sites yet');

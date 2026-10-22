@@ -73,6 +73,7 @@ export interface SiteSummary {
   help_centers: HelpCenter[];
   crawl: CrawlRules;
   last_run?: RunSummary | null;
+  last_completed?: RunSummary | null;
 }
 
 export interface Discovery {

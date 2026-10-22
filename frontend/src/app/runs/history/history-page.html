@@ -1,0 +1,236 @@
+<div class="hop-page page">
+  <header class="page-header">
+    <div>
+      <h1>Audits</h1>
+      <span class="sub">
+        Every run{{ siteName() ? ' of ' + siteName() : ', for every site' }}. Pick two to compare,
+        or open one for its dashboard.
+      </span>
+    </div>
+    <div class="page-actions">
+      <mat-form-field subscriptSizing="dynamic">
+        <mat-label>Site</mat-label>
+        <mat-select [value]="site() ?? null" (selectionChange)="pickSite($event.value)">
+          <mat-option [value]="null">All sites</mat-option>
+          @for (s of siteList(); track s.id) {
+            <mat-option [value]="s.id">{{ s.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+      @if (site()) {
+        <a mat-flat-button color="primary" [routerLink]="['/sites', site(), 'run']"
+          ><mat-icon>play_arrow</mat-icon>Run audit</a
+        >
+      }
+    </div>
+  </header>
+
+  @if (error(); as message) {
+    <div class="hop-status-message error" role="alert">{{ message }}</div>
+  }
+
+  @if (points().length) {
+    <mat-card class="section">
+      <div class="row between">
+        <div class="card-title">
+          <h2>Score over time</h2>
+          <span class="sub">Whole-site runs only; partial reruns aren't charted.</span>
+        </div>
+        <div class="row stats">
+          <div>
+            <span class="value">{{ points()[points().length - 1].score }}</span
+            ><span class="sub">Current score</span>
+          </div>
+          <div>
+            <span class="value">{{
+              signed(points()[points().length - 1].score - points()[0].score)
+            }}</span>
+            <span class="sub">Since the first audit</span>
+          </div>
+          <div>
+            <span class="value">{{ rows()?.length }}</span
+            ><span class="sub">Runs · {{ points().length }} whole-site</span>
+          </div>
+        </div>
+      </div>
+      <div
+        class="chart"
+        role="img"
+        [attr.aria-label]="
+          'Site score by run: ' +
+          points()
+            .map((p) => '#' + p.number + ' ' + p.score)
+            .join(', ')
+        "
+      >
+        @for (pt of points(); track pt.id; let last = $last) {
+          <a class="bar-col" [routerLink]="['/audits', pt.id]">
+            <div class="spark">
+              <span [class.cur]="last" [style.height.%]="barHeight(pt.score)"></span>
+            </div>
+            <span class="sub">#{{ pt.number }} · {{ pt.score }}</span>
+          </a>
+        }
+      </div>
+    </mat-card>
+  }
+
+  @if (rows(); as runs) {
+    @if (runs.length) {
+      <div class="layout">
+        <mat-card class="table-card">
+          <div class="row between head">
+            <h2>Runs</h2>
+            <span class="sub"
+              >{{ selected().length }} selected{{
+                selected().length === 2 ? ' · compared below' : ''
+              }}</span
+            >
+          </div>
+          <hop-data-table
+            [columns]="columns()"
+            [data]="runs"
+            [filterable]="true"
+            filterPlaceholder="Filter audits"
+          >
+            <ng-template hopCell="select" let-r>
+              <mat-checkbox
+                [checked]="selected().includes(r.id)"
+                [disabled]="!canSelect(r)"
+                (change)="toggle(r)"
+                [attr.aria-label]="'Select #' + r.number"
+              />
+            </ng-template>
+            <ng-template hopCell="run" let-r>
+              <a [routerLink]="isActive(r) ? ['/audits', r.id, 'progress'] : ['/audits', r.id]">
+                #{{ r.number }} · {{ r.started_at ?? r.created_at | date: 'MMM d HH:mm' }}
+              </a>
+            </ng-template>
+            <ng-template hopCell="pages" let-r>{{ r.page_count | number }}</ng-template>
+            <ng-template hopCell="duration" let-r
+              ><span class="sub">{{ duration(r) }}{{ isActive(r) ? '…' : '' }}</span></ng-template
+            >
+            <ng-template hopCell="score" let-r>
+              @if (r.metrics.score !== undefined && r.metrics.score !== null) {
+                <span class="score-chip" [class]="scoreClass(r.metrics.score)">{{
+                  r.metrics.score
+                }}</span>
+                @if (deltas().get(r.id); as d) {
+                  <span class="delta" [class]="deltaClass(d, 'up')"> {{ signed(d) }}</span>
+                }
+              } @else {
+                <span class="sub">—</span>
+              }
+            </ng-template>
+            <ng-template hopCell="status" let-r>
+              <span class="hop-status-chip" [class]="chip(r).cls">{{ chip(r).label }}</span>
+            </ng-template>
+            <ng-template hopCell="actions" let-r>
+              @if (isActive(r)) {
+                <a
+                  mat-icon-button
+                  [routerLink]="['/audits', r.id, 'progress']"
+                  aria-label="Progress"
+                  matTooltip="Progress"
+                  ><mat-icon>pending</mat-icon></a
+                >
+              } @else if (r.status === 'failed') {
+                <a
+                  mat-icon-button
+                  [routerLink]="['/audits', r.id, 'progress']"
+                  aria-label="Run log"
+                  matTooltip="Run log"
+                  ><mat-icon>bug_report</mat-icon></a
+                >
+              } @else {
+                <a
+                  mat-icon-button
+                  [routerLink]="['/audits', r.id]"
+                  aria-label="Dashboard"
+                  matTooltip="Dashboard"
+                  ><mat-icon>analytics</mat-icon></a
+                >
+              }
+            </ng-template>
+          </hop-data-table>
+        </mat-card>
+
+        <mat-card class="section">
+          @if (comparison(); as c) {
+            <div class="card-title">
+              <h2>Compare #{{ c.a.number }} → #{{ c.b.number }}</h2>
+              <span class="sub">
+                {{ c.a.started_at | date: 'MMM d' }} to {{ c.b.started_at | date: 'MMM d' }} ·
+                {{ scopeLabel(c.a.scope) }} → {{ scopeLabel(c.b.scope) }}
+              </span>
+            </div>
+            <table class="plain-table">
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th class="num">#{{ c.a.number }}</th>
+                  <th class="num">#{{ c.b.number }}</th>
+                  <th class="num">Change</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (m of c.rows; track m.key) {
+                  <tr>
+                    <td>{{ m.label }}</td>
+                    <td class="num">{{ m.a ?? '—' }}</td>
+                    <td class="num">{{ m.b ?? '—' }}</td>
+                    <td class="num">
+                      <span class="delta" [class]="deltaClass(m.delta, m.better)">{{
+                        signed(m.delta, m.key === 'flesch' ? 1 : 0) ?? '—'
+                      }}</span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+            @if (c.changed_pages.length) {
+              <strong>Pages that changed most</strong>
+              @for (p of c.changed_pages; track p.page_id) {
+                <div class="row between">
+                  <a class="mono" [routerLink]="['/audits', c.b.id, 'pages', p.page_id]">{{
+                    p.path
+                  }}</a>
+                  <span
+                    ><span class="delta" [class]="deltaClass(p.delta, 'up')">{{
+                      signed(p.delta)
+                    }}</span>
+                    <span class="sub">{{ p.a }} → {{ p.b }}</span></span
+                  >
+                </div>
+              }
+            }
+            <div class="row">
+              <button mat-stroked-button (click)="exportComparison()">
+                <mat-icon>download</mat-icon>Export comparison (CSV)
+              </button>
+              <button mat-stroked-button (click)="selected.set([])">
+                <mat-icon>swap_horiz</mat-icon>Change runs
+              </button>
+            </div>
+          } @else {
+            <div class="card-title">
+              <h2>Compare</h2>
+              <span class="sub"
+                >Tick two completed, analyzed audits of one site to compare their metrics and
+                pages.</span
+              >
+            </div>
+          }
+        </mat-card>
+      </div>
+    } @else {
+      <mat-card>
+        <div class="empty-state">
+          <mat-icon>fact_check</mat-icon>
+          <h2>No audits yet</h2>
+          <span>Run an audit from a site to see it here.</span>
+        </div>
+      </mat-card>
+    }
+  }
+</div>

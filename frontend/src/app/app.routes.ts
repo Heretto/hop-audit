@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { HOP_AGENT_ROUTES, hopAdminGuard, hopAuthGuard } from '@heretto/hop-ui';
+import { siteHomeGuard } from './sites/site-home.guard';
 
 const hop = () => import('@heretto/hop-ui');
 
@@ -16,6 +17,8 @@ export const routes: Routes = [
     loadComponent: () => import('./shell/shell').then((m) => m.Shell),
     children: [
       { path: 'sites', loadComponent: () => import('./sites/sites-page').then((m) => m.SitesPage) },
+      // Opens the site's latest dashboard (see the guard); never renders.
+      { path: 'sites/:id', canActivate: [siteHomeGuard], children: [] },
       {
         path: 'sites/new',
         loadComponent: () => import('./sites/settings/site-settings').then((m) => m.SiteSettings),
@@ -30,11 +33,19 @@ export const routes: Routes = [
       },
       {
         path: 'audits',
-        loadComponent: () => import('./runs/audits-page').then((m) => m.AuditsPage),
+        loadComponent: () => import('./runs/history/history-page').then((m) => m.HistoryPage),
       },
       {
         path: 'audits/:runId',
+        loadComponent: () => import('./runs/dashboard/dashboard-page').then((m) => m.DashboardPage),
+      },
+      {
+        path: 'audits/:runId/progress',
         loadComponent: () => import('./runs/audit/audit-page').then((m) => m.AuditPage),
+      },
+      {
+        path: 'audits/:runId/pages/:pageId',
+        loadComponent: () => import('./runs/page-detail/page-detail').then((m) => m.PageDetailPage),
       },
       // hop-core's pages, mounted as-is.
       { path: 'agents', children: HOP_AGENT_ROUTES },

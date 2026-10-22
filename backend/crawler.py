@@ -352,6 +352,8 @@ class Crawler:
 
         self._read[target.root.id] += 1
         content: PageContent = extract(response.text, str(response.url))
+        if page_url(str(response.url)) != target.url:
+            content.final_url = str(response.url)  # reached through a redirect
         digest = content_hash(content.text)
         unchanged = prev is not None and prev.content_hash == digest
         if self.mode == "changed" and unchanged:

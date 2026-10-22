@@ -18,7 +18,7 @@ HTML = """<html lang="de-DE"><head>
   <details><summary>More</summary><p>Hidden but served text.</p></details>
   <img src="/a.png" alt=" Diagram "><img src="b.png">
   <a href="/en/next#part">Next</a> <a href="mailto:x@y.z">Mail</a> <a href="javascript:void(0)">JS</a>
-  <h3>Skipped level</h3>
+  <h3 id="limits">Skipped level</h3><a name="old-anchor"></a>
   <script>var tracking = 1;</script>
 </main>
 <footer>Footer text</footer>
@@ -46,6 +46,7 @@ def test_extracts_main_content_and_metadata():
     assert p.text.splitlines()[:2] == ["Publish a map", "First you open the map."]
     assert p.word_count == len(p.text.split())
     assert not p.looks_like_shell
+    assert p.anchors == ["limits", "old-anchor"]
 
 
 def test_falls_back_to_body_without_chrome():

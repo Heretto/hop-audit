@@ -35,7 +35,11 @@
         >
           <ng-template hopCell="name" let-s>
             <div class="site-cell">
-              <a class="site-name" [routerLink]="['/sites', s.id, 'edit']">{{ s.name }}</a>
+              <a
+                class="site-name"
+                [routerLink]="s.last_run ? ['/sites', s.id] : ['/sites', s.id, 'edit']"
+                >{{ s.name }}</a
+              >
               <span class="sub">{{ details(s) }}</span>
             </div>
           </ng-template>
@@ -56,9 +60,23 @@
               <span class="sub">Never audited</span>
             }
           </ng-template>
-          <ng-template hopCell="score"><span class="sub">—</span></ng-template>
+          <ng-template hopCell="score" let-s>
+            @if (s.last_completed?.metrics.score ?? null; as score) {
+              <span class="score-chip" [class]="scoreClass(score)">{{ score }}</span>
+            } @else {
+              <span class="sub">—</span>
+            }
+          </ng-template>
           <ng-template hopCell="integrity"><span class="sub">—</span></ng-template>
-          <ng-template hopCell="broken"><span class="sub">—</span></ng-template>
+          <ng-template hopCell="broken" let-s>
+            @if (s.last_completed?.metrics.broken ?? null; as broken) {
+              {{ broken | number }}
+            } @else if (s.last_completed?.metrics.broken === 0) {
+              0
+            } @else {
+              <span class="sub">—</span>
+            }
+          </ng-template>
           <ng-template hopCell="status" let-s>
             <span class="hop-status-chip" [class]="chip(s).cls">{{ chip(s).label }}</span>
           </ng-template>

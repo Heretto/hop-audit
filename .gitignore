@@ -9,6 +9,7 @@ __pycache__/
 backend/data/
 data/
 node_modules/
+.node_modules-stale*/
 frontend/dist/
 frontend/.angular/
 .platform-stamp

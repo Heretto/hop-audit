@@ -1,0 +1,218 @@
+<div class="hop-page page">
+  @if (data(); as d) {
+    <a class="back" routerLink="/sites"><mat-icon>arrow_back</mat-icon>Sites</a>
+
+    <header class="page-header">
+      <div>
+        <div class="title-row">
+          <h1>{{ d.run.site_name }}</h1>
+          <span
+            class="hop-status-chip"
+            [class.hop-status-chip-completed]="d.run.status === 'completed'"
+            [class.hop-status-chip-failed]="d.run.status === 'failed'"
+          >
+            Audit #{{ d.run.number }} · {{ d.run.status | titlecase }}
+          </span>
+        </div>
+        <span class="sub">
+          {{ d.run.started_at ?? d.run.created_at | date: 'MMM d, y HH:mm' }} ·
+          {{ scopeLabel(d.run.scope) }} · {{ d.run.page_count | number }} pages ·
+          {{ duration(d.run) }}
+          @if (d.compared) {
+            · compared with #{{ d.compared.number }} ({{ d.compared.started_at | date: 'MMM d' }})
+          }
+        </span>
+      </div>
+      <div class="page-actions">
+        <a mat-stroked-button routerLink="/audits" [queryParams]="{ site: d.run.site_id }">
+          <mat-icon>history</mat-icon>History
+        </a>
+        <a mat-stroked-button [routerLink]="['/audits', d.run.id, 'progress']"
+          ><mat-icon>receipt_long</mat-icon>Run log</a
+        >
+        <button mat-stroked-button (click)="exportCsv()">
+          <mat-icon>download</mat-icon>Export
+        </button>
+        <a mat-flat-button color="primary" [routerLink]="['/sites', d.run.site_id, 'run']">
+          <mat-icon>play_arrow</mat-icon>Run audit
+        </a>
+      </div>
+    </header>
+
+    @if (d.run.error) {
+      <div class="hop-status-message error" role="alert">{{ d.run.error }}</div>
+    }
+
+    @if (!d.analyzed && d.run.status === 'completed') {
+      <div class="callout warn">
+        <mat-icon>info</mat-icon>
+        <span>
+          These pages were crawled but not analyzed: the audit ran before readability, link and SEO
+          checks existed. The pages are listed below; analyze them to get scores, without crawling
+          again.
+        </span>
+        <span class="spacer"></span>
+        <button mat-flat-button color="primary" (click)="analyze()" [disabled]="analyzing()">
+          Analyze now
+        </button>
+      </div>
+    }
+
+    <div class="kpis">
+      @for (k of kpis(); track k.label) {
+        <mat-card class="hop-stat-card">
+          <span class="hop-icon-badge" [class]="k.badge"
+            ><mat-icon>{{ k.icon }}</mat-icon></span
+          >
+          <div class="kpi-text">
+            <span class="hop-stat-value">{{ k.value }}</span>
+            <span class="hop-stat-label">{{ k.label }}</span>
+            @if (k.delta) {
+              <span class="delta" [class]="k.deltaClass">{{ k.delta }}</span>
+            }
+          </div>
+        </mat-card>
+      }
+    </div>
+
+    <mat-card class="tree-card">
+      <div class="toolbar">
+        <mat-form-field class="grow" subscriptSizing="dynamic">
+          <mat-icon matPrefix>search</mat-icon>
+          <mat-label>Filter pages by path or title</mat-label>
+          <input matInput [ngModel]="state().query" (ngModelChange)="update({ query: $event })" />
+        </mat-form-field>
+        <mat-form-field subscriptSizing="dynamic">
+          <mat-label>Show</mat-label>
+          <mat-select [value]="state().show" (selectionChange)="update({ show: $event.value })">
+            <mat-option value="all">All pages</mat-option>
+            <mat-option value="broken">Broken links</mat-option>
+            <mat-option value="seo">SEO issues</mat-option>
+            <mat-option value="flesch50">Flesch under 50</mat-option>
+            <mat-option value="failed">Pages that couldn't be read</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field subscriptSizing="dynamic">
+          <mat-label>Sort</mat-label>
+          <mat-select [value]="state().sort" (selectionChange)="update({ sort: $event.value })">
+            <mat-option value="path">Path</mat-option>
+            <mat-option value="score">Lowest score first</mat-option>
+            <mat-option value="issues">Most issues first</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <button mat-stroked-button (click)="expandAll(true)">Expand all</button>
+        <button mat-stroked-button (click)="expandAll(false)">Collapse all</button>
+      </div>
+
+      <div class="scroll">
+        <table class="plain-table">
+          <thead>
+            <tr>
+              <th>Section / page</th>
+              <th class="num">Pages</th>
+              <th class="num">Flesch</th>
+              <th class="num">Broken links</th>
+              <th class="num">SEO issues</th>
+              <th class="num">Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of tree(); track $index) {
+              @switch (row.kind) {
+                @case ('section') {
+                  <tr class="section-row">
+                    <td>
+                      <button
+                        class="toggle"
+                        type="button"
+                        (click)="toggle(row.section.path, row.open)"
+                        [attr.aria-expanded]="row.open"
+                        [attr.aria-label]="(row.open ? 'Collapse ' : 'Expand ') + row.section.path"
+                      >
+                        <mat-icon>{{ row.open ? 'expand_more' : 'chevron_right' }}</mat-icon>
+                        <span class="mono">{{ row.section.path }}</span>
+                        @if (filtering()) {
+                          <span class="sub">{{ row.matching | number }} matching</span>
+                        }
+                      </button>
+                    </td>
+                    <td class="num">{{ row.section.pages | number }}</td>
+                    <td class="num">{{ row.section.flesch ?? '—' }}</td>
+                    <td class="num">{{ row.section.broken | number }}</td>
+                    <td class="num">{{ row.section.seo_issues | number }}</td>
+                    <td class="num">
+                      <span class="score-chip" [class]="scoreClass(row.section.score)">{{
+                        row.section.score ?? '—'
+                      }}</span>
+                    </td>
+                  </tr>
+                }
+                @case ('page') {
+                  <tr>
+                    <td>
+                      <div class="page-cell">
+                        <mat-icon>subdirectory_arrow_right</mat-icon>
+                        <div>
+                          <a [routerLink]="['/audits', d.run.id, 'pages', row.page.id]">{{
+                            row.page.title || row.page.path
+                          }}</a>
+                          @if (languages().get(row.page.help_center_id); as lang) {
+                            <span class="lang">{{ lang }}</span>
+                          }
+                          <span class="mono sub block">{{ row.page.path }}</span>
+                          @if (row.page.error) {
+                            <span class="sev error">{{ row.page.error }}</span>
+                          }
+                        </div>
+                      </div>
+                    </td>
+                    <td></td>
+                    <td class="num">{{ row.page.flesch ?? '—' }}</td>
+                    <td class="num">{{ row.page.broken_links ?? '—' }}</td>
+                    <td class="num">{{ row.page.seo_issues ?? '—' }}</td>
+                    <td class="num">
+                      <span class="score-chip" [class]="scoreClass(row.page.score)">{{
+                        row.page.score ?? '—'
+                      }}</span>
+                    </td>
+                  </tr>
+                }
+                @case ('more') {
+                  <tr>
+                    <td colspan="6">
+                      <button mat-button class="indent" (click)="showAll(row.section)">
+                        Show {{ row.hidden | number }} more pages in {{ row.section }}
+                      </button>
+                    </td>
+                  </tr>
+                }
+              }
+            } @empty {
+              <tr>
+                <td colspan="6" class="sub">
+                  {{ filtering() ? 'No pages match.' : 'No pages in this audit.' }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="footer">
+        <span class="sub">
+          {{ d.sections.length | number }} sections · {{ pages().length | number }} pages
+          @if (filtering()) {
+            · {{ matchCount() | number }} matching
+          }
+          · click a page for its full metrics
+        </span>
+        <span class="sub">
+          Flesch: 60+ plain · 50–59 fairly difficult · under 50 difficult. Score: 100, less up to 30
+          for readability under 60, 30 for broken links and anchors, 5 for redirects, 30 for SEO
+          issues.
+        </span>
+      </div>
+    </mat-card>
+  } @else if (error(); as message) {
+    <div class="hop-status-message error" role="alert">{{ message }}</div>
+  }
+</div>

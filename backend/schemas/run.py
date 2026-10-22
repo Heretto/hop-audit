@@ -55,17 +55,24 @@ class RunSummary(BaseModel):
     started_at: datetime | None
     finished_at: datetime | None
     stages: list[Stage]
+    metrics: dict = {}
 
     @computed_field
     @property
     def progress(self) -> int:
-        """Percent of the crawl done; analyses join the measure as they arrive."""
-        crawl = next((s for s in self.stages if s.key == "crawl"), None)
+        """Percent of the work done, each stage that runs counting equally."""
         if self.status == "completed":
             return 100
-        if crawl is None or not crawl.total:
+        active = [s for s in self.stages if s.status != "skipped"]
+        if not active:
             return 0
-        return min(99, round(100 * crawl.done / crawl.total))
+
+        def share(s: Stage) -> float:
+            if s.status in ("done", "failed"):
+                return 1.0
+            return s.done / s.total if s.status == "running" and s.total else 0.0
+
+        return min(99, round(100 * sum(share(s) for s in active) / len(active)))
 
 
 class RunListItem(RunSummary):
@@ -119,3 +126,4 @@ class SiteListItem(SiteSummary):
     """A row on the Sites list: the site and its latest run, if any."""
 
     last_run: RunSummary | None = None
+    last_completed: RunSummary | None = None  # its metrics fill the score and broken-link columns

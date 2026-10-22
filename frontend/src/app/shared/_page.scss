@@ -57,3 +57,113 @@
     font-size: 1.125rem;
   }
 }
+
+// Score chip (good 80+, warn 65+, bad below) and change markers, shared by
+// the dashboard, page detail, history and sites list.
+.score-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+
+  &.good {
+    background: var(--color-success-bg);
+    color: var(--color-success-text);
+  }
+  &.warn {
+    background: var(--color-warning-bg);
+    color: var(--color-warning-text);
+  }
+  &.bad {
+    background: var(--color-error-bg);
+    color: var(--color-error-text);
+  }
+}
+
+.delta {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+
+  &.good {
+    color: var(--color-success-text);
+  }
+  &.bad {
+    color: var(--color-error-text);
+  }
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+// Plain data tables for layouts hop-data-table doesn't cover (trees, compare).
+.plain-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9375rem;
+
+  th {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-default);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--text-tertiary);
+  }
+
+  td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: middle;
+  }
+
+  tbody tr:hover td {
+    background: var(--hover-overlay);
+  }
+
+  th.num,
+  td.num {
+    text-align: right;
+  }
+}
+
+// Severity / status pills inside cards.
+.sev {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+
+  &.ok {
+    background: var(--color-success-bg);
+    color: var(--color-success-text);
+  }
+  &.warn {
+    background: var(--color-warning-bg);
+    color: var(--color-warning-text);
+  }
+  &.error {
+    background: var(--color-error-bg);
+    color: var(--color-error-text);
+  }
+}

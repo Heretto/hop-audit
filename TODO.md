@@ -122,9 +122,50 @@ re-read this file before starting the next.
       Audits page lists runs (History and compare arrive in M4)
 - [x] Frontend tests; checks green; smoke test; commit with decisions
 
+## Milestone 4: mechanical analyses, dashboard, page detail, history
+
+- [x] Extraction keeps element ids and named anchors (for #fragment checks)
+- [x] `readability.py`: sentences, words, syllables; Flesch Reading Ease
+      and Flesch–Kincaid grade, with the language's own formula where one
+      exists (en, de Amstad, fr Kandel–Moles, es Fernández Huerta, it
+      Flesch–Vacca, nl Douma), none for languages without one (ja, zh, ko…);
+      words per sentence; passive sentences (English)
+- [x] `seo.py`: title (present, 30–60, unique), description (present,
+      70–160, unique), canonical, one H1, heading order, images without
+      alt, Open Graph, indexable; ok / warn / error per check
+- [x] `links.py`: every main-content link checked once per run: internal
+      targets from the crawl, others by HEAD then GET; broken, redirect,
+      anchor not found, blocked (couldn't check); external results cached
+      7 days per organization unless the run asks to re-check
+- [x] `scoring.py`: page score 0–100 from readability, links and SEO;
+      section and site score as means; run metrics (score, pages, new,
+      mean Flesch, under 50, broken, redirects, SEO issues)
+- [x] Models + migration: page metrics columns, `LinkResult`, `LinkCache`,
+      run `metrics`
+- [x] Runner: readability, SEO and links stages do this work; overall
+      progress across stages; `POST /runs/{id}/analyze` re-analyzes a
+      finished run's stored pages (for runs crawled before analyses)
+- [x] Routes: run dashboard (KPIs with deltas vs. the previous comparable
+      run, sections), pages (light rows), pages CSV, page detail (metrics,
+      checks, links, headings, text, previous score), compare two runs
+      (metrics, most-changed pages); Sites list gets the last completed run
+- [x] Backend tests for each module and route
+- [x] Frontend: Dashboard (`/audits/:runId`) per `Dashboard.dc.html`: KPIs,
+      section → page tree with filter, issue filter, sort, expand/collapse,
+      CSV export; active runs go to the progress view
+      (`/audits/:runId/progress`); "Analyze now" for unanalyzed runs
+- [x] Frontend: Page detail (`/audits/:runId/pages/:pageId`) per
+      `PageDetail.dc.html`: readability, links, SEO cards, headings
+      outline, crawled text, raw metrics tabs
+- [x] Frontend: Audits page becomes History per `History.dc.html`: site
+      picker, score over time (whole-site runs), runs table with select-two
+      compare, metric deltas, most-changed pages, CSV export
+- [x] Frontend: Sites list score and broken links; `/sites/:id` opens the
+      latest dashboard
+- [x] Frontend tests; checks green; smoke test against a local site; commit
+
 ## Later milestones (from the handoff)
 
-- [ ] 4 Mechanical analyses, dashboard, page detail, history and compare
 - [ ] 5 Agent batching + Readability/SEO/Link agents
 - [ ] 6 Content integrity reviewer, findings, triage screen
 - [ ] 7 Full findings report + exports

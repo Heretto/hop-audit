@@ -65,3 +65,35 @@ export function statusChip(run: Pick<RunSummary, 'status' | 'progress'> | null):
   };
   return run ? chips[run.status] : { cls: '', label: 'Not audited' };
 }
+
+/** The colour band of a score chip: good 80+, warn 65+, bad below. */
+export function scoreClass(score: number | null | undefined): string {
+  if (score === null || score === undefined) return 'none';
+  return score >= 80 ? 'good' : score >= 65 ? 'warn' : 'bad';
+}
+
+/** "+3", "−14", "0"; null when either side is missing. */
+export function signed(delta: number | null | undefined, digits = 0): string | null {
+  if (delta === null || delta === undefined) return null;
+  const value = Math.abs(delta).toFixed(digits);
+  return delta > 0 ? `+${value}` : delta < 0 ? `−${value}` : '0';
+}
+
+/** Whether a change is good, bad or neutral, given which direction is good. */
+export function deltaClass(
+  delta: number | null | undefined,
+  better: 'up' | 'down' | 'flat',
+): string {
+  if (!delta || better === 'flat') return 'flat';
+  return delta > 0 === (better === 'up') ? 'good' : 'bad';
+}
+
+/** Save a blob as a file in the browser. */
+export function download(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}

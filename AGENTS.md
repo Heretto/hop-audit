@@ -27,7 +27,8 @@ Read those instead of inferring from this project's code. Do not copy them here.
   never overwrites it. `ENCRYPTION_KEY` cannot be rotated.
 - **Start**: `./dev.sh` (free ports, generated proxy config, backend with
   `--reload`). `docker compose up --build` serves on :8080.
-- **Schema**: Alembic in `backend/migrations`, run in-process at startup
+- **Schema**: new NOT NULL columns need a `server_default` so existing
+  databases upgrade. Alembic in `backend/migrations`, run in-process at startup
   *before* hop-core's `create_all` (`backend/migrate.py`), so our tables are
   always versioned. Add a model to `backend/models/` and import it in
   `models/__init__.py`, then
@@ -57,13 +58,25 @@ Read those instead of inferring from this project's code. Do not copy them here.
   include/exclude globs are relative to each help center's root
   (`backend/scope.py`), so `/de/authoring/x` is in section `/authoring`.
   Pages keep the extraction (`backend/extract.py`), not raw HTML.
+- **Analyses** (`backend/analysis.py`): readability (`readability.py`, a
+  Flesch formula per language, none for ja/zh/ko…), SEO (`seo.py`) and links
+  (`links.py`, external results cached a week per organization) run on the
+  stored pages, so `POST /runs/{id}/analyze` can redo them without a crawl.
+  Scores and run metrics are in `scoring.py`; the dashboard footnote states
+  the same scoring rules, so change both together.
+- **Routes in the UI**: `/audits/:runId` is the dashboard (active runs
+  redirect to `/audits/:runId/progress`), pages are
+  `/audits/:runId/pages/:pageId`, `/sites/:id` opens the latest dashboard.
 - **Timestamps**: use `models.types.UTCDateTime`, not `DateTime`. SQLite
   drops offsets, and naive values compare and serialize as local time.
 - **Platform-specific installs**: the checkout may be shared between a Mac
   and a Linux container. Each platform has its own venv
   (`backend/.venv-<os>-<cpu>`); `frontend/node_modules` swaps its native
   packages (`npm install --no-save --os --cpu`, under a second) when the
-  platform changes. Both reinstall when their requirements or lockfile change.
+  platform changes, falling back to a clean install. On the shared folder a
+  stale entry can leave `node_modules` undeletable from the sandbox; dev.sh
+  then moves it to `frontend/.node_modules-stale-*`, which the Mac side can
+  delete. Both reinstall when their requirements or lockfile change.
 - **UI**: hop-ui components and tokens only. Shared page patterns from the
   mockups (header, subtitle, empty state) are in
   `frontend/src/app/shared/_page.scss`. The top-bar mark

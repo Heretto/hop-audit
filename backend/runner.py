@@ -5,8 +5,9 @@ The app runs as a single replica (AGENTS.md), so an in-memory registry is
 enough; a run that was active when the process stopped is marked failed at
 the next startup.
 
-Stages: discover and crawl run here. The analyses join in later milestones;
-until an analysis exists, its stage is marked skipped with the reason.
+Stages: discover and crawl, then the mechanical analyses (``analysis.py``).
+Agent analyses join in later milestones; until one exists, its stage is
+marked skipped with the reason.
 """
 
 import asyncio
@@ -17,6 +18,7 @@ from uuid import UUID
 from hop_core.db import get_session_factory
 from sqlalchemy.orm import Session
 
+import analysis
 import crawler
 import discovery
 from models import ACTIVE_STATUSES, AuditRun, HelpCenter, Page, RunLogEntry
@@ -50,12 +52,48 @@ def control_for(run_id: UUID) -> crawler.Control | None:
     return _controls.get(run_id)
 
 
-def start(run_id: UUID) -> None:
-    """Schedule a run on the running event loop."""
+def start(run_id: UUID, job=None) -> None:
+    """Schedule a run (or another job on it, such as ``reanalyze``) on the running event loop."""
     control = _controls[run_id] = crawler.Control()
-    task = asyncio.get_running_loop().create_task(execute(run_id, control))
+    task = asyncio.get_running_loop().create_task((job or execute)(run_id, control))
     _tasks.add(task)
     task.add_done_callback(_tasks.discard)
+
+
+MECHANICAL = ("readability", "seo", "links")
+
+
+async def reanalyze(run_id: UUID, control: crawler.Control, http=None) -> None:
+    """Analyze a finished run's stored pages again, without crawling. Runs
+    crawled before the analyses existed get their results this way."""
+    db = get_session_factory()()
+    run = db.get(AuditRun, run_id)
+    rec = Recorder(db, run)
+    own_client = http is None
+    http = http or discovery.client()
+    try:
+        run.status = "running"
+        for stage in run.stages:
+            if stage["key"] in MECHANICAL:
+                rec.stage(stage["key"], status="pending", done=0, total=0, detail="")
+        rec.log("run", "info", "Analyzing the stored pages again; nothing is re-crawled.")
+        await analysis.analyze(db, run, rec, http, control.checkpoint)
+        rec.log("run", "info", "Analysis complete.")
+    except crawler.Cancelled:
+        db.rollback()
+        rec.log("run", "warn", "Analysis cancelled; the earlier results are kept.")
+        _settle(rec, "skipped")
+    except Exception as exc:
+        db.rollback()
+        rec.log("run", "error", f"Analysis failed: {exc or type(exc).__name__}")
+        _settle(rec, "failed")
+    finally:
+        run.status = "completed"  # the crawl itself still stands
+        db.commit()
+        db.close()
+        _controls.pop(run_id, None)
+        if own_client:
+            await http.aclose()
 
 
 def recover_interrupted(db: Session) -> int:
@@ -203,6 +241,7 @@ async def execute(run_id: UUID, control: crawler.Control, http=None) -> None:
         rec.stage("crawl", status="done", total=crawl["done"], detail=_crawl_detail(stats, prev))
         rec.log("crawl", "info", f"Crawl complete: {run.page_count:,} pages, {stats.links:,} links extracted.")
 
+        await analysis.analyze(db, run, rec, http, control.checkpoint)
         for stage in run.stages:
             if stage["status"] == "pending":
                 rec.stage(stage["key"], status="skipped", detail=NOT_AVAILABLE)

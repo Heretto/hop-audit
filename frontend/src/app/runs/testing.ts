@@ -1,4 +1,4 @@
-import { Preview, RunDetail } from './run.model';
+import { Dashboard, PageDetail, PageRow, Preview, RunDetail, RunListItem } from './run.model';
 
 export function sampleRun(overrides: Partial<RunDetail> = {}): RunDetail {
   return {
@@ -36,6 +36,7 @@ export function sampleRun(overrides: Partial<RunDetail> = {}): RunDetail {
       { key: 'links', label: 'Links', status: 'pending', done: 0, total: 0, detail: '' },
     ],
     progress: 61,
+    metrics: {},
     help_center_ids: ['hc-en', 'hc-de'],
     reuse_crawl: true,
     recheck_external: false,
@@ -88,4 +89,144 @@ export function samplePreview(overrides: Partial<Preview> = {}): Preview {
     notes: [],
     ...overrides,
   };
+}
+
+export function samplePage(overrides: Partial<PageRow> = {}): PageRow {
+  return {
+    id: 'p1',
+    url: 'https://help.heretto.com/authoring/reuse/conrefs',
+    path: '/authoring/reuse/conrefs',
+    title: 'Reuse content with conrefs',
+    section: '/authoring',
+    help_center_id: 'hc-en',
+    http_status: 200,
+    error: null,
+    word_count: 1842,
+    flesch: 44.2,
+    broken_links: 2,
+    redirects: 1,
+    anchor_issues: 1,
+    seo_issues: 3,
+    score: 61,
+    ...overrides,
+  };
+}
+
+export function sampleDashboard(overrides: Partial<Dashboard> = {}): Dashboard {
+  return {
+    run: sampleRun({
+      status: 'completed',
+      finished_at: '2026-10-22T09:56:00Z',
+      progress: 100,
+      metrics: {
+        score: 82,
+        pages: 1284,
+        new_pages: 6,
+        flesch: 58.4,
+        broken: 37,
+        seo_issues: 112,
+        compared_with: 14,
+      },
+    }),
+    compared: sampleRun({
+      id: 'r0',
+      number: 14,
+      status: 'completed',
+      metrics: { score: 79, pages: 1278, flesch: 57.2, broken: 51, seo_issues: 103 },
+    }),
+    sections: [
+      { path: '/api', pages: 2, flesch: 48.9, broken: 3, seo_issues: 4, score: 71 },
+      { path: '/authoring', pages: 3, flesch: 55.7, broken: 2, seo_issues: 4, score: 79 },
+    ],
+    analyzed: true,
+    ...overrides,
+  };
+}
+
+export function samplePageDetail(overrides: Partial<PageDetail> = {}): PageDetail {
+  return {
+    ...samplePage(),
+    run_id: 'r1',
+    run_number: 15,
+    site_id: 's1',
+    site_name: 'Heretto Help Center',
+    help_center_name: 'US English',
+    language: 'en',
+    lastmod: '2026-09-30T00:00:00Z',
+    fetched_at: '2026-10-22T09:16:00Z',
+    reused_from_id: null,
+    grade: 12.8,
+    words_per_sentence: 25.9,
+    passive_pct: 18,
+    sentences: 71,
+    seo: [
+      { key: 'title', label: 'Title', status: 'warn', detail: '71 chars (aim for 30–60)' },
+      { key: 'description', label: 'Meta description', status: 'error', detail: 'Missing' },
+      { key: 'h1', label: 'H1', status: 'ok', detail: '1' },
+    ],
+    links_internal: 3,
+    links_external: 1,
+    content: {
+      title: 'Reuse content with conrefs | Authoring | Heretto Help Center',
+      description: null,
+      canonical: null,
+      robots: '',
+      lang: 'en',
+      og: {},
+      headings: [
+        [1, 'Reuse content with conrefs'],
+        [2, 'Push conrefs'],
+        [4, 'Limits'],
+      ],
+      images: [],
+      breadcrumb: [],
+      text: 'Reuse content with conrefs\nA conref pulls content in.',
+    },
+    links: [
+      {
+        url: 'https://help.heretto.com/a',
+        text: 'ok link',
+        internal: true,
+        outcome: 'ok',
+        status: 200,
+        final_url: null,
+        note: '',
+      },
+      {
+        url: 'https://help.heretto.com/authoring/reuse/conref-push',
+        text: 'conref push',
+        internal: true,
+        outcome: 'broken',
+        status: 404,
+        final_url: null,
+        note: 'HTTP 404',
+      },
+      {
+        url: 'https://help.heretto.com/publishing/presets#filters',
+        text: 'filters',
+        internal: true,
+        outcome: 'anchor',
+        status: 200,
+        final_url: null,
+        note: '#filters not found on the target page',
+      },
+      {
+        url: 'https://docs.oasis-open.org/dita',
+        text: 'DITA spec',
+        internal: false,
+        outcome: 'broken',
+        status: 410,
+        final_url: null,
+        note: 'HTTP 410',
+      },
+    ],
+    section_flesch: 55.7,
+    previous_score: 64,
+    previous_run_number: 14,
+    ...overrides,
+  };
+}
+
+export function listItem(overrides: Partial<RunListItem>): RunListItem {
+  return sampleRun({ status: 'completed', progress: 100, ...overrides });
 }

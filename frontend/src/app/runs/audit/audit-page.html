@@ -40,6 +40,12 @@
             <mat-icon>stop_circle</mat-icon>Cancel run
           </button>
         </div>
+      } @else {
+        <div class="page-actions">
+          <a mat-flat-button color="primary" [routerLink]="['/audits', r.id]">
+            <mat-icon>analytics</mat-icon>View results
+          </a>
+        </div>
       }
     </header>
 
