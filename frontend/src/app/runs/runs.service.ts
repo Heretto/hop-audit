@@ -3,6 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { HOP_API_URL } from '@heretto/hop-ui';
 import { Observable } from 'rxjs';
 import {
+  ClaimsView,
   Comparison,
   Dashboard,
   Finding,
@@ -96,6 +97,14 @@ export class RunsService {
 
   integrityCsv(runId: string): Observable<Blob> {
     return this.http.get(`${this.api}/runs/${runId}/integrity.csv`, { responseType: 'blob' });
+  }
+
+  claims(runId: string): Observable<ClaimsView> {
+    return this.http.get<ClaimsView>(`${this.api}/runs/${runId}/claims`);
+  }
+
+  claimsCsv(runId: string): Observable<Blob> {
+    return this.http.get(`${this.api}/runs/${runId}/claims.csv`, { responseType: 'blob' });
   }
 
   compare(a: string, b: string): Observable<Comparison> {

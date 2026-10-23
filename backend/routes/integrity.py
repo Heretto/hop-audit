@@ -9,10 +9,20 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 import integrity
-from models import HelpCenter, IntegrityFinding, Page
+import runner
+from models import AuditRun, HelpCenter, IntegrityFinding, Page
 from routes.results import csv_response
 from routes.runs import detail, get_run
-from schemas.integrity import CenterCount, IntegrityRow, IntegrityUpdate, IntegrityView
+from schemas.integrity import (
+    CenterCount,
+    ClaimCenter,
+    ClaimGroup,
+    ClaimRow,
+    ClaimsView,
+    IntegrityRow,
+    IntegrityUpdate,
+    IntegrityView,
+)
 
 router = APIRouter(tags=["integrity"])
 Ctx = Depends(get_current_active_user_with_org)
@@ -117,3 +127,72 @@ def export(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(ge
         for f in _findings(db, run.id)
     )  # fmt: skip
     return csv_response(run, "integrity", CSV_COLUMNS, rows)
+
+
+def claims_view(db: Session, run: AuditRun) -> ClaimsView:
+    """Every claim pass 1 kept, page by page, with the group pass 3 matched it into."""
+    centers = runner.roots_of(db, run.site_id)
+    roots = {c.id: c for c in centers}
+    position = {c.id: i for i, c in enumerate(centers)}
+    pages = sorted(
+        (p for p in db.scalars(select(Page).where(Page.run_id == run.id)) if p.integrity and p.integrity.get("claims")),
+        key=lambda p: (position.get(p.help_center_id, len(centers)), p.url),
+    )
+    stored = run.claim_groups or {}
+    member_of: dict[tuple[str, str], int] = {}
+    groups = []
+    for n, g in enumerate(stored.get("groups", []), 1):
+        for m in g["members"]:
+            member_of[(m["page_id"], m["statement"])] = n
+        groups.append(
+            ClaimGroup(
+                number=n,
+                subject=g["subject"],
+                status=g["status"],
+                issues=g["issues"],
+                claims=len(g["members"]),
+                articles=len({m["page_id"] for m in g["members"]}),
+            )
+        )
+    rows = [
+        ClaimRow(
+            page_id=p.id,
+            url=p.url,
+            slug=integrity.slug(p, roots[p.help_center_id]),
+            title=p.title,
+            help_center_id=p.help_center_id,
+            subject=c["subject"],
+            statement=c["statement"],
+            group=member_of.get((str(p.id), c["statement"])),
+        )
+        for p in pages
+        if p.help_center_id in roots
+        for c in p.integrity["claims"]
+    ]
+    used = {r.help_center_id for r in rows}
+    return ClaimsView(
+        run=detail(run),
+        method=stored.get("method"),
+        help_centers=[ClaimCenter(id=c.id, name=c.name) for c in centers if c.id in used],
+        claims=rows,
+        groups=groups,
+    )
+
+
+@router.get("/runs/{run_id}/claims", response_model=ClaimsView)
+def claims(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
+    return claims_view(db, get_run(db, ctx, run_id))
+
+
+@router.get("/runs/{run_id}/claims.csv")
+def claims_csv(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
+    run = get_run(db, ctx, run_id)
+    view = claims_view(db, run)
+    centers = {c.id: c.name for c in view.help_centers}
+    status = {g.number: g.status for g in view.groups}
+    rows = [
+        (c.subject, c.statement, c.title, c.url, centers[c.help_center_id], c.group or "", status.get(c.group, ""))
+        for c in view.claims
+    ]
+    header = ("subject", "statement", "page_title", "url", "help_center", "group", "group_status")
+    return csv_response(run, "claims", header, rows)

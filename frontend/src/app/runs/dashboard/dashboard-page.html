@@ -115,9 +115,14 @@
               }
             </span>
           </div>
-          <a mat-stroked-button [routerLink]="['/audits', d.run.id, 'findings']"
-            ><mat-icon>rule</mat-icon>Findings and triage</a
-          >
+          <div class="row">
+            <a mat-stroked-button [routerLink]="['/audits', d.run.id, 'claims']"
+              ><mat-icon>format_quote</mat-icon>Claims</a
+            >
+            <a mat-stroked-button [routerLink]="['/audits', d.run.id, 'findings']"
+              ><mat-icon>rule</mat-icon>Findings and triage</a
+            >
+          </div>
         </div>
         @if (integrity()!.confirmed) {
           <div class="cats">

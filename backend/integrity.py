@@ -496,6 +496,7 @@ async def run_review(db: Session, run: AuditRun, rec, checkpoint, record_stats, 
     last audit's page with the same checksum (empty when forcing)."""
     key = "content_integrity"
     db.execute(delete(IntegrityFinding).where(IntegrityFinding.run_id == run.id))
+    run.claim_groups = None
     site = run.site
     centers = db.scalars(select(HelpCenter).where(HelpCenter.site_id == site.id).order_by(HelpCenter.position)).all()
     every_root = [Root(c.id, c.name, c.url, c.language, c.is_primary) for c in centers]
@@ -607,7 +608,10 @@ async def run_review(db: Session, run: AuditRun, rec, checkpoint, record_stats, 
             malformed += bad
 
     # Pass 3: statements about the same subject, compared across articles.
-    groups, method = await _claim_groups(db, run, rec, roots, pages_by_center)
+    matched, method = await _claim_groups(db, run, rec, roots, pages_by_center)
+    groups = [i for i, g in enumerate(matched) if claim_groups.worth_asking(g)]
+    status = {i: "compared" if i in groups else "agree" for i in range(len(matched))}
+    verdicts: Counter = Counter()
     total += len(groups)
     rec.stage(key, total=total, detail=f"{agent.name} · comparing {len(groups):,} statement groups ({method})")
     previous = {} if run.force_reevaluate else {
@@ -621,13 +625,15 @@ async def run_review(db: Session, run: AuditRun, rec, checkpoint, record_stats, 
         key, task=f"{TASK_GROUP}\n\nLog these categories only: {', '.join(allowed)}.", fmt=GROUP_FINDING, **focus
     )
 
-    async def one_group(group: list[claim_groups.Claim]) -> None:
+    async def one_group(index: int) -> None:
         nonlocal malformed
+        group = claim_groups.trim(matched[index])
         group_key = claim_groups.group_key(group)
         refs = {f"S{i}": c for i, c in enumerate(group, 1)}
         if group_key in previous:
             issues = previous[group_key].issues
             kept["groups"] += 1
+            status[index] = "kept"
         else:
             lines = [f"Subject: {group[0].subject}"]
             lines += [f'{ref} · {by_id[c.center_id].name} · {c.slug}: "{c.statement}"' for ref, c in refs.items()]
@@ -640,11 +646,21 @@ async def run_review(db: Session, run: AuditRun, rec, checkpoint, record_stats, 
             issues = _dicts(raw)
             db.add(ClaimGroupReview(site_id=site.id, key=group_key, run_number=run.number, issues=issues))
         found, bad = verify_group(issues, refs, enabled)
+        verdicts[index] = len(found)
         candidates.extend(found)
         malformed += bad
         progress()
 
     await reviewer.each(groups, one_group)
+    status.update({i: "failed" for i in groups if i not in verdicts})  # failed, or skipped once stopped
+    run.claim_groups = {
+        "method": method,
+        "groups": [
+            {"subject": g[0].subject, "status": status[i], "issues": verdicts[i],
+             "members": [{"page_id": str(c.page_id), "statement": c.statement} for c in g]}
+            for i, g in enumerate(matched)
+        ],
+    }  # fmt: skip
     if malformed:
         rec.log(key, "warn", f"{agent.name}: {malformed} malformed or out-of-scope candidate(s) dropped.")
 
@@ -721,9 +737,9 @@ def _claims(value, page: Page) -> list[dict]:
 
 
 async def _claim_groups(db: Session, run: AuditRun, rec, roots: list[Root], pages: dict) -> tuple[list, str]:
-    """Pass 3's groups worth asking about, per help center, and how they were
-    matched. Embeddings when the site's setting finds a key; keywords otherwise,
-    or when embedding fails."""
+    """Pass 3's groups of two or more statements, per help center, and how
+    they were matched. Embeddings when the site's setting finds a key; keywords
+    otherwise, or when embedding fails."""
     per_center = {
         r.id: [
             claim_groups.Claim(p.id, p.url, slug(p, r), r.id, c["subject"], c["statement"])
@@ -748,7 +764,7 @@ async def _claim_groups(db: Session, run: AuditRun, rec, roots: list[Root], page
     if method == "keywords":
         for found in per_center.values():
             grouped += claim_groups.keyword_groups(found)
-    return [claim_groups.trim(g) for g in grouped if claim_groups.worth_asking(g)], method
+    return [g for g in grouped if len(g) > 1], method
 
 
 def _with_categories(task: str, enabled: set[str]) -> str:

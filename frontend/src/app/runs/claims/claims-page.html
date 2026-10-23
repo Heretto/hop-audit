@@ -1,0 +1,152 @@
+<div class="hop-page page">
+  @if (view(); as v) {
+    <a class="back" [routerLink]="['/audits', v.run.id]">
+      <mat-icon>arrow_back</mat-icon>{{ v.run.site_name }} · Audit #{{ v.run.number }}
+    </a>
+
+    <header class="page-header">
+      <div>
+        <h1>Claims</h1>
+        <span class="sub">
+          Checkable statements the content-integrity reviewer took from each article, quoted as they
+          appear on the page. {{ claims().length | number }} claims from
+          {{ articles() | number }} articles;
+          @if (v.method) {
+            {{ matched() | number }} matched with statements in other articles by {{ v.method }}.
+          } @else {
+            not matched across articles in this audit.
+          }
+        </span>
+      </div>
+      <div class="page-actions">
+        <a mat-stroked-button [routerLink]="['/audits', v.run.id, 'findings']"
+          ><mat-icon>rule</mat-icon>Findings and triage</a
+        >
+        <button mat-stroked-button (click)="exportCsv()" [disabled]="!claims().length">
+          <mat-icon>download</mat-icon>Export claims (CSV)
+        </button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <mat-card class="list-card">
+        <div class="toolbar">
+          <mat-form-field class="grow" subscriptSizing="dynamic">
+            <mat-icon matPrefix>search</mat-icon>
+            <mat-label>Filter by subject, statement or page</mat-label>
+            <input
+              matInput
+              [ngModel]="filters().query"
+              (ngModelChange)="filter({ query: $event })"
+            />
+          </mat-form-field>
+          @if (v.help_centers.length > 1) {
+            <mat-form-field subscriptSizing="dynamic">
+              <mat-label>Help center</mat-label>
+              <mat-select
+                [value]="filters().center"
+                (selectionChange)="filter({ center: $event.value })"
+              >
+                <mat-option value="">All</mat-option>
+                @for (c of v.help_centers; track c.id) {
+                  <mat-option [value]="c.id">{{ c.name }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+          }
+          <mat-form-field subscriptSizing="dynamic">
+            <mat-label>Matching</mat-label>
+            <mat-select
+              [value]="filters().group"
+              (selectionChange)="filter({ group: $event.value })"
+            >
+              <mat-option value="">All claims</mat-option>
+              <mat-option value="matched">Matched with other articles</mat-option>
+              <mat-option value="single">Not matched</mat-option>
+              @for (g of v.groups; track g.number) {
+                <mat-option [value]="g.number">Group {{ g.number }} · {{ g.subject }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <span class="sub"
+            >Showing {{ page().length | number }} of {{ shown().length | number }}</span
+          >
+        </div>
+
+        @for (c of page(); track $index) {
+          <div class="claim">
+            <div class="subject">
+              <strong>{{ c.subject }}</strong>
+              @if (c.group !== null && byNumber().get(c.group); as g) {
+                <button class="group-link" (click)="showGroup(g)">
+                  Group {{ g.number }} · {{ g.articles }} articles
+                </button>
+              }
+            </div>
+            <blockquote class="statement">{{ c.statement }}</blockquote>
+            <div class="where">
+              <a [routerLink]="['/audits', v.run.id, 'pages', c.page_id]">{{
+                c.title || c.slug
+              }}</a>
+              <span class="sub mono">{{ c.slug }}</span>
+              @if (v.help_centers.length > 1) {
+                <span class="sub">{{ centerNames().get(c.help_center_id) }}</span>
+              }
+            </div>
+          </div>
+        } @empty {
+          <p class="empty sub">
+            {{
+              claims().length
+                ? 'No claims match these filters.'
+                : 'No claims yet. Claims are taken from articles when content integrity runs.'
+            }}
+          </p>
+        }
+        @if (shown().length > page().length) {
+          <div class="footer">
+            <button mat-stroked-button (click)="limit.set(limit() + 50)">
+              Show {{ shown().length - page().length > 50 ? 50 : shown().length - page().length }}
+              more
+            </button>
+          </div>
+        }
+      </mat-card>
+
+      <aside class="column">
+        <mat-card class="section">
+          <div class="card-title">
+            <h2>Statement groups</h2>
+            <span class="sub">
+              Claims about the same subject in different articles of one help center. Groups that
+              word it differently are sent to the reviewer, which says whether they conflict.
+            </span>
+          </div>
+          @for (g of groups(); track g.number) {
+            <button
+              class="group"
+              [class.selected]="filters().group === g.number"
+              (click)="showGroup(g)"
+            >
+              <span class="row between">
+                <span class="strong">{{ g.number }} · {{ g.subject }}</span>
+                <span class="hop-status-chip" [class]="status[g.status].cls">{{
+                  status[g.status].label
+                }}</span>
+              </span>
+              <span class="sub"
+                >{{ g.claims }} claims in {{ g.articles }} articles{{
+                  g.issues ? ' · ' + g.issues + (g.issues === 1 ? ' candidate' : ' candidates') : ''
+                }}</span
+              >
+            </button>
+          } @empty {
+            <span class="sub">No statements matched across articles.</span>
+          }
+        </mat-card>
+      </aside>
+    </div>
+  } @else if (error(); as message) {
+    <div class="hop-status-message error" role="alert">{{ message }}</div>
+  }
+</div>

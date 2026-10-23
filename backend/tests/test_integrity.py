@@ -582,3 +582,53 @@ async def test_broken_links_last_until_a_link_check_finds_them_fixed(client, use
     serve_site(mock, nowhere=httpx.Response(200, html=html_page("Back again")))
     third = await run_integrity(db, site, user, number=3)
     assert broken.code in third.metrics["integrity"]["resolved"]
+
+
+async def test_claims_view_lists_claims_with_their_pages_and_groups(client, user, db, mock, model):
+    serve_site(mock)
+    site, _ = integrity_site(client, user)
+    run = await run_integrity(db, site, user)
+    h = user["headers"]
+    v = client.get(f"/api/v1/runs/{run.id}/claims", headers=h).json()
+    assert v["method"] == "keywords" and [c["name"] for c in v["help_centers"]] == ["US English"]
+    assert [(c["slug"], c["statement"], c["group"]) for c in v["claims"]] == [
+        ("authoring/a", PHONE_A, 1),
+        ("authoring/b", PHONE_B, 1),
+    ]
+    assert v["claims"][0]["title"] == "Topic A" and v["claims"][0]["subject"] == "support phone number"
+    assert v["groups"] == [
+        {"number": 1, "subject": "support phone number", "status": "compared", "issues": 1, "claims": 2, "articles": 2}
+    ]
+    page = client.get(f"/api/v1/pages/{v['claims'][0]['page_id']}", headers=h).json()
+    assert page["url"] == v["claims"][0]["url"]
+
+    csv = client.get(f"/api/v1/runs/{run.id}/claims.csv", headers=h)
+    lines = csv.text.strip().splitlines()
+    assert lines[0] == "subject,statement,page_title,url,help_center,group,group_status"
+    assert lines[1].endswith(",US English,1,compared") and len(lines) == 3
+
+    mock.routes.clear()
+    serve_site(mock)
+    second = await run_integrity(db, site, user, number=2)
+    assert client.get(f"/api/v1/runs/{second.id}/claims", headers=h).json()["groups"][0]["status"] == "kept"
+
+    from tests.conftest import make_user
+
+    assert client.get(f"/api/v1/runs/{run.id}/claims", headers=make_user(client)["headers"]).status_code == 404
+
+
+async def test_statements_that_agree_are_grouped_but_not_asked(client, user, db, mock, model):
+    serve_site(mock, **{"authoring/b": httpx.Response(200, html=html_page("Topic B", f"{PHONE_A} {FILLER}"))})
+    site, _ = integrity_site(client, user)
+    run = await run_integrity(db, site, user)
+    assert model.count("group") == 0
+    groups = client.get(f"/api/v1/runs/{run.id}/claims", headers=user["headers"]).json()["groups"]
+    assert [(g["status"], g["articles"], g["issues"]) for g in groups] == [("agree", 2, 0)]
+
+
+async def test_no_claims_before_integrity_runs(client, user, db, mock):
+    serve_site(mock)
+    site = make_site(client, user)
+    run = await run_integrity(db, site, user, analyses=["links"])
+    v = client.get(f"/api/v1/runs/{run.id}/claims", headers=user["headers"]).json()
+    assert v["method"] is None and v["claims"] == [] and v["groups"] == []

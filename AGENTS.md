@@ -110,7 +110,9 @@ Read those instead of inferring from this project's code. Do not copy them here.
   triage.
 - **Routes in the UI**: `/audits/:runId` is the dashboard (active runs
   redirect to `/audits/:runId/progress`), pages are
-  `/audits/:runId/pages/:pageId`, triage is `/audits/:runId/findings`,
+  `/audits/:runId/pages/:pageId`, triage is `/audits/:runId/findings`, the claims the integrity reviewer took
+  from articles (and how pass 3 grouped them, `AuditRun.claim_groups`) are
+  `/audits/:runId/claims`,
   `/sites/:id` opens the latest dashboard.
 - **Timestamps**: use `models.types.UTCDateTime`, not `DateTime`. SQLite
   drops offsets, and naive values compare and serialize as local time.

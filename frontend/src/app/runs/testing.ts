@@ -1,4 +1,5 @@
 import {
+  ClaimsView,
   Dashboard,
   Finding,
   IntegrityRow,
@@ -377,6 +378,52 @@ export function sampleIntegrityView(overrides: Partial<IntegrityView> = {}): Int
       },
     ],
     resolved: [],
+    ...overrides,
+  };
+}
+
+export function sampleClaimsView(overrides: Partial<ClaimsView> = {}): ClaimsView {
+  const claim = (
+    page: string,
+    slug: string,
+    statement: string,
+    group: number | null,
+    hc = 'hc-en',
+  ) => ({
+    page_id: page,
+    url: `https://help.x.com/${slug}`,
+    slug,
+    title: slug.split('/').pop()!,
+    help_center_id: hc,
+    subject: group === 2 ? 'refund window' : 'late payment fee',
+    statement,
+    group,
+  });
+  return {
+    run: sampleRun({ status: 'completed' }),
+    method: 'embeddings (OpenAI · Team key)',
+    help_centers: [
+      { id: 'hc-en', name: 'US English' },
+      { id: 'hc-fr', name: 'Français' },
+    ],
+    claims: [
+      claim('p1', 'billing/fees', 'The late fee is $10.', 1),
+      claim('p2', 'billing/faq', 'The late fee is $15.', 1),
+      claim('p1', 'billing/fees', 'Refunds within 30 days.', 2),
+      claim('p3', 'billing/refunds', 'Refunds within 30 days.', 2),
+      claim('p4', 'fr/billing/fees', 'Les frais sont de 10 $.', null, 'hc-fr'),
+    ],
+    groups: [
+      {
+        number: 1,
+        subject: 'late payment fee',
+        status: 'compared',
+        issues: 1,
+        claims: 2,
+        articles: 2,
+      },
+      { number: 2, subject: 'refund window', status: 'agree', issues: 0, claims: 2, articles: 2 },
+    ],
     ...overrides,
   };
 }

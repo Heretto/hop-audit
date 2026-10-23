@@ -58,3 +58,38 @@ class IntegrityUpdate(BaseModel):
     tier: Literal["firm", "review", "drop"] | None = None
     triage_note: str | None = Field(None, max_length=4000)
     example: bool | None = None
+
+
+class ClaimRow(BaseModel):
+    """A statement the reviewer took from an article, verified on the page."""
+
+    page_id: UUID
+    url: str
+    slug: str
+    title: str
+    help_center_id: UUID
+    subject: str
+    statement: str
+    group: int | None  # 1-based index into ClaimsView.groups
+
+
+class ClaimGroup(BaseModel):
+    number: int
+    subject: str
+    status: Literal["agree", "compared", "kept", "failed"]
+    issues: int  # candidates the reviewer raised on this group
+    claims: int
+    articles: int
+
+
+class ClaimCenter(BaseModel):
+    id: UUID
+    name: str
+
+
+class ClaimsView(BaseModel):
+    run: RunDetail
+    method: str | None  # how statements were matched; None when pass 3 didn't run
+    help_centers: list[ClaimCenter]
+    claims: list[ClaimRow]
+    groups: list[ClaimGroup]

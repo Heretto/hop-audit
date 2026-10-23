@@ -257,6 +257,18 @@ re-read this file before starting the next.
       fallback, code-only findings, force; frontend setting
 - [x] Checks green; smoke test with a fake model; commit
 
+## Claims view
+
+- [x] `AuditRun.claim_groups` (migration 0010): the run's matching method and
+      every group of 2+ statements with its status (agree, compared, kept,
+      failed), verdict count and members
+- [x] `GET /runs/{id}/claims` and `claims.csv`: every claim with subject,
+      statement, page, help center and group
+- [x] Claims page (`/audits/:runId/claims`): search, help center, "matched
+      only" filters; groups with their status; links to pages; CSV export;
+      linked from the dashboard and the findings page
+- [x] Tests (backend + frontend); checks green; commit
+
 ## Later milestones (from the handoff)
 
 - [ ] 7 Full findings report + exports

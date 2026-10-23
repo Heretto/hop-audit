@@ -43,6 +43,9 @@ class AuditRun(Base):
     agent_stats = Column(JSON, nullable=False, default=dict, server_default="{}")
     # Content-integrity triage: {status: pending | in_progress | confirmed, confirmed_at, confirmed_by}
     triage = Column(JSON, nullable=False, default=dict, server_default="{}")
+    # Content integrity, pass 3: {method, groups: [{subject, status, issues, members: [{page_id, statement}]}]}
+    # status: agree (one wording) | compared | kept (earlier verdict) | failed
+    claim_groups = Column(JSON, nullable=True)
     error = Column(Text, nullable=True)
     created_at = Column(UTCDateTime, server_default=func.now())
     started_at = Column(UTCDateTime, nullable=True)

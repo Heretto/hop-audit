@@ -24,6 +24,9 @@
         </span>
       </div>
       <div class="page-actions">
+        <a mat-stroked-button [routerLink]="['/audits', v.run.id, 'claims']"
+          ><mat-icon>format_quote</mat-icon>Claims</a
+        >
         <button mat-stroked-button (click)="exportCsv()">
           <mat-icon>download</mat-icon>Export findings (CSV)
         </button>

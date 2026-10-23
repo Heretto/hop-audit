@@ -341,3 +341,38 @@ export const CATEGORY_NAMES: Record<string, string> = {
   N: 'Links and duplicates',
   X: 'Structure and publishing errors',
 };
+
+/** A statement the content-integrity reviewer took from an article (verified on the page). */
+export interface ClaimRow {
+  page_id: string;
+  url: string;
+  slug: string;
+  title: string;
+  help_center_id: string;
+  subject: string;
+  statement: string;
+  /** Number of the statement group it was matched into, if any. */
+  group: number | null;
+}
+
+/** agree: one wording, not sent; compared: sent this run; kept: earlier verdict reused. */
+export type ClaimGroupStatus = 'agree' | 'compared' | 'kept' | 'failed';
+
+export interface ClaimGroup {
+  number: number;
+  subject: string;
+  status: ClaimGroupStatus;
+  /** Candidates the reviewer raised on this group. */
+  issues: number;
+  claims: number;
+  articles: number;
+}
+
+export interface ClaimsView {
+  run: RunDetail;
+  /** How statements were matched across articles; null when that pass didn't run. */
+  method: string | null;
+  help_centers: { id: string; name: string }[];
+  claims: ClaimRow[];
+  groups: ClaimGroup[];
+}
