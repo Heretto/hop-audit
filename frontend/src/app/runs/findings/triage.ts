@@ -68,14 +68,15 @@ export function matches(f: IntegrityRow, filters: Filters): boolean {
 }
 
 /** Most of a slug kept at the end when it's shortened in the middle. */
-export const SLUG_TAIL = 24;
+export const SLUG_HEAD = 12;
 
 /**
- * A slug split for middle truncation: the head shrinks with an ellipsis when
- * space runs out, the tail (its last segment, or last characters) stays whole.
+ * A slug split for truncation near its start: the head (its first segment, or
+ * first characters) stays whole; the tail gives way from its beginning when
+ * space runs out, so as much of the end as fits stays visible.
  */
 export function splitSlug(slug: string): [head: string, tail: string] {
-  const cut = slug.lastIndexOf('/', slug.length - 2) + 1;
-  const start = slug.length - cut <= SLUG_TAIL ? cut : slug.length - SLUG_TAIL;
-  return [slug.slice(0, start), slug.slice(start)];
+  const slash = slug.indexOf('/') + 1;
+  const end = slash > 0 && slash <= SLUG_HEAD ? slash : Math.min(SLUG_HEAD, slug.length);
+  return [slug.slice(0, end), slug.slice(end)];
 }

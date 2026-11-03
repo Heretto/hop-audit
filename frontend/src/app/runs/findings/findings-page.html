@@ -193,7 +193,9 @@
                     @let parts = splitSlug(q.slug);
                     <span class="slug mono sub" [title]="q.slug" [attr.aria-label]="q.slug"
                       ><span class="head" aria-hidden="true">{{ parts[0] }}</span
-                      ><span class="tail" aria-hidden="true">{{ parts[1] }}</span></span
+                      ><span class="tail" aria-hidden="true"
+                        ><bdi>{{ parts[1] }}</bdi></span
+                      ></span
                     >
                     @if (q.url) {
                       <a

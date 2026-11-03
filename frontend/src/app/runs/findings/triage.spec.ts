@@ -43,16 +43,14 @@ describe('triage', () => {
     expect(matches(f, { ...none, severity: 'High' })).toBe(true);
   });
 
-  it('splits a slug so a long one loses its middle, never its last segment', () => {
-    expect(splitSlug('credit-faq')).toEqual(['', 'credit-faq']);
+  it('splits a slug after its first segment, where a long one gives way', () => {
     expect(splitSlug('en-us/articles/billing/late-payments')).toEqual([
-      'en-us/articles/billing/',
-      'late-payments',
+      'en-us/',
+      'articles/billing/late-payments',
     ]);
-    expect(splitSlug('docs/guides/')).toEqual(['docs/', 'guides/']); // trailing slash
-    const long = 'kb/360012345678-how-to-reset-your-password-on-a-shared-device';
-    const [head, tail] = splitSlug(long);
-    expect(head + tail).toBe(long);
-    expect(tail.length).toBe(24); // a long last segment keeps its last characters
+    expect(splitSlug('docs/guides/')).toEqual(['docs/', 'guides/']);
+    expect(splitSlug('credit-faq')).toEqual(['credit-faq', '']); // short, no slash: whole
+    // A long first segment keeps its first characters.
+    expect(splitSlug('360012345678-how-to-reset/x')).toEqual(['360012345678', '-how-to-reset/x']);
   });
 });

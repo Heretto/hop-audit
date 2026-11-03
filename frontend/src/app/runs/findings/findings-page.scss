@@ -152,20 +152,22 @@
   }
 }
 
-// Long slugs lose their middle, not their end: the head shrinks with an
-// ellipsis while the tail (last segment) stays whole.
+// Long slugs give way just after their first segment: the head stays whole;
+// the tail clips from its start (right-to-left overflow puts the ellipsis on
+// its left), and <bdi> keeps the text itself left to right.
 .slug {
   display: flex;
   min-width: 0;
   white-space: nowrap;
 
   .head {
-    overflow: hidden;
-    text-overflow: ellipsis;
+    flex: none;
   }
 
   .tail {
-    flex: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    direction: rtl;
   }
 }
 
