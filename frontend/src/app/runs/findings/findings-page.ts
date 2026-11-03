@@ -24,7 +24,7 @@ import { apiErrors } from '../../sites/sites.service';
 import { download } from '../run-format';
 import { CATEGORY_NAMES, IntegrityRow, IntegrityView, Tier } from '../run.model';
 import { RunsService } from '../runs.service';
-import { exampleHint, examples, Filters, matches, recount } from './triage';
+import { exampleHint, examples, Filters, matches, recount, splitSlug } from './triage';
 
 export const PAGE_SIZE = 25;
 const TRIAGE_CHIPS = {
@@ -70,6 +70,7 @@ export class FindingsPage implements OnInit {
   readonly categories = CATEGORIES;
   readonly names = CATEGORY_NAMES;
   readonly chips = TRIAGE_CHIPS;
+  readonly splitSlug = splitSlug;
 
   readonly findings = computed(() => this.view()?.findings ?? []);
   /** The integrity stage, when it failed: no answer isn't a clean result. */

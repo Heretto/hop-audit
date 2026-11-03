@@ -144,7 +144,29 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  flex-wrap: wrap;
+  min-width: 0;
+
+  .open,
+  .details {
+    flex: none;
+  }
+}
+
+// Long slugs lose their middle, not their end: the head shrinks with an
+// ellipsis while the tail (last segment) stays whole.
+.slug {
+  display: flex;
+  min-width: 0;
+  white-space: nowrap;
+
+  .head {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tail {
+    flex: none;
+  }
 }
 
 .open {

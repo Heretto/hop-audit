@@ -66,3 +66,16 @@ export function matches(f: IntegrityRow, filters: Filters): boolean {
   ];
   return haystack.join(' ').toLowerCase().includes(q);
 }
+
+/** Most of a slug kept at the end when it's shortened in the middle. */
+export const SLUG_TAIL = 24;
+
+/**
+ * A slug split for middle truncation: the head shrinks with an ellipsis when
+ * space runs out, the tail (its last segment, or last characters) stays whole.
+ */
+export function splitSlug(slug: string): [head: string, tail: string] {
+  const cut = slug.lastIndexOf('/', slug.length - 2) + 1;
+  const start = slug.length - cut <= SLUG_TAIL ? cut : slug.length - SLUG_TAIL;
+  return [slug.slice(0, start), slug.slice(start)];
+}

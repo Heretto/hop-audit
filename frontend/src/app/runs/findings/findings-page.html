@@ -190,7 +190,11 @@
                     }
                   </span>
                   <span class="where">
-                    <span class="mono sub">{{ q.slug }}</span>
+                    @let parts = splitSlug(q.slug);
+                    <span class="slug mono sub" [title]="q.slug" [attr.aria-label]="q.slug"
+                      ><span class="head" aria-hidden="true">{{ parts[0] }}</span
+                      ><span class="tail" aria-hidden="true">{{ parts[1] }}</span></span
+                    >
                     @if (q.url) {
                       <a
                         class="open"

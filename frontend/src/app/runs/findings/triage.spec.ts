@@ -1,5 +1,5 @@
 import { sampleIntegrity, sampleIntegrityView } from '../testing';
-import { exampleHint, examples, matches, recount } from './triage';
+import { exampleHint, examples, matches, recount, splitSlug } from './triage';
 
 const findings = sampleIntegrityView().findings;
 const none = { query: '', category: '', tier: '' as const, severity: '' };
@@ -41,5 +41,18 @@ describe('triage', () => {
     expect(matches(f, { ...none, category: 'T' })).toBe(false);
     expect(matches(f, { ...none, tier: 'review' })).toBe(false);
     expect(matches(f, { ...none, severity: 'High' })).toBe(true);
+  });
+
+  it('splits a slug so a long one loses its middle, never its last segment', () => {
+    expect(splitSlug('credit-faq')).toEqual(['', 'credit-faq']);
+    expect(splitSlug('en-us/articles/billing/late-payments')).toEqual([
+      'en-us/articles/billing/',
+      'late-payments',
+    ]);
+    expect(splitSlug('docs/guides/')).toEqual(['docs/', 'guides/']); // trailing slash
+    const long = 'kb/360012345678-how-to-reset-your-password-on-a-shared-device';
+    const [head, tail] = splitSlug(long);
+    expect(head + tail).toBe(long);
+    expect(tail.length).toBe(24); // a long last segment keeps its last characters
   });
 });
