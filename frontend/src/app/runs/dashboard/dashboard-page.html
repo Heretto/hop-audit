@@ -30,9 +30,6 @@
         <a mat-stroked-button [routerLink]="['/audits', d.run.id, 'progress']"
           ><mat-icon>receipt_long</mat-icon>Run log</a
         >
-        <button mat-stroked-button (click)="exportCsv()">
-          <mat-icon>download</mat-icon>Export
-        </button>
         @if (d.run.status === 'completed' && d.analyzed) {
           <button mat-stroked-button (click)="reevaluate()" [disabled]="analyzing()">
             <mat-icon>refresh</mat-icon>Re-evaluate everything
@@ -191,14 +188,25 @@
 
     <mat-card class="tree-card">
       <div class="toolbar">
-        <mat-form-field class="grow" subscriptSizing="dynamic">
+        <!-- The mockup's toolbar: a 280px filter, Show and Sort with their names
+             inside the field, then the small buttons at the right. -->
+        <mat-form-field class="filter" subscriptSizing="dynamic">
           <mat-icon matPrefix>search</mat-icon>
-          <mat-label>Filter pages by path or title</mat-label>
-          <input matInput [ngModel]="state().query" (ngModelChange)="update({ query: $event })" />
+          <input
+            matInput
+            placeholder="Filter pages by path or title"
+            aria-label="Filter pages by path or title"
+            [ngModel]="state().query"
+            (ngModelChange)="update({ query: $event })"
+          />
         </mat-form-field>
         <mat-form-field subscriptSizing="dynamic">
-          <mat-label>Show</mat-label>
-          <mat-select [value]="state().show" (selectionChange)="update({ show: $event.value })">
+          <span matTextPrefix class="field-name">Show</span>
+          <mat-select
+            aria-label="Show"
+            [value]="state().show"
+            (selectionChange)="update({ show: $event.value })"
+          >
             <mat-option value="all">All pages</mat-option>
             <mat-option value="broken">Broken links</mat-option>
             <mat-option value="seo">SEO issues</mat-option>
@@ -209,15 +217,23 @@
           </mat-select>
         </mat-form-field>
         <mat-form-field subscriptSizing="dynamic">
-          <mat-label>Sort</mat-label>
-          <mat-select [value]="state().sort" (selectionChange)="update({ sort: $event.value })">
+          <span matTextPrefix class="field-name">Sort</span>
+          <mat-select
+            aria-label="Sort"
+            [value]="state().sort"
+            (selectionChange)="update({ sort: $event.value })"
+          >
             <mat-option value="path">Path</mat-option>
             <mat-option value="score">Lowest score first</mat-option>
             <mat-option value="issues">Most issues first</mat-option>
           </mat-select>
         </mat-form-field>
-        <button mat-stroked-button (click)="expandAll(true)">Expand all</button>
-        <button mat-stroked-button (click)="expandAll(false)">Collapse all</button>
+        <span class="spacer"></span>
+        <button mat-stroked-button class="small" (click)="expandAll(true)">Expand all</button>
+        <button mat-stroked-button class="small" (click)="expandAll(false)">Collapse all</button>
+        <button mat-stroked-button class="small" (click)="exportCsv()">
+          <mat-icon>download</mat-icon>Export CSV
+        </button>
       </div>
 
       <div class="scroll">

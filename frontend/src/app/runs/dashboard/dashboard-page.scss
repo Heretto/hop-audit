@@ -22,17 +22,38 @@
   padding: 0;
 }
 
+// The pages table's toolbar, as the mockup draws it: 36px fields (8px
+// corners, strong border, 14px text), the filter 280px wide, and 32px / 13px
+// buttons at the right. Material's tokens, so the fields keep their layout.
 .toolbar {
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  padding: 4px 16px 12px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--border-default);
-}
 
-.grow {
-  flex: 1 1 280px;
+  mat-form-field {
+    --mat-form-field-container-height: 36px;
+    --mat-form-field-container-vertical-padding: 6px;
+    --mat-form-field-container-text-size: 14px;
+    --mat-form-field-outlined-container-shape: 8px;
+    --mat-form-field-outlined-outline-color: var(--border-strong);
+    --mat-form-field-leading-icon-color: var(--text-tertiary);
+  }
+  .filter {
+    width: 280px;
+  }
+  // "Show" and "Sort" inside their fields, as the mockup's labels.
+  .field-name {
+    margin-right: 8px;
+    font-size: 0.8125rem;
+    color: var(--text-tertiary);
+  }
+  .small {
+    --mat-button-outlined-container-height: 32px;
+    --mat-button-outlined-label-text-size: 13px;
+  }
 }
 
 .scroll {

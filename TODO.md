@@ -1,5 +1,12 @@
 # HOP Audit: TODO
 
+## Audit dashboard v2 (user: `_reference/Audit dashboard-html-v2`; "see the button changes and confirm all the form elements are the proper size and alignment")
+v2 vs the approved mockup: the header loses Export and "Summary report" is "Report"; the pages table's toolbar gains Export CSV beside Expand all / Collapse all. The toolbar's fields are 36px (8px corners, strong border, 0 10px, 14px text; the filter 280px wide with a search icon and a placeholder; Show and Sort with their name inside the field), its buttons 32px / 13px, and it has 14px 16px padding.
+- [x] `design/project/Dashboard.dc.html` carries the v2 changes (content only; the reference copy keeps its viewer scripts)
+- [x] Header: Export moves to the toolbar as Export CSV. "Report" links to the report page, which isn't built yet (`/audits/:runId/report`, HANDOFF): left out until it is. Run log and Re-evaluate stay (not in the mockup; functional)
+- [x] Toolbar fields and buttons at the mockup's sizes through Material's tokens; filter 280px with placeholder; Show / Sort with the name inside the field
+- [x] Spec: the toolbar's buttons and fields; `./dev.sh check`: all checks passed
+
 ## Dashboard: Content integrity bars in severity colours (user: "not grey")
 Before triage the bars were grey (`.proposed`), and confirmed they were one accent fill. Now each category's bar is segments by severity, High (tertiary) · Medium (accent) · Low (info), the Findings mockup's severity colours, with a key dot beside each count in the severity line; proposed or confirmed alike. Audits analyzed before the split was recorded keep one accent fill.
 - [x] Backend: `severity_by_category` in the run's integrity metrics; test

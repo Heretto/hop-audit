@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>HOP Audit: Audit dashboard</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Roboto+Mono:wght@400;500&amp;family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&amp;display=block" rel="stylesheet">
+<style>
+body{margin:0}
+:root{--bg-primary:#ffffff;--bg-secondary:#f8f9fb;--bg-tertiary:#f1f3f6;--text-primary:#15181e;--text-secondary:#4d5560;--text-tertiary:#6c7280;--border-default:#e4e7ec;--border-light:#f1f3f6;--border-strong:#d2d6dd;--color-primary:#011627;--color-accent:#16b9a8;--color-accent-bg:#effefb;--color-accent-text:#0f766e;--color-success:#059669;--color-success-bg:#ecfdf5;--color-success-text:#047857;--color-success-border:#a7f3d0;--color-warning:#c07f1c;--color-warning-bg:#fefbf0;--color-warning-text:#714810;--color-warning-border:#fae5ad;--color-error:#dc2626;--color-error-bg:#fef2f2;--color-error-text:#b91c1c;--color-error-border:#fecaca;--font-sans:Inter,system-ui,sans-serif;--font-mono:"Roboto Mono",monospace}
+a{color:#0f766e;text-decoration:none}a:hover{color:#115e59;text-decoration:underline}
+.mi{font-family:"Material Symbols Rounded";font-weight:300;font-size:22px;line-height:1;font-variation-settings:"FILL" 0,"wght" 300,"GRAD" 0,"opsz" 24;display:inline-block;vertical-align:middle;flex:none}
+.card{background:#fff;border:1px solid var(--border-default);border-radius:12px;padding:20px 24px;box-sizing:border-box}
+.btn{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:8px;font:500 14px var(--font-sans);border:1px solid var(--border-strong);background:#fff;color:var(--text-primary);cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn:hover{background:#f1f3f6;text-decoration:none;color:var(--text-primary)}
+.btn.primary{background:var(--color-primary);color:#fff;border-color:var(--color-primary)}.btn.primary:hover{background:#0d2947;color:#fff}
+.btn .mi{font-size:18px}
+.icon-btn{width:36px;height:36px;border:0;background:transparent;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer}.icon-btn:hover{background:rgba(0,0,0,.04)}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:9999px;font-size:12px;font-weight:500;background:var(--bg-tertiary);color:var(--text-secondary);white-space:nowrap}
+.chip.completed{background:var(--color-success-bg);color:var(--color-success-text)}
+table{border-collapse:collapse;width:100%;font-size:14px}th{text-align:left;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--text-tertiary);padding:10px 12px;border-bottom:1px solid var(--border-default);white-space:nowrap}td{padding:0 12px;height:46px;border-bottom:1px solid var(--border-light);vertical-align:middle}tbody tr:last-child td{border-bottom:0}td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+tr.section td{background:#fbfcfd;font-weight:500}
+tr.page td{color:var(--text-secondary)}
+.sub{font-size:13px;color:var(--text-tertiary)}
+h1{font-size:28px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--text-primary)}h2{font-size:17px;font-weight:600;letter-spacing:-.02em;margin:0;color:var(--text-primary)}
+.topbar{height:56px;background:#fff;border-bottom:1px solid var(--border-default);display:flex;align-items:center;padding:0 16px;gap:12px;box-sizing:border-box}
+.mono{font-family:var(--font-mono);font-size:13px}
+.score{display:inline-flex;align-items:center;justify-content:center;min-width:40px;height:26px;border-radius:8px;font-weight:600;font-size:13px;font-variant-numeric:tabular-nums;padding:0 6px;box-sizing:border-box}
+.score.good{background:var(--color-success-bg);color:var(--color-success-text)}.score.warn{background:var(--color-warning-bg);color:var(--color-warning-text)}.score.bad{background:var(--color-error-bg);color:var(--color-error-text)}.score.none{background:transparent;color:var(--text-tertiary)}
+.kpi{background:#fff;border:1px solid var(--border-default);border-radius:12px;padding:16px 18px;display:flex;gap:14px;align-items:center;box-sizing:border-box}
+.badge{width:40px;height:40px;border-radius:9999px;display:flex;align-items:center;justify-content:center;flex:none}
+.badge.navy{background:#eef2f6;color:#0d2947}.badge.accent{background:var(--color-accent-bg);color:var(--color-accent-text)}.badge.success{background:var(--color-success-bg);color:var(--color-success-text)}.badge.warning{background:var(--color-warning-bg);color:var(--color-warning-text)}.badge.error{background:var(--color-error-bg);color:var(--color-error-text)}
+.kpi-v{font-size:24px;font-weight:600;letter-spacing:-.02em;line-height:1.1}
+.delta{font-size:12px;font-weight:500}.delta.up{color:var(--color-success-text)}.delta.down{color:var(--color-error-text)}
+.filter{display:flex;align-items:center;gap:8px;height:36px;border:1px solid var(--border-strong);border-radius:8px;padding:0 10px;color:var(--text-tertiary);font-size:14px;background:#fff;box-sizing:border-box}
+.toggle{width:28px;height:28px;border:0;background:transparent;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;color:var(--text-secondary);cursor:pointer;padding:0}
+.toggle:hover{background:rgba(0,0,0,.06)}
+.issue{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text-secondary)}
+.issue .mi{font-size:16px}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-direction: column; background: var(--bg-secondary); font-family: var(--font-sans); color: var(--text-primary); font-size: 14px">
+  <header class="topbar">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <span style="width: 36px; height: 36px; border-radius: 8px; background: var(--color-primary); color: #79ECDD; display: flex; align-items: center; justify-content: center"><span class="mi" aria-hidden="true">fact_check</span></span>
+      <span style="font-weight: 600; font-size: 16px">HOP Audit</span>
+    </div>
+    <div style="flex: 1"></div>
+    <button class="icon-btn" aria-label="Account"><span class="mi">account_circle</span></button>
+    <button class="icon-btn" aria-label="Settings"><span class="mi">settings</span></button>
+  </header>
+  <div style="display: flex; flex-wrap: wrap; flex: 1">
+    <dc-import name="Nav" active="sites" hint-size="250px,640px"></dc-import>
+    <main style="flex: 999 1 560px; min-width: 0; padding: 24px 32px 48px 24px; display: flex; flex-direction: column; gap: 20px; box-sizing: border-box">
+
+      <a href="Main.dc.html" style="display: inline-flex; align-items: center; gap: 4px; font-size: 13px"><span class="mi" style="font-size: 18px" aria-hidden="true">arrow_back</span>Sites</a>
+      <header style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <div style="display: flex; align-items: center; gap: 12px"><h1>Heretto Help Center</h1><span class="chip completed">Audit #14 · Completed</span></div>
+          <span class="sub">Oct 21, 2026 07:00 · whole site · 1,284 pages · 42 min · 1.8M tokens · compared with #13 (Oct 14)</span>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap">
+          <a class="btn" href="History.dc.html"><span class="mi" aria-hidden="true">history</span>History</a>
+          <a class="btn" href="Report.dc.html"><span class="mi" aria-hidden="true">description</span>Report</a>
+          <a class="btn primary" href="RunAudit.dc.html"><span class="mi" aria-hidden="true">play_arrow</span>Run audit</a>
+        </div>
+      </header>
+
+      <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px">
+        <div class="kpi"><span class="badge navy"><span class="mi" aria-hidden="true">verified</span></span><div style="display: flex; flex-direction: column; gap: 2px"><span class="kpi-v">82</span><span class="sub">Site score</span><span class="delta up">+3 vs #13</span></div></div>
+        <div class="kpi"><span class="badge accent"><span class="mi" aria-hidden="true">article</span></span><div style="display: flex; flex-direction: column; gap: 2px"><span class="kpi-v">1,284</span><span class="sub">Pages analyzed</span><span class="delta">+6 new</span></div></div>
+        <div class="kpi"><span class="badge success"><span class="mi" aria-hidden="true">menu_book</span></span><div style="display: flex; flex-direction: column; gap: 2px"><span class="kpi-v">58.4</span><span class="sub">Avg Flesch Reading Ease</span><span class="delta up">+1.2</span></div></div>
+        <div class="kpi"><span class="badge error"><span class="mi" aria-hidden="true">link_off</span></span><div style="display: flex; flex-direction: column; gap: 2px"><span class="kpi-v">37</span><span class="sub">Broken links</span><span class="delta up">−14</span></div></div>
+        <div class="kpi"><span class="badge warning"><span class="mi" aria-hidden="true">travel_explore</span></span><div style="display: flex; flex-direction: column; gap: 2px"><span class="kpi-v">112</span><span class="sub">SEO issues</span><span class="delta down">+9</span></div></div>
+        <a class="kpi" href="Findings.dc.html" style="text-decoration: none; color: inherit"><span class="badge navy"><span class="mi" aria-hidden="true">rule</span></span><div style="display: flex; flex-direction: column; gap: 2px"><span class="kpi-v">21</span><span class="sub">Confirmed integrity issues</span><span class="delta up">2 High · −3 vs #13</span></div></a>
+      </div>
+
+      <section class="card" style="display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap">
+          <div style="display: flex; flex-direction: column; gap: 4px"><h2>Content integrity</h2><span class="sub">Content that is wrong, conflicting, outdated, or missing its scope, across en, de and ja. 27 candidates from Content Integrity Reviewer; 21 confirmed, 3 for review, 3 dropped in triage on Oct 21.</span></div>
+          <div style="display: flex; gap: 8px"><a class="btn" href="Findings.dc.html"><span class="mi" aria-hidden="true">rule</span>Findings and triage</a><a class="btn" href="Report.dc.html"><span class="mi" aria-hidden="true">description</span>Full findings report</a></div>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; font-size: 13px">
+          <div style="display: flex; flex-direction: column; gap: 3px"><div style="display: flex; justify-content: space-between"><span>Contradictions</span><strong>7</strong></div><div style="height: 6px; border-radius: 9999px; background: var(--bg-tertiary)"><div style="width: 100%; height: 6px; border-radius: 9999px; background: var(--color-accent)"></div></div></div>
+          <div style="display: flex; flex-direction: column; gap: 3px"><div style="display: flex; justify-content: space-between"><span>German, Japanese vs. English</span><strong>6</strong></div><div style="height: 6px; border-radius: 9999px; background: var(--bg-tertiary)"><div style="width: 86%; height: 6px; border-radius: 9999px; background: var(--color-accent)"></div></div></div>
+          <div style="display: flex; flex-direction: column; gap: 3px"><div style="display: flex; justify-content: space-between"><span>Retired products (Publisher)</span><strong>4</strong></div><div style="height: 6px; border-radius: 9999px; background: var(--bg-tertiary)"><div style="width: 57%; height: 6px; border-radius: 9999px; background: var(--color-accent)"></div></div></div>
+          <div style="display: flex; flex-direction: column; gap: 3px"><div style="display: flex; justify-content: space-between"><span>Instructions don't match</span><strong>2</strong></div><div style="height: 6px; border-radius: 9999px; background: var(--bg-tertiary)"><div style="width: 29%; height: 6px; border-radius: 9999px; background: var(--color-accent)"></div></div></div>
+          <div style="display: flex; flex-direction: column; gap: 3px"><div style="display: flex; justify-content: space-between"><span>Outdated, structure</span><strong>2</strong></div><div style="height: 6px; border-radius: 9999px; background: var(--bg-tertiary)"><div style="width: 29%; height: 6px; border-radius: 9999px; background: var(--color-accent)"></div></div></div>
+        </div>
+        <div style="display: flex; gap: 24px; font-size: 13px; color: var(--text-secondary); flex-wrap: wrap"><span><strong style="color: #923a6b">2</strong> High</span><span><strong style="color: var(--color-accent-text)">15</strong> Medium</span><span><strong>4</strong> Low</span><span class="sub">· Top finding: C-02, the German "Branch locks" note says the opposite of the English (High)</span></div>
+      </section>
+
+      <section class="card" style="padding: 0; display: flex; flex-direction: column">
+        <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border-default); flex-wrap: wrap">
+          <label class="filter" style="width: 280px"><span class="mi" style="font-size: 18px" aria-hidden="true">search</span><input type="text" placeholder="Filter pages by path or title" aria-label="Filter pages" style="border: 0; outline: 0; font: inherit; width: 100%; background: transparent"></label>
+          <label class="filter"><span class="sub">Show</span><select aria-label="Issue filter" style="border: 0; outline: 0; font: inherit; background: transparent; color: var(--text-primary)"><option>All pages</option><option>Broken links</option><option>SEO issues</option><option>Flesch under 50</option><option>Focus findings</option></select></label>
+          <label class="filter"><span class="sub">Sort</span><select aria-label="Sort" style="border: 0; outline: 0; font: inherit; background: transparent; color: var(--text-primary)"><option>Sitemap order</option><option>Lowest score first</option><option>Most issues first</option></select></label>
+          <div style="flex: 1"></div>
+          <button class="btn" style="height: 32px; font-size: 13px" onClick="{{expandAll}}">Expand all</button>
+          <button class="btn" style="height: 32px; font-size: 13px" onClick="{{collapseAll}}">Collapse all</button>
+          <button class="btn" style="height: 32px; font-size: 13px"><span class="mi" aria-hidden="true">download</span>Export CSV</button>
+        </div>
+        <div style="overflow-x: auto">
+        <table>
+          <thead><tr><th style="width: 44%">Section / page</th><th class="num">Pages</th><th class="num">Flesch</th><th class="num">Broken links</th><th class="num">SEO issues</th><th class="num">Integrity</th><th>Findings</th><th class="num">Score</th></tr></thead>
+          <tbody>
+            <sc-for list="{{rows}}" as="r" hint-placeholder-count="12">
+              <tr class="{{r.cls}}">
+                <td><div style="{{r.indent}}">
+                  <sc-if value="{{r.isSection}}" hint-placeholder-val="{{true}}"><button type="button" class="toggle" onClick="{{r.toggle}}" aria-label="Expand section"><span class="mi" style="font-size: 20px" aria-hidden="true">{{r.icon}}</span></button><a href="#section" class="mono" style="color: var(--text-primary); font-weight: 500" onClick="{{r.toggle}}">{{r.path}}</a></sc-if>
+                  <sc-if value="{{r.isPage}}" hint-placeholder-val="{{false}}"><span class="mi" style="font-size: 18px; color: var(--text-tertiary)" aria-hidden="true">subdirectory_arrow_right</span><div style="display: flex; flex-direction: column; min-width: 0"><a href="PageDetail.dc.html" style="color: var(--text-primary)">{{r.title}}</a><span class="mono sub" style="font-size: 12px">{{r.path}}</span></div></sc-if>
+                </div></td>
+                <td class="num">{{r.pages}}</td>
+                <td class="num">{{r.flesch}}</td>
+                <td class="num">{{r.broken}}</td>
+                <td class="num">{{r.seo}}</td>
+                <td class="num">{{r.integrity}}</td>
+                <td><span class="issue">{{r.findings}}</span></td>
+                <td class="num"><span class="{{r.scoreCls}}">{{r.score}}</span></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+        </div>
+        <div style="display: flex; justify-content: space-between; padding: 12px 16px; border-top: 1px solid var(--border-default)"><span class="sub">9 sections · 1,284 pages · click a page for its full metrics and findings</span><span class="sub">Flesch: 60+ plain · 50–59 fairly difficult · under 50 difficult</span></div>
+      </section>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1400}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.data = [
+      { path: '/getting-started', pages: 48, flesch: 64.1, broken: 1, seo: 4, findings: '6 findings', score: 88, children: [
+        ['Install the Heretto desktop client', '/getting-started/install-client', 66.2, 0, 1, '1 finding', 90],
+        ['Create your first project', '/getting-started/first-project', 62.8, 1, 0, '2 findings', 84],
+      ]},
+      { path: '/authoring', pages: 312, flesch: 55.7, broken: 9, seo: 31, findings: '58 findings · 9 on focus', score: 79, children: [
+        ['Create a topic', '/authoring/topics/create-a-topic', 61.0, 0, 1, '2 findings', 86],
+        ['Reuse content with conrefs', '/authoring/reuse/conrefs', 44.2, 2, 3, '5 findings · 1 on focus', 61],
+        ['Build a map', '/authoring/maps/build-a-map', 57.3, 0, 0, '1 finding', 88],
+        ['Review comments and change tracking', '/authoring/review/comments', 63.4, 1, 2, '3 findings', 78],
+        ['Keys and keydefs', '/authoring/reuse/keys', 39.8, 0, 2, '4 findings · 2 on focus', 58],
+      ]},
+      { path: '/publishing', pages: 187, flesch: 59.2, broken: 4, seo: 12, findings: '22 findings', score: 84, children: [
+        ['Publish to Deploy', '/publishing/deploy/publish', 60.5, 0, 1, '2 findings', 87],
+        ['Output presets', '/publishing/presets', 57.9, 2, 3, '4 findings', 72],
+      ]},
+      { path: '/administration', pages: 143, flesch: 57.5, broken: 3, seo: 9, findings: '15 findings', score: 81, children: [
+        ['Manage users and roles', '/administration/users', 58.1, 0, 2, '2 findings', 83],
+      ]},
+      { path: '/api', pages: 296, flesch: 48.9, broken: 14, seo: 38, findings: '71 findings · 19 on focus', score: 71, children: [
+        ['Publish jobs', '/api/v2/publish-jobs', 46.0, 3, 4, '6 findings · 3 on focus', 55],
+        ['Files: upload and version', '/api/v2/files', 51.3, 2, 5, '5 findings · 2 on focus', 63],
+        ['Authentication', '/api/v2/auth', 54.7, 0, 1, '1 finding', 85],
+      ]},
+      { path: '/integrations', pages: 88, flesch: 61.9, broken: 2, seo: 6, findings: '9 findings', score: 86, children: [
+        ['Jira integration', '/integrations/jira', 62.2, 1, 1, '2 findings', 84],
+      ]},
+      { path: '/release-notes', pages: 142, flesch: 63.0, broken: 2, seo: 7, findings: '12 findings · 3 on focus', score: 90, children: [
+        ['Release 2026.10', '/release-notes/2026-10', 64.4, 0, 0, '1 on focus', 92],
+      ]},
+      { path: '/tutorials', pages: 54, flesch: 58.8, broken: 2, seo: 4, findings: '18 findings', score: 77, children: [
+        ['Your first map, start to finish', '/tutorials/first-map', 57.1, 1, 1, '3 findings', 74],
+      ]},
+      { path: '/glossary', pages: 14, flesch: 66.3, broken: 0, seo: 1, findings: '3 findings', score: 93, children: [
+        ['Glossary: A to M', '/glossary/a-m', 67.0, 0, 1, '2 findings', 92],
+      ]},
+    ];
+    this.state = { open: { '/authoring': true, '/api': true } };
+  }
+  renderVals() {
+    const { open } = this.state;
+    const scoreCls = (s) => 'score ' + (s >= 80 ? 'good' : s >= 65 ? 'warn' : 'bad');
+    const integrity = { '/getting-started': 1, '/authoring': 6, '/publishing': 5, '/administration': 2, '/api': 4, '/integrations': 1, '/release-notes': 1, '/tutorials': 1, '/glossary': 0 };
+    const pageIntegrity = { '/authoring/reuse/conrefs': 2, '/authoring/reuse/keys': 1, '/publishing/presets': 3, '/api/v2/publish-jobs': 2, '/release-notes/2026-10': 1 };
+    const rows = [];
+    for (const s of this.data) {
+      const isOpen = !!open[s.path];
+      rows.push({
+        cls: 'section', isSection: true, isPage: false, indent: 'display: flex; align-items: center; gap: 6px',
+        icon: isOpen ? 'expand_more' : 'chevron_right', path: s.path, title: '',
+        pages: s.pages.toLocaleString('en-US'), flesch: s.flesch.toFixed(1), broken: s.broken, seo: s.seo, integrity: integrity[s.path] ?? 0, findings: s.findings, score: s.score, scoreCls: scoreCls(s.score),
+        toggle: (e) => { e.preventDefault(); this.setState({ open: { ...open, [s.path]: !isOpen } }); },
+      });
+      if (!isOpen) continue;
+      for (const [title, path, flesch, broken, seo, findings, score] of s.children) {
+        rows.push({ cls: 'page', isSection: false, isPage: true, indent: 'display: flex; align-items: center; gap: 8px; padding-left: 36px', icon: '', path, title, pages: '', flesch: flesch.toFixed(1), broken, seo, integrity: pageIntegrity[path] ?? 0, findings, score, scoreCls: scoreCls(score), toggle: () => {} });
+      }
+      if (s.children.length < s.pages) {
+        rows.push({ cls: 'page', isSection: false, isPage: true, indent: 'display: flex; align-items: center; gap: 8px; padding-left: 36px', icon: '', path: '', title: 'Show all ' + s.pages + ' pages in ' + s.path, pages: '', flesch: '', broken: '', seo: '', integrity: '', findings: '', score: '', scoreCls: 'score none', toggle: () => {} });
+      }
+    }
+    return {
+      rows,
+      expandAll: () => this.setState({ open: Object.fromEntries(this.data.map((s) => [s.path, true])) }),
+      collapseAll: () => this.setState({ open: {} }),
+    };
+  }
+}
+</script>
+</body>
+</html>

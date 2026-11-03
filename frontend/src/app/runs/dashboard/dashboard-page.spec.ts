@@ -157,6 +157,31 @@ describe('DashboardPage', () => {
     expect(el.textContent).toContain('1 resolved since the previous audit');
   });
 
+  it('draws the header and toolbar as the v2 mockup does', () => {
+    const { el } = render();
+    const texts = (selector: string) =>
+      [...el.querySelectorAll(selector)].map((b) => {
+        const copy = b.cloneNode(true) as Element;
+        copy.querySelectorAll('mat-icon').forEach((i) => i.remove()); // the icon's ligature text
+        return copy.textContent?.replace(/\s+/g, ' ').trim();
+      });
+    // Export left the header for the toolbar.
+    expect(texts('.page-actions a, .page-actions button')).toEqual([
+      'History',
+      'Run log',
+      'Re-evaluate everything',
+      'Run audit',
+    ]);
+    expect(texts('.toolbar button')).toEqual(['Expand all', 'Collapse all', 'Export CSV']);
+    expect(texts('.toolbar .small')).toHaveLength(3);
+    // The filter is a placeholder, Show and Sort are named inside their fields.
+    expect(el.querySelector<HTMLInputElement>('.toolbar .filter input')?.placeholder).toBe(
+      'Filter pages by path or title',
+    );
+    expect(texts('.toolbar .field-name')).toEqual(['Show', 'Sort']);
+    expect(el.querySelector('.toolbar mat-label')).toBeNull();
+  });
+
   it('lists sections and opens them to their pages, with language tags', () => {
     const { fixture, page, el } = render();
     expect(el.textContent).toContain('/authoring');
