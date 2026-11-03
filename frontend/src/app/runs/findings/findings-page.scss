@@ -118,14 +118,25 @@
   }
 }
 
+// The mockup's `.ex` button: 30px tall, 0 10px, a 6px gap to the star, 8px
+// corners, strong border, 500 12px secondary text, 16px star. Material's own
+// tokens, so the button keeps its layout (the star centred on the label).
 .example {
-  height: 30px;
-  font-size: 0.75rem;
+  --mat-button-outlined-container-height: 30px;
+  --mat-button-outlined-container-shape: 8px;
+  --mat-button-outlined-horizontal-padding: 10px;
+  --mat-button-outlined-icon-spacing: 6px;
+  --mat-button-outlined-icon-offset: 0px;
+  --mat-button-outlined-outline-color: var(--border-strong);
+  --mat-button-outlined-label-text-color: var(--text-secondary);
+  --mat-button-outlined-label-text-size: 12px;
+  --mat-button-outlined-label-text-weight: 500;
+  background: var(--bg-primary);
 
   &.on {
-    border-color: var(--color-accent);
+    --mat-button-outlined-outline-color: var(--color-accent);
+    --mat-button-outlined-label-text-color: var(--color-accent-text);
     background: var(--color-accent-bg);
-    color: var(--color-accent-text);
   }
 
   mat-icon {
@@ -313,7 +324,8 @@ h3 {
   border-top: 1px solid var(--border-light);
 }
 
-.example {
+// A picked one-sheet example in the side panel's list.
+.pick {
   display: flex;
   gap: 10px;
   align-items: baseline;

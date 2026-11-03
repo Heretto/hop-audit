@@ -115,6 +115,20 @@ describe('FindingsPage', () => {
     expect(star.disabled).toBe(true);
   });
 
+  it('draws the example button as the mockup does: a star, lit once picked', () => {
+    const { fixture, page, el } = render();
+    const button = () => el.querySelector('button.example') as HTMLButtonElement;
+    expect(button().querySelector('mat-icon')?.textContent?.trim()).toBe('star_outline');
+    expect(button().classList).not.toContain('on');
+    expect(el.querySelectorAll('.pick')).toHaveLength(0);
+    page.toggleExample(page.findings()[0]);
+    fixture.detectChanges();
+    expect(button().querySelector('mat-icon')?.textContent?.trim()).toBe('star');
+    expect(button().classList).toContain('on');
+    expect(button().textContent).toContain('One-sheet example');
+    expect(el.querySelectorAll('.pick')).toHaveLength(1);
+  });
+
   it('saves a triage note only when it changed', () => {
     const { page, runs } = render();
     const f = page.findings()[0];

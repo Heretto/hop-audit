@@ -357,7 +357,7 @@
             <b>{{ picked().length }} picked</b><span class="sub">{{ hint() }}</span>
           </div>
           @for (e of picked(); track e.id; let i = $index) {
-            <div class="example">
+            <div class="pick">
               <span class="mono strong">{{ e.code }}</span>
               <span class="grow">{{ e.title }}</span>
               <span class="sub">{{ i < 3 ? '#' + (i + 1) : 'backup' }}</span>
