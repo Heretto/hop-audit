@@ -462,6 +462,8 @@ async def test_triage_rules(client, user, db, mock, model):
 
     view = client.get(f"/api/v1/runs/{run.id}/integrity", headers=h).json()
     assert view["triage"] == {"status": "in_progress"} and view["purpose"] == "prospect"
+    two = next(f for f in view["findings"] if f["title"] == "Two support numbers")
+    assert [q["url"] for q in two["quotes"]] == [f"{BASE}authoring/a", f"{BASE}authoring/b"]
     assert [c["name"] for c in view["help_centers"]] == ["US English", "Deutsch"]
 
     confirmed = client.post(f"/api/v1/runs/{run.id}/triage/confirm", headers=h).json()

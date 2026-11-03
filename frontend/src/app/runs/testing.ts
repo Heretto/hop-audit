@@ -295,6 +295,7 @@ export function sampleIntegrity(overrides: Partial<IntegrityRow> = {}): Integrit
         note: '',
         page_id: 'p1',
         verified: true,
+        url: 'https://help.lumen.com/late-payments',
       },
       {
         label: 'B',

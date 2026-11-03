@@ -288,6 +288,8 @@ export interface Quote {
   note: string;
   page_id: string | null;
   verified: boolean;
+  /** The article on the site, when its page is in this audit. */
+  url?: string | null;
 }
 
 export interface IntegrityRow {

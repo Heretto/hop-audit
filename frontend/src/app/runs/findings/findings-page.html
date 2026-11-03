@@ -116,32 +116,61 @@
           <span class="sub">Showing {{ page().length }} of {{ shown().length }}</span>
         </div>
 
+        <div class="list-head">
+          <span>Finding, summary and quotes</span>
+          <span>Tier · severity · ID · one-sheet example</span>
+        </div>
         @for (f of page(); track f.id) {
           <div
             class="finding"
             [class.dropped]="f.tier === 'drop'"
             [class.review]="f.tier === 'review'"
           >
-            <div class="id">
-              <span class="mono strong">{{ f.code }}</span>
-              <span class="sub">{{ f.locale }}</span>
-              @if (f.first_seen < v.run.number) {
-                <span class="sub">since #{{ f.first_seen }}</span>
-              }
+            <div class="title">
+              <strong>{{ f.title }}</strong>
+              <span class="sub">{{ f.category }} · {{ names[f.category] }}</span>
             </div>
-            <div>
-              <span
-                class="sev"
-                [class.error]="f.severity === 'High'"
-                [class.warn]="f.severity === 'Medium'"
-                >{{ f.severity }}</span
+            <div class="meta">
+              <span class="sev" [class]="'severity-' + f.severity.toLowerCase()">{{
+                f.severity
+              }}</span>
+              <span class="id">
+                <span class="mono strong">{{ f.code }}</span>
+                <span class="sub">{{ f.locale }}</span>
+                @if (f.first_seen < v.run.number) {
+                  <span class="sub">since #{{ f.first_seen }}</span>
+                }
+              </span>
+              <span class="spacer"></span>
+              <mat-button-toggle-group
+                class="tiers-toggle"
+                [class]="'tier-' + f.tier"
+                [value]="f.tier"
+                (change)="setTier(f, $event.value)"
+                [attr.aria-label]="'Tier for ' + f.code"
               >
+                <mat-button-toggle value="firm">Confirm issue</mat-button-toggle>
+                <mat-button-toggle value="review">For review</mat-button-toggle>
+                <mat-button-toggle value="drop">Drop</mat-button-toggle>
+              </mat-button-toggle-group>
+              <button
+                mat-stroked-button
+                class="example"
+                [class.on]="f.example_rank !== null"
+                [disabled]="f.tier !== 'firm'"
+                (click)="toggleExample(f)"
+                [matTooltip]="
+                  f.tier === 'firm' ? '' : 'Only confirmed issues can be one-sheet examples'
+                "
+              >
+                <mat-icon>{{ f.example_rank !== null ? 'star' : 'star_outline' }}</mat-icon>
+                {{ f.example_rank !== null ? 'One-sheet example' : 'Use as example' }}
+              </button>
             </div>
-            <div class="body">
-              <div class="title">
-                <strong>{{ f.title }}</strong>
-                <span class="sub">{{ f.category }} · {{ names[f.category] }}</span>
-              </div>
+            @if (f.why) {
+              <span class="why">{{ f.why }}</span>
+            }
+            <div class="quotes">
               @for (q of f.quotes; track $index) {
                 <div class="quote">
                   <span>
@@ -160,63 +189,55 @@
                       >
                     }
                   </span>
-                  <span class="mono sub">{{ q.slug }}</span>
+                  <span class="where">
+                    <span class="mono sub">{{ q.slug }}</span>
+                    @if (q.url) {
+                      <a
+                        class="open"
+                        [href]="q.url"
+                        target="_blank"
+                        rel="noopener"
+                        [attr.aria-label]="'Open ' + q.slug + ' on the site in a new tab'"
+                        matTooltip="Open this article on the site"
+                        ><mat-icon>open_in_new</mat-icon></a
+                      >
+                    }
+                    @if (q.page_id) {
+                      <a
+                        class="details"
+                        [routerLink]="['/audits', v.run.id, 'pages', q.page_id]"
+                        [attr.aria-label]="'Details for ' + q.slug + ' in HOP Audit'"
+                        >Details</a
+                      >
+                    }
+                  </span>
                 </div>
               }
-              @if (f.why) {
-                <span>{{ f.why }}</span>
-              }
-              @if (editing() === f.id) {
-                <mat-form-field subscriptSizing="dynamic">
-                  <mat-label>Triage note</mat-label>
-                  <textarea
-                    matInput
-                    rows="2"
-                    #note
-                    [value]="f.triage_note"
-                    (blur)="saveNote(f, note.value)"
-                  ></textarea>
-                </mat-form-field>
-              } @else if (f.triage_note) {
-                <span class="note">
-                  <strong>Triage note:</strong> {{ f.triage_note }}
-                  @if (f.carried_from) {
-                    <span class="sub">(your call in #{{ f.carried_from }})</span>
-                  }
-                  <button mat-button class="small" (click)="editing.set(f.id)">Edit</button>
-                </span>
-              } @else {
-                <button mat-button class="small start" (click)="editing.set(f.id)">
-                  Add a triage note
-                </button>
-              }
             </div>
-            <div class="actions">
-              <mat-button-toggle-group
-                [value]="f.tier"
-                (change)="setTier(f, $event.value)"
-                [attr.aria-label]="'Tier for ' + f.code"
-              >
-                <mat-button-toggle value="firm">Firm</mat-button-toggle>
-                <mat-button-toggle value="review">For review</mat-button-toggle>
-                <mat-button-toggle value="drop">Drop</mat-button-toggle>
-              </mat-button-toggle-group>
-              <button
-                mat-button
-                [class.on]="f.example_rank !== null"
-                [disabled]="f.tier !== 'firm'"
-                (click)="toggleExample(f)"
-                [matTooltip]="
-                  f.tier === 'firm' ? '' : 'Only firm findings can be one-sheet examples'
-                "
-              >
-                <mat-icon>{{ f.example_rank !== null ? 'star' : 'star_outline' }}</mat-icon>
-                {{ f.example_rank !== null ? 'One-sheet example' : 'Use as example' }}
+            @if (editing() === f.id) {
+              <mat-form-field subscriptSizing="dynamic">
+                <mat-label>Triage note</mat-label>
+                <textarea
+                  matInput
+                  rows="2"
+                  #note
+                  [value]="f.triage_note"
+                  (blur)="saveNote(f, note.value)"
+                ></textarea>
+              </mat-form-field>
+            } @else if (f.triage_note) {
+              <span class="note" [class.flagged]="f.tier !== 'firm'">
+                <strong>Triage note:</strong> {{ f.triage_note }}
+                @if (f.carried_from) {
+                  <span class="sub">(your call in #{{ f.carried_from }})</span>
+                }
+                <button mat-button class="small" (click)="editing.set(f.id)">Edit</button>
+              </span>
+            } @else {
+              <button mat-button class="small start" (click)="editing.set(f.id)">
+                Add a triage note
               </button>
-              @if (f.quotes[0]?.page_id; as pageId) {
-                <a [routerLink]="['/audits', v.run.id, 'pages', pageId]">Open article</a>
-              }
-            </div>
+            }
           </div>
         } @empty {
           <p class="sub empty">

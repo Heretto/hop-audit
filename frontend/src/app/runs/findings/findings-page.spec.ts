@@ -61,6 +61,27 @@ describe('FindingsPage', () => {
     expect(text).toContain('91 articles · 103 pages');
   });
 
+  it('lays out each finding with its tier, summary and links to the quoted articles', () => {
+    const { el } = render();
+    const first = el.querySelector('.finding')!;
+    expect(el.querySelector('.list-head')!.textContent).toContain(
+      'Tier · severity · ID · one-sheet example',
+    );
+    expect(first.querySelector('.meta')!.textContent).toMatch(
+      /High\s*C-01\s*US English.*Confirm issue\s*For review\s*Drop.*Use as example/s,
+    );
+    expect(first.querySelector('.why')!.textContent).toBe('A customer reads opposite answers.');
+    const open = first.querySelectorAll<HTMLAnchorElement>('a.open');
+    expect(open.length).toBe(1); // the second quote has no URL
+    expect(open[0].href).toBe('https://help.lumen.com/late-payments');
+    expect(open[0].target).toBe('_blank');
+    const details = [...first.querySelectorAll<HTMLAnchorElement>('a.details')];
+    expect(details.map((a) => a.getAttribute('href'))).toEqual([
+      '/audits/r1/pages/p1',
+      '/audits/r1/pages/p2',
+    ]);
+  });
+
   it('recounts at once when a tier changes, and reopens the triage', () => {
     const { page, runs } = render(sampleIntegrityView({ triage: { status: 'confirmed' } }));
     page.setTier(page.findings()[0], 'review');

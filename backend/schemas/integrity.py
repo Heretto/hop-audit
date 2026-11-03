@@ -13,6 +13,7 @@ class Quote(BaseModel):
     note: str
     page_id: str | None = None
     verified: bool = True
+    url: str | None = None  # the article on the site; added when the findings are read
 
 
 class IntegrityRow(BaseModel):

@@ -29,10 +29,18 @@ Ctx = Depends(get_current_active_user_with_org)
 CSV_COLUMNS = ("code", "severity", "category", "locale", "tier", "title", "quotes", "why", "triage_note", "example")
 
 
-def _findings(db: Session, run_id: UUID) -> list[IntegrityFinding]:
+def _findings(db: Session, run_id: UUID) -> list[IntegrityRow]:
+    """The run's findings, most severe first, each quote with its article's URL."""
     findings = db.scalars(select(IntegrityFinding).where(IntegrityFinding.run_id == run_id)).all()
     order = {"High": 0, "Medium": 1, "Low": 2}
-    return sorted(findings, key=lambda f: (order[f.severity], f.category, f.code))
+    urls = {str(i): u for i, u in db.execute(select(Page.id, Page.url).where(Page.run_id == run_id))}
+    rows = []
+    for f in sorted(findings, key=lambda f: (order[f.severity], f.category, f.code)):
+        row = IntegrityRow.model_validate(f)
+        for q in row.quotes:
+            q.url = urls.get(q.page_id or "")
+        rows.append(row)
+    return rows
 
 
 @router.get("/runs/{run_id}/integrity", response_model=IntegrityView)
@@ -118,8 +126,8 @@ def confirm(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(g
 def export(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
     run = get_run(db, ctx, run_id)
 
-    def quotes(f: IntegrityFinding) -> str:
-        return " | ".join(f'{q["label"] + ": " if q["label"] else ""}"{q["text"]}" ({q["slug"]})' for q in f.quotes)
+    def quotes(f: IntegrityRow) -> str:
+        return " | ".join(f'{q.label + ": " if q.label else ""}"{q.text}" ({q.slug})' for q in f.quotes)
 
     rows = (
         [f.code, f.severity, f.category, f.locale, f.tier, f.title, quotes(f), f.why, f.triage_note,

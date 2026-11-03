@@ -288,6 +288,16 @@ re-read this file before starting the next.
       the KPI stays "—" until triage is confirmed
 - [x] `metrics.top`; tests; checks green; commit
 
+## Findings page: updated row layout
+
+- [x] One column per finding (title; severity, ID, tier and example on one
+      line; summary; quotes; triage note), per
+      `_reference/Findings and triage-html/Findings.dc.html`
+- [x] "Confirm issue" replaces "Firm" on the tier control
+- [x] Per quote: open the article on the site (new tab) and Details in
+      HOP Audit; quotes carry their page URL from the API
+- [x] Tests; checks green; commit
+
 ## Later milestones (from the handoff)
 
 - [ ] 7 Full findings report + exports

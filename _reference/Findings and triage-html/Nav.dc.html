@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sidebar navigation</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,300..500,0..1,0&amp;display=block" rel="stylesheet">
+<style>
+body{margin:0}
+.mi{font-family:"Material Symbols Rounded";font-weight:300;font-size:22px;line-height:1;font-variation-settings:"FILL" 0,"wght" 300,"GRAD" 0,"opsz" 24;display:inline-block;flex:none}
+.nav-item{display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:8px;font:500 14px Inter,system-ui,sans-serif;text-decoration:none;color:#4d5560}
+.nav-item:hover{background:rgba(0,0,0,.04);color:#15181e}
+.nav-item.on{background:#effefb;color:#0f766e}
+</style>
+</helmet>
+<nav aria-label="Main" style="width: 250px; min-height: 640px; height: 100%; box-sizing: border-box; padding: 12px 8px; display: flex; flex-direction: column; gap: 2px; background: #f8f9fb; font-family: Inter, system-ui, sans-serif">
+  <sc-for list="{{main}}" as="it" hint-placeholder-count="4">
+    <a class="{{it.cls}}" href="{{it.href}}"><span class="mi" aria-hidden="true">{{it.icon}}</span><span>{{it.label}}</span></a>
+  </sc-for>
+  <div style="height: 1px; background: #e4e7ec; margin: 8px 12px"></div>
+  <sc-for list="{{platform}}" as="it" hint-placeholder-count="2">
+    <a class="{{it.cls}}" href="{{it.href}}"><span class="mi" aria-hidden="true">{{it.icon}}</span><span>{{it.label}}</span></a>
+  </sc-for>
+  <div style="flex: 1"></div>
+  <button type="button" aria-label="Collapse navigation" style="width: 40px; height: 40px; border: 0; background: transparent; border-radius: 8px; color: #6c7280; display: flex; align-items: center; justify-content: center; cursor: pointer"><span class="mi" aria-hidden="true">keyboard_double_arrow_left</span></button>
+</nav>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"active":{"editor":"enum","options":["sites","audits","agents","credentials","account","admin"],"default":"sites"},"$preview":{"width":250,"height":640}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const active = this.props.active ?? 'sites';
+    const mk = (id, label, icon, href) => ({ id, label, icon, href, cls: 'nav-item' + (id === active ? ' on' : '') });
+    return {
+      main: [
+        mk('sites', 'Sites', 'language', 'Main.dc.html'),
+        mk('audits', 'Audits', 'fact_check', 'History.dc.html'),
+        mk('agents', 'Agents', 'smart_toy', 'Agents.dc.html'),
+        mk('credentials', 'Credentials', 'key', 'Credentials.dc.html'),
+      ],
+      platform: [
+        mk('account', 'Account', 'person', 'Admin.dc.html'),
+        mk('admin', 'Administration', 'shield', 'Admin.dc.html'),
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>
