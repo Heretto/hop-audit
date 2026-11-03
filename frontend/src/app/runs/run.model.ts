@@ -59,6 +59,8 @@ export interface RunMetrics {
 }
 
 /** Content-integrity counts (backend integrity.metrics); shown only once confirmed. */
+export type Severity = 'High' | 'Medium' | 'Low';
+
 export interface IntegrityMetrics {
   candidates: number;
   firm: number;
@@ -68,6 +70,8 @@ export interface IntegrityMetrics {
   medium: number;
   low: number;
   by_category: Record<string, number>;
+  /** Each category's firm findings by severity; absent on audits analyzed before it was recorded. */
+  severity_by_category?: Record<string, Partial<Record<Severity, number>>>;
   /** The most severe firm finding; absent on audits analyzed before it was recorded. */
   top?: { code: string; title: string; severity: string } | null;
   resolved: string[];

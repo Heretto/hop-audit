@@ -475,6 +475,11 @@ def metrics(findings: list[IntegrityFinding], resolved: list[str], confirmed: bo
         "medium": severity["Medium"],
         "low": severity["Low"],
         "by_category": dict(Counter(f.category for f in firm)),
+        # Each category's firm findings by severity: the dashboard's bars.
+        "severity_by_category": {
+            category: dict(Counter(f.severity for f in firm if f.category == category))
+            for category in sorted({f.category for f in firm})
+        },
         "top": _top(firm),
         "resolved": resolved,
         "confirmed": confirmed,

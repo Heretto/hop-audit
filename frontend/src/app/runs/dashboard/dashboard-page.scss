@@ -105,10 +105,6 @@
   @media (max-width: 1100px) {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   }
-
-  &.proposed .bar span {
-    background: var(--border-strong);
-  }
 }
 
 .cat {
@@ -117,7 +113,10 @@
   gap: 3px;
 }
 
+// Severity segments in the Findings mockup's colours (High tertiary, Medium
+// accent) and info for Low; one accent fill where the split isn't recorded.
 .bar {
+  display: flex;
   height: 6px;
   border-radius: 9999px;
   background: var(--bg-tertiary);
@@ -125,8 +124,26 @@
   span {
     display: block;
     height: 100%;
-    border-radius: 9999px;
     background: var(--color-accent);
+
+    &:first-child {
+      border-radius: 9999px 0 0 9999px;
+    }
+    &:last-child {
+      border-radius: 0 9999px 9999px 0;
+    }
+    &:only-child {
+      border-radius: 9999px;
+    }
+    &.high {
+      background: var(--color-tertiary);
+    }
+    &.medium {
+      background: var(--color-accent);
+    }
+    &.low {
+      background: var(--color-info);
+    }
   }
 }
 
@@ -140,6 +157,23 @@
 
 .medium {
   color: var(--color-accent-text);
+}
+
+// The bars' key, beside each severity count.
+.severity .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--color-info);
+
+  &.high {
+    background: var(--color-tertiary);
+  }
+  &.medium {
+    background: var(--color-accent);
+  }
 }
 
 .proposed-note {

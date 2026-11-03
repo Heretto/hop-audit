@@ -68,17 +68,23 @@ describe('DashboardPage', () => {
   });
 
   it('puts the largest categories on five cards, the rest sharing the last', () => {
-    expect(categoryCards({ C: 2, T: 0, X: 5 }).map((c) => [c.label, c.n])).toEqual([
+    expect(categoryCards({ C: 2, T: 0, X: 5 }).map((c) => [c.label, c.n])).toMatchObject([
       ['Structure and publishing errors', 5],
       ['Contradictions', 2],
     ]);
     const cards = categoryCards({ C: 7, T: 6, L: 4, U: 2, O: 2, X: 1, N: 1 });
-    expect(cards.map((c) => c.n)).toEqual([7, 6, 4, 2, 4]);
-    expect(cards[4]).toEqual({
+    expect(cards.map((c) => c.n)).toMatchObject([7, 6, 4, 2, 4]);
+    expect(cards[4]).toMatchObject({
       code: 'O N X',
       label: 'Outdated content, links and duplicates, structure and publishing errors',
       n: 4,
     });
+    // The shared card adds up its categories' severities too.
+    const split = categoryCards(
+      { C: 7, T: 6, L: 4, U: 2, O: 2, X: 1, N: 1 },
+      { O: { High: 1, Low: 1 }, X: { Low: 1 }, N: { Medium: 1 } },
+    );
+    expect(split[4]).toMatchObject({ n: 4, high: 1, medium: 1, low: 2 });
   });
 
   it('shows integrity counts only once triage is confirmed', () => {
@@ -92,11 +98,30 @@ describe('DashboardPage', () => {
       medium: 15,
       low: 4,
       by_category: { C: 7, T: 6 },
+      severity_by_category: { C: { High: 2, Medium: 5 } },
       top: { code: 'C-02', title: 'German note says the opposite', severity: 'High' },
       resolved: [],
       confirmed: false,
     };
     let { page, el } = render(pending);
+    // The bars are coloured by severity even before triage: no grey.
+    const segments = (i: number) =>
+      [...el.querySelectorAll('.cat')[i].querySelectorAll('.bar span')].map((s) => [
+        s.className,
+        (s as HTMLElement).style.width,
+      ]);
+    expect(page.categoryRows()[0]).toMatchObject({ code: 'C', n: 7, high: 2, medium: 5, low: 0 });
+    expect(segments(0)).toEqual([
+      ['high', `${(100 * 2) / 7}%`],
+      ['medium', `${(100 * 5) / 7}%`],
+    ]);
+    // A category whose split wasn't recorded: one plain fill.
+    expect(segments(1)).toEqual([['', `${(100 * 6) / 7}%`]]);
+    expect([...el.querySelectorAll('.severity .dot')].map((d) => d.className)).toEqual([
+      'dot high',
+      'dot medium',
+      'dot low',
+    ]);
     let kpi = page.kpis().find((k) => k.label === 'Confirmed integrity issues')!;
     expect(kpi.value).toBe('—');
     expect(kpi.delta).toBe('27 candidates to triage');

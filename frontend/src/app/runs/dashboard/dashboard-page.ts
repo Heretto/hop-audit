@@ -38,6 +38,7 @@ import {
   IntegrityMetrics,
   PageRow,
   RunMetrics,
+  Severity,
 } from '../run.model';
 import { RunsService } from '../runs.service';
 import { buildTree, findingsLabel, isFiltering, TreeState } from './tree';
@@ -57,21 +58,44 @@ const CATALOG = Object.keys(CATEGORY_NAMES); // ties keep the catalog's order
 
 /** The dashboard's category cards, largest first. Past five, the smallest
  *  categories share the last card ("Outdated content, structure and …"). */
+/** A category's bar: its firm findings, split by severity where the audit recorded it. */
+export interface CategoryCard {
+  code: string;
+  label: string;
+  n: number;
+  high: number;
+  medium: number;
+  low: number;
+}
+
 export function categoryCards(
   counts: Record<string, number>,
-): { code: string; label: string; n: number }[] {
+  severities: Record<string, Partial<Record<Severity, number>>> = {},
+): CategoryCard[] {
   const rows = Object.entries(counts)
     .filter(([, n]) => n > 0)
-    .map(([code, n]) => ({ code, label: CATEGORY_NAMES[code] ?? code, n }))
+    .map(([code, n]) => ({
+      code,
+      label: CATEGORY_NAMES[code] ?? code,
+      n,
+      high: severities[code]?.High ?? 0,
+      medium: severities[code]?.Medium ?? 0,
+      low: severities[code]?.Low ?? 0,
+    }))
     .sort((a, b) => b.n - a.n || CATALOG.indexOf(a.code) - CATALOG.indexOf(b.code));
   if (rows.length <= CATEGORY_CARDS) return rows;
   const rest = rows.slice(CATEGORY_CARDS - 1);
+  const sum = (key: 'n' | 'high' | 'medium' | 'low') =>
+    rest.reduce((total, r) => total + r[key], 0);
   return [
     ...rows.slice(0, CATEGORY_CARDS - 1),
     {
       code: rest.map((r) => r.code).join(' '),
       label: rest.map((r, i) => (i ? r.label.toLowerCase() : r.label)).join(', '),
-      n: rest.reduce((sum, r) => sum + r.n, 0),
+      n: sum('n'),
+      high: sum('high'),
+      medium: sum('medium'),
+      low: sum('low'),
     },
   ];
 }
@@ -213,7 +237,12 @@ export class DashboardPage implements OnInit {
   readonly integrity = computed(
     () => (this.data()?.run.metrics.integrity ?? null) as IntegrityMetrics | null,
   );
-  readonly categoryRows = computed(() => categoryCards(this.integrity()?.by_category ?? {}));
+  readonly categoryRows = computed(() =>
+    categoryCards(
+      this.integrity()?.by_category ?? {},
+      this.integrity()?.severity_by_category ?? {},
+    ),
+  );
   readonly maxCategory = computed(() => Math.max(1, ...this.categoryRows().map((r) => r.n)));
 
   /** Category cards and severity line: confirmed counts, or the reviewer's proposal before triage. */

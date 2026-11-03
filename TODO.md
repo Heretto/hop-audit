@@ -1,5 +1,11 @@
 # HOP Audit: TODO
 
+## Dashboard: Content integrity bars in severity colours (user: "not grey")
+Before triage the bars were grey (`.proposed`), and confirmed they were one accent fill. Now each category's bar is segments by severity, High (tertiary) · Medium (accent) · Low (info), the Findings mockup's severity colours, with a key dot beside each count in the severity line; proposed or confirmed alike. Audits analyzed before the split was recorded keep one accent fill.
+- [x] Backend: `severity_by_category` in the run's integrity metrics; test
+- [x] Frontend: `CategoryCard` with the split, segmented bar, key dots; spec
+- [x] `./dev.sh check`: all checks passed
+
 ## Findings: the "Use as example" button (user: star too high, padding wrong; match the mockup)
 Cause: two `.example` rules in findings-page.scss. The second, meant for the picked-examples list in the side panel (`display: flex; align-items: baseline`), also hit the button, so its star sat on the text baseline and Material's button layout was overridden.
 - [x] The picked list gets its own class (`.pick`); the button keeps `.example`

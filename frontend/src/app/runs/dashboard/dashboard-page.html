@@ -138,19 +138,39 @@
                   <span>{{ c.label }}</span
                   ><strong>{{ c.n }}</strong>
                 </div>
-                <div class="bar"><span [style.width.%]="(100 * c.n) / maxCategory()"></span></div>
+                <!-- Severity segments: High, Medium, Low; one plain fill on audits analyzed before the split was recorded. -->
+                <div class="bar">
+                  @if (c.high || c.medium || c.low) {
+                    @if (c.high) {
+                      <span class="high" [style.width.%]="(100 * c.high) / maxCategory()"></span>
+                    }
+                    @if (c.medium) {
+                      <span
+                        class="medium"
+                        [style.width.%]="(100 * c.medium) / maxCategory()"
+                      ></span>
+                    }
+                    @if (c.low) {
+                      <span class="low" [style.width.%]="(100 * c.low) / maxCategory()"></span>
+                    }
+                  } @else {
+                    <span [style.width.%]="(100 * c.n) / maxCategory()"></span>
+                  }
+                </div>
               </div>
             }
           </div>
           <div class="severity">
             <span
+              ><i class="dot high"></i
               ><strong class="high">{{ integrity()!.high }}</strong> High</span
             >
             <span
+              ><i class="dot medium"></i
               ><strong class="medium">{{ integrity()!.medium }}</strong> Medium</span
             >
             <span
-              ><strong>{{ integrity()!.low }}</strong> Low</span
+              ><i class="dot low"></i><strong>{{ integrity()!.low }}</strong> Low</span
             >
             @if (integrity()!.top; as top) {
               <span class="sub"

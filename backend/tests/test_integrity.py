@@ -670,5 +670,6 @@ def test_metrics_count_firm_findings_and_name_the_top_one():
     m = integrity.metrics(found, ["O-01"], confirmed=False)
     assert (m["candidates"], m["firm"], m["review"], m["high"], m["medium"]) == (4, 3, 1, 2, 1)
     assert m["by_category"] == {"C": 2, "X": 1} and m["resolved"] == ["O-01"]
+    assert m["severity_by_category"] == {"C": {"High": 1, "Medium": 1}, "X": {"High": 1}}  # firm only
     assert m["top"] == {"code": "C-02", "title": "Title C-02", "severity": "High"}  # firm only, then by code
     assert integrity.metrics([f("C-01", "High", "drop")], [], confirmed=True)["top"] is None
