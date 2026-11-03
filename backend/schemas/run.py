@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
+from catalog import CATEGORY_CODES
 from schemas.site import SITE_ANALYSES, SiteSummary
 
 
@@ -30,6 +31,18 @@ class RunIn(BaseModel):
     recheck_external: bool = False
     force_reevaluate: bool = False  # readability and SEO for unchanged pages too
     focus: str = Field("", max_length=5000)
+    integrity_categories: list[str] | None = None  # this run's content-integrity checks; None = the site's
+
+    @model_validator(mode="after")
+    def _categories(self):
+        if self.integrity_categories is None:
+            return self
+        if unknown := set(self.integrity_categories) - set(CATEGORY_CODES):
+            raise ValueError(f"unknown categories: {', '.join(sorted(unknown))}")
+        if "content_integrity" in self.analyses and not self.integrity_categories:
+            raise ValueError("content integrity needs at least one category")
+        self.integrity_categories = [c for c in CATEGORY_CODES if c in self.integrity_categories]
+        return self
 
 
 class AnalyzeIn(BaseModel):
@@ -90,6 +103,7 @@ class RunDetail(RunListItem):
     recheck_external: bool
     force_reevaluate: bool
     focus: str
+    integrity_categories: list[str] | None = None  # None: the site's
     tokens: dict[str, int]
     agent_stats: dict[str, dict]  # agent id -> name, model, provider, tokens, findings, errors, retries, status
     error: str | None

@@ -80,3 +80,18 @@
 .big {
   height: 44px;
 }
+
+.categories-head {
+  margin-top: 8px;
+}
+
+.code {
+  display: inline-block;
+  width: 28px;
+  color: var(--text-tertiary);
+}
+
+.error-text {
+  color: var(--color-error-text);
+  font-size: 0.8125rem;
+}

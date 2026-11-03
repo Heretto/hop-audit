@@ -118,6 +118,7 @@ async def start_run(site_id: UUID, body: RunIn, ctx: CurrentUserContext = Ctx, d
         recheck_external=body.recheck_external,
         force_reevaluate=body.force_reevaluate,
         focus=body.focus.strip(),
+        integrity_categories=body.integrity_categories,
         stages=runner.initial_stages(body.analyses),
     )
     db.add(run)

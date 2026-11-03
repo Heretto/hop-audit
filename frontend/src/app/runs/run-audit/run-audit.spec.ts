@@ -3,15 +3,17 @@ import { provideRouter, Router } from '@angular/router';
 import { HopAgentService } from '@heretto/hop-ui';
 import { of, throwError } from 'rxjs';
 import { SitesService } from '../../sites/sites.service';
+import { Site } from '../../sites/site.model';
 import { sampleSite } from '../../sites/testing';
 import { RunsService } from '../runs.service';
 import { samplePreview, sampleRun } from '../testing';
 import { listedPages, RunAudit } from './run-audit';
 
 describe('RunAudit', () => {
-  function render(preview = samplePreview()) {
+  function render(preview = samplePreview(), siteChanges: Partial<Site> = {}) {
     const site = {
       ...sampleSite({
+        ...siteChanges,
         agent_assignments: {
           readability: 'a1',
           seo: 'a2',
@@ -127,8 +129,56 @@ describe('RunAudit', () => {
       recheck_external: false,
       force_reevaluate: true,
       focus: 'renamed workspaces',
+      integrity_categories: ['C', 'U', 'T'],
     });
     expect(navigate).toHaveBeenCalledWith(['/audits', 'new-run']);
+  });
+
+  it('offers every analysis, ticking the ones the site usually runs', () => {
+    const { page, el } = render(samplePreview(), { analyses: ['readability', 'links'] });
+    expect(page.analysisOptions.length).toBe(5);
+    expect([...page.analyses()]).toEqual(['readability', 'links']);
+    expect(el.textContent).toMatch(
+      /SEO and metadata\s*· no agent assigned\s*· not in this site's usual checks/,
+    );
+    page.toggle(page.analyses, 'seo');
+    expect(page.canStart()).toBe(true);
+  });
+
+  it("chooses this run's content-integrity checks, starting from the site's", () => {
+    const { page, runs, el, fixture } = render();
+    expect([...page.categories()]).toEqual(['C', 'U', 'T']);
+    expect(el.textContent).toContain('3 of 10 categories');
+    expect(el.textContent).toContain('Content integrity checks');
+
+    page.allCategories(false);
+    fixture.detectChanges();
+    expect(page.canStart()).toBe(false);
+    expect(el.textContent).toContain('Choose at least one check for content integrity.');
+
+    page.toggle(page.categories, 'X');
+    page.toggle(page.categories, 'C');
+    page.start();
+    expect(runs.start).toHaveBeenCalledWith(
+      's1',
+      expect.objectContaining({ integrity_categories: ['C', 'X'] }), // catalog order
+    );
+
+    page.allCategories(true);
+    fixture.detectChanges();
+    expect(el.textContent).toContain('all 10 categories');
+  });
+
+  it('sends no categories when content integrity is off', () => {
+    const { page, runs } = render();
+    page.allCategories(false);
+    page.toggle(page.analyses, 'content_integrity');
+    expect(page.canStart()).toBe(true);
+    page.start();
+    expect(runs.start).toHaveBeenCalledWith(
+      's1',
+      expect.not.objectContaining({ integrity_categories: expect.anything() }),
+    );
   });
 
   it('shows why a run could not start', () => {

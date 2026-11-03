@@ -99,7 +99,10 @@ Read those instead of inferring from this project's code. Do not copy them here.
   `gemini-embedding-001` directly with the org's API key; hop-core has no
   embeddings) or keywords; `Site.claim_matching` is auto | keywords | a
   credential id, and keywords is also the fallback when embedding fails.
-  Unchanged articles, pairs and groups are reused unless forced. Duplicate
+  A run may choose its own categories (`AuditRun.integrity_categories`; null
+  means the site's). Unchanged articles, pairs and groups are reused unless
+  forced, and only when their stored `categories` cover this run's (answers
+  stored without them count as asked for the site's categories). Duplicate
   titles, links into another language's help center, broken links and
   missing translations are found in code. Quotes must be on their page or
   the finding goes to review. Codes are stable per site: a candidate

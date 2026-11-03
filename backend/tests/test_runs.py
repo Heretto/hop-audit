@@ -207,6 +207,13 @@ def started(monkeypatch):
     return ids
 
 
+def test_start_run_with_chosen_integrity_categories(client, user, started):
+    site = make_site(client, user)
+    body = {"analyses": ["content_integrity"], "integrity_categories": ["X", "C"]}
+    run = client.post(f"/api/v1/sites/{site['id']}/runs", json=body, headers=user["headers"]).json()
+    assert run["integrity_categories"] == ["C", "X"]  # catalog order
+
+
 def test_start_run_creates_queued_run(client, user, started):
     site = make_site(client, user)
     body = {
@@ -223,6 +230,12 @@ def test_start_run_creates_queued_run(client, user, started):
     assert [s["key"] for s in run["stages"]] == ["discover", "crawl", "links"]
     assert len(run["help_center_ids"]) == 2  # all help centers by default
     assert started == [uuid.UUID(run["id"])]
+    assert run["integrity_categories"] is None  # the site's
+
+    body = {"analyses": ["links"], "integrity_categories": []}  # no integrity: no categories needed
+    assert client.post(
+        f"/api/v1/sites/{make_site(client, user)['id']}/runs", json=body, headers=user["headers"]
+    ).is_success
 
     again = client.post(f"/api/v1/sites/{site['id']}/runs", json=body, headers=user["headers"])
     assert again.status_code == 409 and "#1" in again.text
@@ -235,6 +248,8 @@ def test_start_run_creates_queued_run(client, user, started):
         ({"scope": {"mode": "pages", "pages": [" "]}}, "at least one page"),
         ({"analyses": ["spelling"]}, "analyses"),
         ({"help_center_ids": [str(uuid.uuid4())]}, "Unknown help center"),
+        ({"integrity_categories": ["C", "ZZ"]}, "unknown categories: ZZ"),
+        ({"analyses": ["content_integrity"], "integrity_categories": []}, "at least one category"),
     ],
 )
 def test_start_run_validation(client, user, started, body, message):

@@ -632,3 +632,29 @@ async def test_no_claims_before_integrity_runs(client, user, db, mock):
     run = await run_integrity(db, site, user, analyses=["links"])
     v = client.get(f"/api/v1/runs/{run.id}/claims", headers=user["headers"]).json()
     assert v["method"] is None and v["claims"] == [] and v["groups"] == []
+
+
+async def test_a_run_checks_only_its_chosen_categories(client, user, db, mock, model):
+    serve_site(mock)
+    site, _ = integrity_site(client, user)  # the site has every category
+    run = await run_integrity(db, site, user, integrity_categories=["C"])
+    assert {f.category for f in findings(db, run).values()} == {"C"}
+    assert model.count("pair") == 0  # no T: no translation pass
+    asked = next(c for c in model.calls if model.kind(c) == "article")
+    assert "Log these categories only: C " in asked and "X " not in asked.split("Log these categories only:")[1]
+
+    # Answers asked for C alone don't cover every category: all are asked again.
+    mock.routes.clear()
+    serve_site(mock)
+    calls = len(model.calls)
+    second = await run_integrity(db, site, user, number=2)
+    assert "0 unchanged kept" in stage(second)["detail"] and model.count("pair") == 2
+    assert "Internal note published" in by_title(findings(db, second))
+
+    # Answers asked for every category cover C.
+    mock.routes.clear()
+    serve_site(mock)
+    calls = len(model.calls)
+    third = await run_integrity(db, site, user, number=3, integrity_categories=["C"])
+    assert len(model.calls) == calls and "7 unchanged kept" in stage(third)["detail"]
+    assert {f.category for f in findings(db, third).values()} == {"C"}

@@ -107,6 +107,8 @@ export interface RunInput {
   recheck_external: boolean;
   force_reevaluate: boolean;
   focus: string;
+  /** Content-integrity categories for this run; omitted when it doesn't run. */
+  integrity_categories?: string[];
 }
 
 export interface LogEntry {

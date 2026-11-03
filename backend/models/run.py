@@ -35,6 +35,8 @@ class AuditRun(Base):
     force_reevaluate = Column(Boolean, nullable=False, default=False, server_default="0")
     recheck_external = Column(Boolean, nullable=False, default=False)
     focus = Column(Text, nullable=False, default="")
+    # Content-integrity categories chosen for this run; None means the site's.
+    integrity_categories = Column(JSON, nullable=True)
     stages = Column(JSON, nullable=False, default=list)
     tokens = Column(JSON, nullable=False, default=dict)
     page_count = Column(Integer, nullable=False, default=0)
@@ -219,3 +221,4 @@ class ClaimGroupReview(Base):
     key = Column(String(64), nullable=False, index=True)
     run_number = Column(Integer, nullable=False)
     issues = Column(JSON, nullable=False, default=list)  # raw, claims referenced as S1, S2…
+    categories = Column(JSON, nullable=True)  # asked for; None before categories were recorded

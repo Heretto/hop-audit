@@ -269,6 +269,16 @@ re-read this file before starting the next.
       linked from the dashboard and the findings page
 - [x] Tests (backend + frontend); checks green; commit
 
+## Optional checks per run
+
+- [x] Run audit offers all five analyses; the site's are ticked to start
+- [x] Content-integrity categories chosen per run (`AuditRun.integrity_categories`,
+      migration 0011; null = the site's), at least one when integrity runs
+- [x] Reuse respects categories: earlier answers are kept only when they
+      were asked for every category this run checks (`categories` stored on
+      `Page.integrity`, `Page.integrity_pair`, `ClaimGroupReview`)
+- [x] Tests; checks green; commit
+
 ## Later milestones (from the handoff)
 
 - [ ] 7 Full findings report + exports

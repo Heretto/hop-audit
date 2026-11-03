@@ -109,10 +109,13 @@
         <mat-card class="section">
           <div class="card-title">
             <h2>Analyses</h2>
-            <span class="sub">Each analysis is run by the agent assigned in site settings.</span>
+            <span class="sub"
+              >Choose the checks for this run; the site's usual ones are ticked. Each analysis is
+              run by the agent assigned in site settings.</span
+            >
           </div>
           <div class="grid-2">
-            @for (a of siteAnalyses(); track a.key) {
+            @for (a of analysisOptions; track a.key) {
               <mat-checkbox
                 [class.wide]="a.key === 'content_integrity'"
                 [checked]="analyses().has(a.key)"
@@ -121,13 +124,11 @@
                 {{ a.label }}
                 <span class="sub">
                   · {{ agentName(a.key) }}
-                  @if (a.key === 'content_integrity') {
-                    ·
-                    {{
-                      site()!.integrity_categories.length === categoryCount
-                        ? 'all ' + categoryCount + ' categories'
-                        : site()!.integrity_categories.length + ' categories'
-                    }}
+                  @if (a.key === 'content_integrity' && analyses().has(a.key)) {
+                    · {{ categoryText() }}
+                  }
+                  @if (!onSite(a.key)) {
+                    · not in this site's usual checks
                   }
                 </span>
               </mat-checkbox>
@@ -158,6 +159,26 @@
                     }
                   </span>
                 </mat-checkbox>
+              }
+              <div class="row between categories-head">
+                <span class="label">Content integrity checks</span>
+                <span>
+                  <button mat-button type="button" (click)="allCategories(true)">All</button>
+                  <button mat-button type="button" (click)="allCategories(false)">None</button>
+                </span>
+              </div>
+              <div class="grid-2">
+                @for (c of categoryOptions; track c.code) {
+                  <mat-checkbox
+                    [checked]="categories().has(c.code)"
+                    (change)="toggle(categories, c.code)"
+                    ><span class="mono code">{{ c.code }}</span
+                    >{{ c.label }}</mat-checkbox
+                  >
+                }
+              </div>
+              @if (!categories().size) {
+                <span class="error-text">Choose at least one check for content integrity.</span>
               }
               <span class="sub">
                 Candidates land in Findings for triage; nothing is counted or built until you

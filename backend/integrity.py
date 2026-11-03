@@ -521,7 +521,15 @@ async def run_review(db: Session, run: AuditRun, rec, checkpoint, record_stats, 
         rec.log(key, "warn", f"No content-integrity review: {exc}.")
         return
 
-    enabled = set(site.integrity_categories or CATEGORY_CODES)
+    site_categories = set(site.integrity_categories or CATEGORY_CODES)
+    enabled = site_categories if run.integrity_categories is None else set(run.integrity_categories)
+    categories = sorted(enabled)
+
+    def covers(asked: list[str] | None, needed: set[str] = enabled) -> bool:
+        """Was an earlier answer asked for every category this run needs? Answers
+        stored before categories were recorded were asked for the site's."""
+        return needed <= (site_categories if asked is None else set(asked))
+
     focus = dict(site_focus=site.focus or "", run_focus=run.focus or "")
     names = ", ".join(r.name for r in roots)
     pairs = [
@@ -548,7 +556,7 @@ async def run_review(db: Session, run: AuditRun, rec, checkpoint, record_stats, 
 
     async def one_article(page: Page) -> None:
         prev = unchanged.get(page.id)
-        if prev is not None and prev.integrity is not None:
+        if prev is not None and prev.integrity is not None and covers(prev.integrity.get("categories")):
             page.integrity = prev.integrity
             kept["articles"] += 1
         else:
@@ -559,7 +567,8 @@ async def run_review(db: Session, run: AuditRun, rec, checkpoint, record_stats, 
                 progress()
                 return
             reviewer.tally.failing = 0
-            page.integrity = {"issues": _dicts(raw.get("issues")), "claims": _claims(raw.get("claims"), page)}
+            page.integrity = {"issues": _dicts(raw.get("issues")), "claims": _claims(raw.get("claims"), page),
+                              "categories": categories}  # fmt: skip
         progress()
 
     await reviewer.each(articles, one_article)
@@ -573,7 +582,12 @@ async def run_review(db: Session, run: AuditRun, rec, checkpoint, record_stats, 
         orig, trans, original, other = pair
         prev = unchanged.get(trans.id)
         saved = prev.integrity_pair if prev is not None else None
-        if saved and saved.get("original_url") == orig.url and saved.get("original_checksum") == orig.content_hash:
+        if (
+            saved
+            and saved.get("original_url") == orig.url
+            and saved.get("original_checksum") == orig.content_hash
+            and covers(saved.get("categories"))
+        ):
             trans.integrity_pair = saved
             kept["pairs"] += 1
         else:
@@ -585,7 +599,7 @@ async def run_review(db: Session, run: AuditRun, rec, checkpoint, record_stats, 
                 return
             reviewer.tally.failing = 0
             trans.integrity_pair = {"original_url": orig.url, "original_checksum": orig.content_hash,
-                                    "issues": _dicts(raw)}  # fmt: skip
+                                    "issues": _dicts(raw), "categories": categories}  # fmt: skip
         progress()
 
     await reviewer.each(pairs, one_pair)
@@ -630,7 +644,7 @@ async def run_review(db: Session, run: AuditRun, rec, checkpoint, record_stats, 
         group = claim_groups.trim(matched[index])
         group_key = claim_groups.group_key(group)
         refs = {f"S{i}": c for i, c in enumerate(group, 1)}
-        if group_key in previous:
+        if group_key in previous and covers(previous[group_key].categories, set(allowed)):
             issues = previous[group_key].issues
             kept["groups"] += 1
             status[index] = "kept"
@@ -644,7 +658,8 @@ async def run_review(db: Session, run: AuditRun, rec, checkpoint, record_stats, 
                 return
             reviewer.tally.failing = 0
             issues = _dicts(raw)
-            db.add(ClaimGroupReview(site_id=site.id, key=group_key, run_number=run.number, issues=issues))
+            db.add(ClaimGroupReview(site_id=site.id, key=group_key, run_number=run.number, issues=issues,
+                                    categories=allowed))  # fmt: skip
         found, bad = verify_group(issues, refs, enabled)
         verdicts[index] = len(found)
         candidates.extend(found)

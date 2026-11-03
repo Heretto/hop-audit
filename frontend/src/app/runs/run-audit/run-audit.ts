@@ -88,18 +88,24 @@ export class RunAudit implements OnInit {
   readonly pagesText = signal('');
   readonly analyses = signal<Set<AnalysisKey>>(new Set());
   readonly helpCenters = signal<Set<string>>(new Set());
+  /** Content-integrity checks for this run, by category code. */
+  readonly categories = signal<Set<string>>(new Set());
   reuse = true;
   recheckExternal = false;
   forceReevaluate = false;
   focus = '';
 
   readonly languageName = languageName;
-  readonly categoryCount = CATEGORIES.length;
+  readonly categoryOptions = CATEGORIES;
+  /** Every analysis can be chosen per run; the site's are ticked to start with. */
+  readonly analysisOptions = ANALYSES;
 
-  /** The site's analyses, in the settings screen's order. */
-  readonly siteAnalyses = computed(() =>
-    ANALYSES.filter((a) => this.site()?.analyses.includes(a.key)),
-  );
+  readonly categoryText = computed(() => {
+    const n = this.categories().size;
+    return n === CATEGORIES.length
+      ? `all ${n} categories`
+      : `${n} of ${CATEGORIES.length} categories`;
+  });
 
   readonly pageCount = computed(() => {
     const p = this.preview();
@@ -154,7 +160,8 @@ export class RunAudit implements OnInit {
       !this.starting() &&
       this.analyses().size > 0 &&
       this.pageCount() > 0 &&
-      (!this.analyses().has('content_integrity') || this.helpCenters().size > 0),
+      (!this.analyses().has('content_integrity') ||
+        (this.helpCenters().size > 0 && this.categories().size > 0)),
   );
 
   readonly primary = computed(() => this.preview()?.help_centers.find((h) => h.is_primary));
@@ -172,6 +179,10 @@ export class RunAudit implements OnInit {
         this.analyses.set(
           new Set(site.analyses.filter((a): a is AnalysisKey => ANALYSIS_KEYS.includes(a))),
         );
+        const chosen = site.integrity_categories.length
+          ? site.integrity_categories
+          : CATEGORIES.map((c) => c.code);
+        this.categories.set(new Set(chosen));
         this.helpCenters.set(
           new Set(preview.help_centers.filter((h) => !h.blocked).map((h) => h.id)),
         );
@@ -179,6 +190,15 @@ export class RunAudit implements OnInit {
       },
       error: (e) => this.errors.set(apiErrors(e)),
     });
+  }
+
+  /** Whether the site runs this analysis by default. */
+  onSite(analysis: AnalysisKey): boolean {
+    return !!this.site()?.analyses.includes(analysis);
+  }
+
+  allCategories(on: boolean): void {
+    this.categories.set(new Set(on ? CATEGORIES.map((c) => c.code) : []));
   }
 
   agentName(analysis: AnalysisKey): string {
@@ -211,6 +231,13 @@ export class RunAudit implements OnInit {
         recheck_external: this.recheckExternal,
         force_reevaluate: this.forceReevaluate,
         focus: this.focus.trim(),
+        ...(this.analyses().has('content_integrity')
+          ? {
+              integrity_categories: CATEGORIES.map((c) => c.code).filter((c) =>
+                this.categories().has(c),
+              ),
+            }
+          : {}),
       })
       .subscribe({
         next: (run) => this.router.navigate(['/audits', run.id]),
