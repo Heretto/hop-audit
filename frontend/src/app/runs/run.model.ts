@@ -68,6 +68,8 @@ export interface IntegrityMetrics {
   medium: number;
   low: number;
   by_category: Record<string, number>;
+  /** The most severe firm finding; absent on audits analyzed before it was recorded. */
+  top?: { code: string; title: string; severity: string } | null;
   resolved: string[];
   confirmed: boolean;
 }

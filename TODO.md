@@ -279,6 +279,15 @@ re-read this file before starting the next.
       `Page.integrity`, `Page.integrity_pair`, `ClaimGroupReview`)
 - [x] Tests; checks green; commit
 
+## Dashboard: content-integrity summary cards
+
+- [x] Five category cards (largest first, the rest sharing the last) with
+      accent bars, and the severity line with the top finding, per
+      `_reference/Audit dashboard-html/Dashboard.dc.html`
+- [x] Shown before triage as the reviewer's proposal (muted, labelled);
+      the KPI stays "—" until triage is confirmed
+- [x] `metrics.top`; tests; checks green; commit
+
 ## Later milestones (from the handoff)
 
 - [ ] 7 Full findings report + exports

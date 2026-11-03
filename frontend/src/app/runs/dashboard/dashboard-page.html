@@ -124,10 +124,16 @@
             >
           </div>
         </div>
-        @if (integrity()!.confirmed) {
-          <div class="cats">
+        @if (showCards()) {
+          @if (!integrity()!.confirmed) {
+            <span class="proposed-note"
+              ><mat-icon>pending</mat-icon>Proposed by the reviewer, before triage. These aren't
+              counted anywhere until you confirm the triage.</span
+            >
+          }
+          <div class="cats" [class.proposed]="!integrity()!.confirmed">
             @for (c of categoryRows(); track c.code) {
-              <div>
+              <div class="cat">
                 <div class="row between">
                   <span>{{ c.label }}</span
                   ><strong>{{ c.n }}</strong>
@@ -136,16 +142,23 @@
               </div>
             }
           </div>
-          <div class="row">
+          <div class="severity">
             <span
               ><strong class="high">{{ integrity()!.high }}</strong> High</span
             >
             <span
-              ><strong>{{ integrity()!.medium }}</strong> Medium</span
+              ><strong class="medium">{{ integrity()!.medium }}</strong> Medium</span
             >
             <span
               ><strong>{{ integrity()!.low }}</strong> Low</span
             >
+            @if (integrity()!.top; as top) {
+              <span class="sub"
+                >· Top finding:
+                <a [routerLink]="['/audits', d.run.id, 'findings']">{{ top.code }}</a
+                >, {{ top.title }} ({{ top.severity }})</span
+              >
+            }
             @if (integrity()!.resolved.length) {
               <span class="sub"
                 >· {{ integrity()!.resolved.length }} resolved since the previous audit</span

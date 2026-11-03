@@ -6,7 +6,7 @@ import { SitesService } from '../../sites/sites.service';
 import { sampleSite } from '../../sites/testing';
 import { RunsService } from '../runs.service';
 import { sampleDashboard, samplePage, sampleRun } from '../testing';
-import { DashboardPage } from './dashboard-page';
+import { DashboardPage, categoryCards } from './dashboard-page';
 
 describe('DashboardPage', () => {
   function render(dashboard = sampleDashboard()) {
@@ -67,6 +67,20 @@ describe('DashboardPage', () => {
     expect(el.textContent).toContain('compared with #14');
   });
 
+  it('puts the largest categories on five cards, the rest sharing the last', () => {
+    expect(categoryCards({ C: 2, T: 0, X: 5 }).map((c) => [c.label, c.n])).toEqual([
+      ['Structure and publishing errors', 5],
+      ['Contradictions', 2],
+    ]);
+    const cards = categoryCards({ C: 7, T: 6, L: 4, U: 2, O: 2, X: 1, N: 1 });
+    expect(cards.map((c) => c.n)).toEqual([7, 6, 4, 2, 4]);
+    expect(cards[4]).toEqual({
+      code: 'O N X',
+      label: 'Outdated content, links and duplicates, structure and publishing errors',
+      n: 4,
+    });
+  });
+
   it('shows integrity counts only once triage is confirmed', () => {
     const pending = sampleDashboard();
     pending.run.metrics.integrity = {
@@ -78,6 +92,7 @@ describe('DashboardPage', () => {
       medium: 15,
       low: 4,
       by_category: { C: 7, T: 6 },
+      top: { code: 'C-02', title: 'German note says the opposite', severity: 'High' },
       resolved: [],
       confirmed: false,
     };
@@ -86,6 +101,11 @@ describe('DashboardPage', () => {
     expect(kpi.value).toBe('—');
     expect(kpi.delta).toBe('27 candidates to triage');
     expect(el.textContent).toContain('nothing counts until you confirm the triage');
+    // The cards show the reviewer's proposal, marked as such.
+    expect(el.textContent).toContain('Proposed by the reviewer, before triage.');
+    expect(el.querySelector('.cats.proposed')).not.toBeNull();
+    expect(el.textContent).toMatch(/Contradictions\s*7/);
+    expect(el.textContent).toContain('Top finding: C-02, German note says the opposite (High)');
 
     TestBed.resetTestingModule();
     const confirmed = sampleDashboard();
@@ -107,6 +127,8 @@ describe('DashboardPage', () => {
       'Translation defects',
     ]);
     expect(el.textContent).toContain('21 confirmed, 3 for review, 3 dropped');
+    expect(el.textContent).not.toContain('Proposed by the reviewer');
+    expect(el.querySelector('.cats:not(.proposed)')).not.toBeNull();
     expect(el.textContent).toContain('1 resolved since the previous audit');
   });
 

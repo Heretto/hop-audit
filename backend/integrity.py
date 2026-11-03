@@ -475,9 +475,17 @@ def metrics(findings: list[IntegrityFinding], resolved: list[str], confirmed: bo
         "medium": severity["Medium"],
         "low": severity["Low"],
         "by_category": dict(Counter(f.category for f in firm)),
+        "top": _top(firm),
         "resolved": resolved,
         "confirmed": confirmed,
     }
+
+
+def _top(firm: list[IntegrityFinding]) -> dict | None:
+    """The finding to name first on the dashboard: the most severe firm one, lowest code."""
+    order = {"High": 0, "Medium": 1, "Low": 2}
+    best = min(firm, key=lambda f: (order.get(f.severity, 3), f.code), default=None)
+    return {"code": best.code, "title": best.title, "severity": best.severity} if best else None
 
 
 def refresh_metrics(db: Session, run: AuditRun) -> None:

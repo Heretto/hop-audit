@@ -52,6 +52,30 @@ interface Kpi {
   link?: boolean; // opens Findings and triage
 }
 
+export const CATEGORY_CARDS = 5;
+const CATALOG = Object.keys(CATEGORY_NAMES); // ties keep the catalog's order
+
+/** The dashboard's category cards, largest first. Past five, the smallest
+ *  categories share the last card ("Outdated content, structure and …"). */
+export function categoryCards(
+  counts: Record<string, number>,
+): { code: string; label: string; n: number }[] {
+  const rows = Object.entries(counts)
+    .filter(([, n]) => n > 0)
+    .map(([code, n]) => ({ code, label: CATEGORY_NAMES[code] ?? code, n }))
+    .sort((a, b) => b.n - a.n || CATALOG.indexOf(a.code) - CATALOG.indexOf(b.code));
+  if (rows.length <= CATEGORY_CARDS) return rows;
+  const rest = rows.slice(CATEGORY_CARDS - 1);
+  return [
+    ...rows.slice(0, CATEGORY_CARDS - 1),
+    {
+      code: rest.map((r) => r.code).join(' '),
+      label: rest.map((r, i) => (i ? r.label.toLowerCase() : r.label)).join(', '),
+      n: rest.reduce((sum, r) => sum + r.n, 0),
+    },
+  ];
+}
+
 @Component({
   selector: 'app-dashboard-page',
   imports: [
@@ -189,16 +213,11 @@ export class DashboardPage implements OnInit {
   readonly integrity = computed(
     () => (this.data()?.run.metrics.integrity ?? null) as IntegrityMetrics | null,
   );
-  readonly categoryRows = computed(() => {
-    const counts = this.integrity()?.by_category ?? {};
-    const rows = Object.entries(counts).map(([code, n]) => ({
-      code,
-      label: CATEGORY_NAMES[code] ?? code,
-      n,
-    }));
-    return rows.sort((a, b) => b.n - a.n);
-  });
+  readonly categoryRows = computed(() => categoryCards(this.integrity()?.by_category ?? {}));
   readonly maxCategory = computed(() => Math.max(1, ...this.categoryRows().map((r) => r.n)));
+
+  /** Category cards and severity line: confirmed counts, or the reviewer's proposal before triage. */
+  readonly showCards = computed(() => (this.integrity()?.firm ?? 0) > 0);
 
   private integrityKpi(): Kpi & { link?: boolean } {
     const i = this.integrity();

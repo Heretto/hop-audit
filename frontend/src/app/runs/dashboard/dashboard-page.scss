@@ -98,20 +98,61 @@
 
 .integrity .cats {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px 24px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  font-size: 0.8125rem;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+
+  &.proposed .bar span {
+    background: var(--border-strong);
+  }
+}
+
+.cat {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
 .bar {
   height: 6px;
-  border-radius: 3px;
+  border-radius: 9999px;
   background: var(--bg-tertiary);
 
   span {
     display: block;
     height: 100%;
-    border-radius: 3px;
-    background: var(--color-primary);
+    border-radius: 9999px;
+    background: var(--color-accent);
+  }
+}
+
+.severity {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.medium {
+  color: var(--color-accent-text);
+}
+
+.proposed-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--text-tertiary);
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
   }
 }
 

@@ -658,3 +658,15 @@ async def test_a_run_checks_only_its_chosen_categories(client, user, db, mock, m
     third = await run_integrity(db, site, user, number=3, integrity_categories=["C"])
     assert len(model.calls) == calls and "7 unchanged kept" in stage(third)["detail"]
     assert {f.category for f in findings(db, third).values()} == {"C"}
+
+
+def test_metrics_count_firm_findings_and_name_the_top_one():
+    def f(code, severity, tier="firm", category="C"):
+        return SimpleNamespace(code=code, severity=severity, tier=tier, category=category, title=f"Title {code}")
+
+    found = [f("C-03", "Medium"), f("X-01", "High", category="X"), f("C-02", "High"), f("C-01", "High", "review")]
+    m = integrity.metrics(found, ["O-01"], confirmed=False)
+    assert (m["candidates"], m["firm"], m["review"], m["high"], m["medium"]) == (4, 3, 1, 2, 1)
+    assert m["by_category"] == {"C": 2, "X": 1} and m["resolved"] == ["O-01"]
+    assert m["top"] == {"code": "C-02", "title": "Title C-02", "severity": "High"}  # firm only, then by code
+    assert integrity.metrics([f("C-01", "High", "drop")], [], confirmed=True)["top"] is None
