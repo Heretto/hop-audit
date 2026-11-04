@@ -34,6 +34,7 @@
             <span class="sub">What to analyze this time.</span>
           </div>
           <mat-button-toggle-group
+            class="scope-mode"
             [value]="mode()"
             (change)="mode.set($event.value)"
             aria-label="Scope"

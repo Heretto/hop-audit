@@ -78,6 +78,7 @@ describe('RunAudit', () => {
     expect(page.reuse).toBe(true);
     expect(page.agentCount()).toBe(3);
     expect(el.textContent).toContain('Run audit: Heretto Help Center');
+    expect(el.querySelector('mat-button-toggle-group.scope-mode')).not.toBeNull();
     expect(el.textContent).toMatch(/Readability\s*· Readability Reviewer/);
     expect(el.textContent).toMatch(/Links\s*· checked by HOP Audit/);
     expect(el.textContent).toContain('blocked: help.x.com refused (HTTP 403)');

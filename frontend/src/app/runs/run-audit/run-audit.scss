@@ -95,3 +95,9 @@
   color: var(--color-error-text);
   font-size: 0.8125rem;
 }
+
+// Only as wide as its options; the card's column would otherwise stretch it.
+.scope-mode {
+  align-self: flex-start;
+  max-width: 100%;
+}
