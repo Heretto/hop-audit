@@ -6,6 +6,8 @@ import {
   ClaimsView,
   Comparison,
   Dashboard,
+  DeliverablesChange,
+  DeliverablesView,
   Finding,
   IntegrityRow,
   IntegrityView,
@@ -17,6 +19,7 @@ import {
   RunDetail,
   RunInput,
   RunListItem,
+  SheetKind,
   Tier,
 } from './run.model';
 
@@ -115,6 +118,39 @@ export class RunsService {
   /** report.pdf, report.docx or audit.json. */
   reportFile(runId: string, file: 'report.pdf' | 'report.docx' | 'audit.json'): Observable<Blob> {
     return this.http.get(`${this.api}/runs/${runId}/${file}`, { responseType: 'blob' });
+  }
+
+  deliverables(runId: string): Observable<DeliverablesView> {
+    return this.http.get<DeliverablesView>(`${this.api}/runs/${runId}/deliverables`);
+  }
+
+  /** Ask the Collateral Writer for fresh copy (replaces edits). */
+  buildDeliverables(runId: string): Observable<DeliverablesView> {
+    return this.http.post<DeliverablesView>(`${this.api}/runs/${runId}/deliverables/build`, {});
+  }
+
+  updateDeliverables(runId: string, change: DeliverablesChange): Observable<DeliverablesView> {
+    return this.http.patch<DeliverablesView>(`${this.api}/runs/${runId}/deliverables`, change);
+  }
+
+  setLogo(runId: string, dataUri: string | null): Observable<DeliverablesView> {
+    const path = `${this.api}/runs/${runId}/deliverables/logo`;
+    return dataUri === null
+      ? this.http.delete<DeliverablesView>(path)
+      : this.http.put<DeliverablesView>(path, { data_uri: dataUri });
+  }
+
+  /** A one-sheet as one Letter-sized HTML page. */
+  sheetHtml(runId: string, kind: SheetKind): Observable<string> {
+    return this.http.get(`${this.api}/runs/${runId}/deliverables/${kind}.html`, {
+      responseType: 'text',
+    });
+  }
+
+  sheetPdf(runId: string, kind: SheetKind): Observable<Blob> {
+    return this.http.get(`${this.api}/runs/${runId}/deliverables/${kind}.pdf`, {
+      responseType: 'blob',
+    });
   }
 
   compare(a: string, b: string): Observable<Comparison> {

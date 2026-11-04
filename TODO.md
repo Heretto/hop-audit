@@ -345,33 +345,33 @@ re-read this file before starting the next.
 
 ## Milestone 8: deliverables (`Deliverables-html`, `Lead one-sheet`, `Executive brief`)
 
-- [ ] `Deliverable` model (run, kind lead | exec, copy JSON, built_at,
+- [x] `Deliverable` model (run, kind lead | exec, copy JSON, built_at,
       counts at build) + `Site.prospect_logo` (data URI, PNG/JPEG/SVG,
       ≤ 512 KB) + marketing sign-off flag; migration
-- [ ] Collateral Writer request: headlines, subhead, exec lead sentence,
+- [x] Collateral Writer request: headlines, subhead, exec lead sentence,
       three why-it-matters lines (imperative + finding codes), three impact
       cards; counts, categories, severity, mix, examples (the triage's
       picks), review sentence, eyebrow and footnote computed in code so
       they always match the triage
-- [ ] The skill's two Jinja templates ported; `GET .../deliverables/{kind}.html`
+- [x] The skill's two Jinja templates ported; `GET .../deliverables/{kind}.html`
       and `.pdf` (PDF fails on overflow, 409 with the excess)
-- [ ] `GET /runs/{id}/deliverables` (steps, cards, copy, prospect,
+- [x] `GET /runs/{id}/deliverables` (steps, cards, copy, prospect,
       checklist), `POST .../build`, `PATCH` copy, prospect and sign-off,
       logo upload / removal; prospect-review sites only, confirmed triage only
-- [ ] Internal summary note (`internal-summary.md`) built in code; Copy note
-- [ ] Deliverables page `/audits/:runId/deliverables`: steps, four cards
+- [x] Internal summary note (`internal-summary.md`) built in code; Copy note
+- [x] Deliverables page `/audits/:runId/deliverables`: steps, four cards
       with live thumbnails, copy and business case with budgets, prepared
       for and sender, before-sending checklist (placeholders, quotes to
       spot-check, marketing sign-off, overflow measured in the preview,
       counts match)
-- [ ] Preview page `/audits/:runId/deliverables/:kind`: the Letter page,
+- [x] Preview page `/audits/:runId/deliverables/:kind`: the Letter page,
       its measured height, PDF
-- [ ] Findings header: "Confirm triage and build deliverables" on prospect
+- [x] Findings header: "Confirm triage and build deliverables" on prospect
       sites
-- [ ] Tests; checks green; commit
+- [x] Tests; checks green; commit
 
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)
-- [ ] 8 Deliverables (see milestone 8 above)
+- [x] 8 Deliverables (see milestone 8 above)
 - [ ] 9 Scheduling, rerun subsets, polish

@@ -35,6 +35,8 @@ class Site(Base):
     agent_assignments = Column(JSON, nullable=False, default=dict)  # analysis -> agent id
     schedule = Column(JSON, nullable=False, default=dict)
     prospect = Column(JSON, nullable=False, default=dict)
+    # The prospect's logo for the one-sheets, a data URI (PNG, JPEG or SVG); never fetched or drawn.
+    prospect_logo = Column(Text, nullable=True)
     created_by = Column(String(255), nullable=True)
     created_at = Column(UTCDateTime, server_default=func.now())
     updated_at = Column(UTCDateTime, server_default=func.now(), onupdate=func.now())

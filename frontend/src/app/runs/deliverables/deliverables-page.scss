@@ -1,0 +1,294 @@
+@use '../../shared/form-layout';
+
+// The Deliverables mockup in hop-ui tokens.
+.steps {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.step {
+  flex: 1 1 200px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-primary);
+
+  > div {
+    display: flex;
+    flex-direction: column;
+  }
+
+  mat-icon {
+    color: var(--text-tertiary);
+  }
+
+  &.done {
+    border-color: var(--color-success-border);
+    background: var(--color-success-bg);
+
+    mat-icon {
+      color: var(--color-success-text);
+    }
+  }
+
+  &.now {
+    border-color: var(--color-accent);
+    background: var(--color-accent-bg);
+
+    mat-icon {
+      color: var(--color-accent-text);
+    }
+  }
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+
+  @media (max-width: 1280px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.deliverable {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 20px 24px;
+
+  h3 {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+}
+
+.thumb-link {
+  display: block;
+  text-decoration: none;
+}
+
+// Before a sheet is built: a quiet stand-in of the same size.
+.thumb {
+  height: 120px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  display: flex;
+  align-items: flex-end;
+  padding: 12px;
+  background: var(--color-primary);
+  color: var(--color-accent-bg);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+
+  &.doc {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 6px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-default);
+    color: var(--text-tertiary);
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+
+    strong {
+      color: var(--text-primary);
+    }
+  }
+}
+
+.line {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+}
+
+.actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.small {
+  height: 30px;
+  font-size: 0.8125rem;
+}
+
+.layout {
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+}
+
+.budget {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-tertiary);
+
+  &.over {
+    color: var(--color-error-text);
+    font-weight: 500;
+  }
+}
+
+.rules {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-warning-border);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  font-size: 0.8125rem;
+}
+
+.problem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  color: var(--color-error-text);
+
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.why {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-default);
+
+  h3 {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+}
+
+.why-line {
+  display: grid;
+  grid-template-columns: 150px 180px minmax(0, 1fr) 44px;
+  gap: 10px;
+  align-items: center;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.impact {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  height: 20px;
+  padding: 0 8px;
+  border-radius: 6px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  background: var(--bg-tertiary);
+  color: var(--color-primary);
+
+  &.risk {
+    background: var(--color-tertiary-bg);
+    color: var(--color-tertiary-text);
+  }
+
+  &.cost {
+    background: var(--color-accent-bg);
+    color: var(--color-accent-text);
+  }
+}
+
+.logo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.upload {
+  height: 44px;
+  justify-content: flex-start;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  img {
+    max-height: 36px;
+    max-width: 160px;
+  }
+}
+
+.check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  font-size: 0.8125rem;
+
+  .state,
+  .tick mat-icon {
+    color: var(--color-warning-text);
+  }
+
+  &.ok .state,
+  &.ok .tick mat-icon {
+    color: var(--color-success-text);
+  }
+
+  .state {
+    flex: none;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+  }
+
+  .tick {
+    flex: none;
+    margin: -11px -11px -11px -11px;
+  }
+}
+
+.quotes {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin-left: 4px;
+}
+
+.unverified {
+  color: var(--color-warning-text);
+  font-weight: 500;
+}

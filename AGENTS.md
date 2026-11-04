@@ -122,6 +122,20 @@ Read those instead of inferring from this project's code. Do not copy them here.
   (`./dev.sh` tries `playwright install chromium`; the Dockerfile does it)
   and a missing browser answers 503 with how to install it. Brand assets
   (`assets/`) are embedded as data URIs by `rendering.asset`.
+- **Deliverables** (`deliverables.py`, `routes/deliverables.py`): prospect
+  reviews with a confirmed triage only. A one-sheet's numbers (stats,
+  categories, severity, issue mix, the triage's three example picks,
+  eyebrow, review sentences, footnote) are computed from the triage each
+  time it's rendered; only the copy (headlines, subhead opening, executive
+  lead sentence, why-it-matters lines, impact cards) comes from the
+  Collateral Writer and is edited by people. One `Deliverables` row per run
+  keeps the copy, the counts it was written against (a mismatch shows on
+  the checklist), the heights the page measured, and the two hand-off
+  ticks. The templates are the skill's, unchanged (`templates/onesheet_*`);
+  their hex colors are the approved print design. The page shows each
+  sheet in a sandboxed `srcdoc` frame (`SheetFrame`) and measures its
+  natural height the skill's way; the PDF route measures again in Chromium
+  and refuses an overflow (409).
 - **Routes in the UI**: `/audits/:runId` is the dashboard (active runs
   redirect to `/audits/:runId/progress`), pages are
   `/audits/:runId/pages/:pageId`, triage is `/audits/:runId/findings`, the claims the integrity reviewer took

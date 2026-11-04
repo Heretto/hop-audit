@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { IntegrityRow, IntegrityView, Tier } from '../run.model';
 import { RunsService } from '../runs.service';
@@ -181,5 +181,23 @@ describe('FindingsPage', () => {
     expect(el.textContent).toContain('Triage confirmed');
     expect(el.textContent).toContain('Confirmed by me@x.com');
     expect(el.textContent).toContain('Deliverables for this prospect review');
+  });
+
+  it('confirms and goes on to the deliverables for a prospect review', () => {
+    const { fixture, page, el } = render();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    const button = el.querySelector<HTMLButtonElement>('.page-actions button[color="primary"]')!;
+    expect(button.textContent).toContain('Confirm triage and build deliverables');
+    page.confirm(true);
+    fixture.detectChanges();
+    expect(navigate).toHaveBeenCalledWith(['/audits', 'r1', 'deliverables']);
+    const link = el.querySelector('.page-actions a[href="/audits/r1/deliverables"]');
+    expect(link?.textContent).toContain('Deliverables');
+  });
+
+  it('only confirms for an own-docs site', () => {
+    const { el } = render(sampleIntegrityView({ purpose: 'own' }));
+    const button = el.querySelector<HTMLButtonElement>('.page-actions button[color="primary"]')!;
+    expect(button.textContent!.trim()).toBe('checkConfirm triage');
   });
 });

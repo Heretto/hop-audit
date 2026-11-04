@@ -33,14 +33,23 @@
         <button mat-stroked-button (click)="exportCsv()">
           <mat-icon>download</mat-icon>Export findings (CSV)
         </button>
-        <button
-          mat-flat-button
-          color="primary"
-          (click)="confirm()"
-          [disabled]="confirming() || !findings().length || v.triage.status === 'confirmed'"
-        >
-          <mat-icon>check</mat-icon>Confirm triage
-        </button>
+        @if (v.purpose === 'prospect' && v.triage.status === 'confirmed') {
+          <a mat-flat-button color="primary" [routerLink]="['/audits', v.run.id, 'deliverables']"
+            ><mat-icon>inventory_2</mat-icon>Deliverables</a
+          >
+        } @else {
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="confirm(v.purpose === 'prospect')"
+            [disabled]="confirming() || !findings().length || v.triage.status === 'confirmed'"
+          >
+            <mat-icon>check</mat-icon
+            >{{
+              v.purpose === 'prospect' ? 'Confirm triage and build deliverables' : 'Confirm triage'
+            }}
+          </button>
+        }
       </div>
     </header>
 

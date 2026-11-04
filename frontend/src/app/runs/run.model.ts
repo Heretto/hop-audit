@@ -425,3 +425,85 @@ export interface ReportView {
   appendix: { label: string; value: string; detail: string }[];
   counts: Record<string, number>;
 }
+
+export type SheetKind = 'lead' | 'exec';
+
+export interface WhyLine {
+  imperative: 'Risk' | 'Customer Acquisition' | 'Customer Retention' | 'Cost';
+  ai: boolean;
+  lead: string;
+  text: string;
+  codes: string[];
+}
+
+export interface ImpactCard {
+  tone: 'risk' | 'cost';
+  label: string;
+  title: string;
+  body: string;
+  evidence: string;
+  codes: string[];
+}
+
+/** The Collateral Writer's copy for both one-sheets, as edited. */
+export interface SheetCopy {
+  industry: string;
+  headline_line1: string;
+  headline_line2: string;
+  subhead_lead: string;
+  exec_headline: string;
+  lead_sentence: string;
+  why: WhyLine[];
+  impacts: ImpactCard[];
+}
+
+export interface DeliverableStep {
+  key: 'assess' | 'triage' | 'build' | 'handoff';
+  label: string;
+  status: 'done' | 'now' | 'todo';
+  detail: string;
+}
+
+export interface CheckItem {
+  key: string;
+  ok: boolean;
+  text: string;
+  toggle: boolean;
+  quotes: { code: string; slug: string; page_id: string | null; verified: boolean }[];
+}
+
+export interface ProspectDetails {
+  company: string;
+  sender_name: string;
+  sender_title: string;
+  sender_email: string;
+  logo: string | null;
+}
+
+export interface DeliverablesView {
+  run: RunDetail;
+  purpose: 'own' | 'prospect';
+  available: boolean;
+  reason: string;
+  steps: DeliverableStep[];
+  built_at: string | null;
+  built_by: string | null;
+  agent_name: string;
+  copy: SheetCopy | null;
+  budgets: Record<string, number>;
+  problems: string[];
+  prospect: ProspectDetails;
+  checklist: CheckItem[];
+  heights: Partial<Record<SheetKind, number>>;
+  counts: Record<string, number>;
+  examples: string[];
+  internal_note: string;
+}
+
+export interface DeliverablesChange {
+  copy?: SheetCopy;
+  prospect?: Partial<Omit<ProspectDetails, 'logo'>>;
+  spot_checked?: boolean;
+  marketing_ok?: boolean;
+  heights?: Partial<Record<SheetKind, number>>;
+}

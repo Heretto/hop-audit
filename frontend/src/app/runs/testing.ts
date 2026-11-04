@@ -1,6 +1,7 @@
 import {
   ClaimsView,
   Dashboard,
+  DeliverablesView,
   Finding,
   IntegrityRow,
   IntegrityView,
@@ -10,6 +11,7 @@ import {
   ReportView,
   RunDetail,
   RunListItem,
+  SheetCopy,
 } from './run.model';
 
 export function sampleRun(overrides: Partial<RunDetail> = {}): RunDetail {
@@ -496,6 +498,131 @@ export function sampleReport(overrides: Partial<ReportView> = {}): ReportView {
     ],
     appendix: [{ label: 'Broken links', value: '11', detail: '9 internal · 2 external' }],
     counts: { firm: 63, high: 9, review: 9, articles: 329, help_centers: 3 },
+    ...overrides,
+  };
+}
+
+export function sampleCopy(overrides: Partial<SheetCopy> = {}): SheetCopy {
+  return {
+    industry: 'Lending',
+    headline_line1: 'One answer, in every',
+    headline_line2: 'language, on every page',
+    subhead_lead: 'Structured content means a fix made once appears everywhere.',
+    exec_headline: 'Regulated lending needs governed content',
+    lead_sentence:
+      'Structured content is critical to controlling risk; without it, the same terms read differently.',
+    why: [
+      {
+        imperative: 'Customer Retention',
+        ai: false,
+        lead: 'Customers act on it.',
+        text: 'Wrong steps lead to calls.',
+        codes: ['T-03', 'U-02'],
+      },
+      {
+        imperative: 'Risk',
+        ai: false,
+        lead: 'Much of it is regulated.',
+        text: 'Terms differ between articles.',
+        codes: ['C-01'],
+      },
+      {
+        imperative: 'Risk',
+        ai: true,
+        lead: 'AI assistants repeat it.',
+        text: 'Answers inherit every conflict.',
+        codes: [],
+      },
+    ],
+    impacts: [
+      {
+        tone: 'risk',
+        label: 'Regulatory risk',
+        title: 'Regulated terms differ',
+        body: 'Credit reporting differs.',
+        evidence: '“may lower your score”',
+        codes: ['C-01'],
+      },
+    ],
+    ...overrides,
+  };
+}
+
+export function sampleDeliverables(overrides: Partial<DeliverablesView> = {}): DeliverablesView {
+  return {
+    run: sampleRun({ status: 'completed' }),
+    purpose: 'prospect',
+    available: true,
+    reason: '',
+    steps: [
+      { key: 'assess', label: 'Assess', status: 'done', detail: '78 candidates · Oct 8' },
+      {
+        key: 'triage',
+        label: 'Triage',
+        status: 'done',
+        detail: '63 firm · 9 review · 6 dropped · confirmed Oct 9 by patrick',
+      },
+      { key: 'build', label: 'Build', status: 'done', detail: '4 deliverables · no overflow' },
+      {
+        key: 'handoff',
+        label: 'Hand off',
+        status: 'now',
+        detail: '2 placeholders · 3 quotes to spot-check',
+      },
+    ],
+    built_at: '2026-10-09T10:00:00Z',
+    built_by: 'patrick@heretto.com',
+    agent_name: 'Collateral Writer',
+    copy: sampleCopy(),
+    budgets: {
+      headline_line1: 26,
+      headline_line2: 26,
+      subhead: 260,
+      exec_headline: 45,
+      lead_sentence: 160,
+      why: 95,
+      impact_title: 45,
+      impact_body: 190,
+      impact_evidence: 150,
+    },
+    problems: [],
+    prospect: {
+      company: 'Lumen Financial',
+      sender_name: '',
+      sender_title: '',
+      sender_email: '',
+      logo: null,
+    },
+    checklist: [
+      {
+        key: 'placeholders',
+        ok: false,
+        text: 'Still placeholders: prospect logo, sender name, sender email.',
+        toggle: false,
+        quotes: [],
+      },
+      {
+        key: 'spot_checked',
+        ok: false,
+        text: 'Spot-check every one-sheet quote in a live browser.',
+        toggle: true,
+        quotes: [
+          { code: 'T-03', slug: 'fr/paiement-automatique', page_id: 'p9', verified: false },
+          { code: 'U-02', slug: 'contact-us', page_id: null, verified: true },
+        ],
+      },
+      {
+        key: 'fits',
+        ok: true,
+        text: 'Both one-sheets fit on one page (lead 1,041 px, exec 1,038 px of 1,056).',
+        toggle: false,
+        quotes: [],
+      },
+    ],
+    heights: { lead: 1041, exec: 1038 },
+    counts: { firm: 63, high: 9, review: 9, articles: 329, help_centers: 3 },
+    examples: ['T-03', 'U-02', 'X-01'],
+    internal_note: 'Lumen Financial Help Center Content Integrity Review: what it assessed',
     ...overrides,
   };
 }

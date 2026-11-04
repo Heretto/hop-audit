@@ -6,6 +6,7 @@ this package has imported.
 
 from hop_core.db import Base
 
+from models.deliverables import Deliverables
 from models.run import (
     ACTIVE_STATUSES,
     AgentFinding,
@@ -25,6 +26,7 @@ __all__ = [
     "AgentFinding",
     "AuditRun",
     "ClaimGroupReview",
+    "Deliverables",
     "HelpCenter",
     "IntegrityFinding",
     "LinkCache",
