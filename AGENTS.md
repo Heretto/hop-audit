@@ -69,8 +69,9 @@ Read those instead of inferring from this project's code. Do not copy them here.
   the last completed audit's (`Page.reused_from_id` set) keeps that audit's
   readability metrics, SEO checks and Readability Reviewer / SEO Analyst
   findings: nothing is recomputed and no tokens are spent. Only
-  `run.force_reevaluate` (Run audit toggle, dashboard "Re-evaluate
-  everything") evaluates them again. Links and content integrity always run.
+  `run.force_reevaluate` (the Run audit toggle "Re-evaluate unchanged
+  pages") evaluates them again. Links always run; content integrity reuses
+  by its own rules (below).
   Add a field to `CHECKSUM_FIELDS` when an analysis starts reading it.
 - **Agent review** (`backend/review.py`): the Readability Reviewer and SEO
   Analyst review one page per request, `AGENT_CONCURRENCY` at a time, with

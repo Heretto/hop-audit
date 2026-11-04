@@ -317,6 +317,11 @@ re-read this file before starting the next.
       HOP Audit; quotes carry their page URL from the API
 - [x] Tests; checks green; commit
 
+## Dashboard header
+
+- [x] Report button (disabled until the report page is built, next)
+- [x] "Re-evaluate everything" removed; re-evaluating is the Run audit toggle
+
 ## Later milestones (from the handoff)
 
 - [ ] 7 Full findings report + exports

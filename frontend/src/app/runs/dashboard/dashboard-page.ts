@@ -15,10 +15,9 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
-import { MatDialog } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
-import { HopConfirmDialogComponent, HopConfirmDialogData } from '@heretto/hop-ui';
 import { forkJoin } from 'rxjs';
 import { Site } from '../../sites/site.model';
 import { apiErrors, SitesService } from '../../sites/sites.service';
@@ -114,6 +113,7 @@ export function categoryCards(
     MatIconModule,
     MatInputModule,
     MatSelectModule,
+    MatTooltipModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './dashboard-page.html',
@@ -127,7 +127,6 @@ export class DashboardPage implements OnInit {
   private sites = inject(SitesService);
   private router = inject(Router);
   private snack = inject(MatSnackBar);
-  private dialog = inject(MatDialog);
 
   readonly data = signal<Dashboard | null>(null);
   readonly pages = signal<PageRow[]>([]);
@@ -337,24 +336,10 @@ export class DashboardPage implements OnInit {
     this.state.update((s) => ({ ...s, expanded: new Set([...s.expanded, path]) }));
   }
 
-  /** Re-evaluate every page, unchanged ones too, after a confirmation (it costs model tokens). */
-  reevaluate(): void {
-    const data: HopConfirmDialogData = {
-      title: 'Re-evaluate every page?',
-      message:
-        "Readability and SEO are evaluated again, and the agents asked again, even for pages whose checksum hasn't " +
-        'changed since the last audit. This uses model tokens. Nothing is crawled again.',
-      confirmText: 'Re-evaluate',
-    };
-    this.dialog
-      .open(HopConfirmDialogComponent, { data })
-      .afterClosed()
-      .subscribe((ok) => ok && this.analyze(true));
-  }
-
-  analyze(force = false): void {
+  /** Analyze the stored pages again after an analysis failed or never ran. */
+  analyze(): void {
     this.analyzing.set(true);
-    this.runs.analyze(this.runId(), force).subscribe({
+    this.runs.analyze(this.runId(), false).subscribe({
       next: () => this.router.navigate(['/audits', this.runId(), 'progress']),
       error: (e) => {
         this.analyzing.set(false);

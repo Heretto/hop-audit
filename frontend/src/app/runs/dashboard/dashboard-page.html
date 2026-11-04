@@ -27,14 +27,15 @@
         <a mat-stroked-button routerLink="/audits" [queryParams]="{ site: d.run.site_id }">
           <mat-icon>history</mat-icon>History
         </a>
+        <!-- The report page comes next; the button is in place for it. -->
+        <span matTooltip="The report isn't available yet">
+          <button mat-stroked-button class="report" disabled>
+            <mat-icon>description</mat-icon>Report
+          </button>
+        </span>
         <a mat-stroked-button [routerLink]="['/audits', d.run.id, 'progress']"
           ><mat-icon>receipt_long</mat-icon>Run log</a
         >
-        @if (d.run.status === 'completed' && d.analyzed) {
-          <button mat-stroked-button (click)="reevaluate()" [disabled]="analyzing()">
-            <mat-icon>refresh</mat-icon>Re-evaluate everything
-          </button>
-        }
         <a mat-flat-button color="primary" [routerLink]="['/sites', d.run.site_id, 'run']">
           <mat-icon>play_arrow</mat-icon>Run audit
         </a>

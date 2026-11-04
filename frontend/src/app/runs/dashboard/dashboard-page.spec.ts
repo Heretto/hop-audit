@@ -1,5 +1,4 @@
 import { TestBed } from '@angular/core/testing';
-import { MatDialog } from '@angular/material/dialog';
 import { provideRouter, Router } from '@angular/router';
 import { of } from 'rxjs';
 import { SitesService } from '../../sites/sites.service';
@@ -168,10 +167,12 @@ describe('DashboardPage', () => {
     // Export left the header for the toolbar.
     expect(texts('.page-actions a, .page-actions button')).toEqual([
       'History',
+      'Report',
       'Run log',
-      'Re-evaluate everything',
       'Run audit',
     ]);
+    // Re-evaluating unchanged pages is chosen on Run audit; the report page comes next.
+    expect(el.querySelector<HTMLButtonElement>('.page-actions .report')!.disabled).toBe(true);
     expect(texts('.toolbar button')).toEqual(['Expand all', 'Collapse all', 'Export CSV']);
     expect(texts('.toolbar .small')).toHaveLength(3);
     // The filter is a placeholder, Show and Sort are named inside their fields.
@@ -230,16 +231,6 @@ describe('DashboardPage', () => {
     expect(el.textContent).toContain("Content integrity didn't complete");
     page.analyze();
     expect(runs.analyze).toHaveBeenCalledWith('r1', false);
-  });
-
-  it('re-evaluates everything after a confirmation', () => {
-    const { page, runs } = render();
-    const open = vi
-      .spyOn(TestBed.inject(MatDialog), 'open')
-      .mockReturnValue({ afterClosed: () => of(true) } as never);
-    page.reevaluate();
-    expect(open).toHaveBeenCalled();
-    expect(runs.analyze).toHaveBeenCalledWith('r1', true);
   });
 
   it('sends active runs to their progress view', () => {
