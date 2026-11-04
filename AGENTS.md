@@ -112,6 +112,16 @@ Read those instead of inferring from this project's code. Do not copy them here.
   anywhere only once `run.triage.status == "confirmed"`; any change reopens
   it. Re-analysis never re-runs the integrity review over an existing
   triage.
+- **Report and PDFs** (`report.py`, `report_export.py`, `pdf.py`): the
+  full findings report is built from a confirmed triage only, in the
+  skill's section order, as one table model (columns, rows of cells, each
+  cell a list of runs: text, quote, slug, note, sev, code, br) that the
+  page, the Jinja print template (`templates/report.html`) and the Word
+  export all render. Letter PDFs come from Chromium through Playwright, as
+  the skill renders them; the browser is installed apart from the package
+  (`./dev.sh` tries `playwright install chromium`; the Dockerfile does it)
+  and a missing browser answers 503 with how to install it. Brand assets
+  (`assets/`) are embedded as data URIs by `rendering.asset`.
 - **Routes in the UI**: `/audits/:runId` is the dashboard (active runs
   redirect to `/audits/:runId/progress`), pages are
   `/audits/:runId/pages/:pageId`, triage is `/audits/:runId/findings`, the claims the integrity reviewer took

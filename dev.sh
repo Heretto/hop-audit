@@ -49,6 +49,10 @@ setup_backend() {
     else
       "$VENV/bin/pip" install -q -r "$BACKEND/requirements-dev.txt"
     fi
+    # Chromium for the Letter PDFs (pdf.py); a failed download only means
+    # PDFs say what's missing, so it doesn't stop the setup.
+    "$VENV/bin/playwright" install chromium &>/dev/null \
+      || echo "Chromium for PDFs didn't install; run: $VENV/bin/playwright install chromium" >&2
     echo "$want" > "$VENV/.requirements"
   fi
 }

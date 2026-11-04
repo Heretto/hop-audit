@@ -331,8 +331,9 @@ def code_findings(
                     wrong[target.id].append((p, link["text"], link["url"]))
         for target_id, found in wrong.items():
             target = by_id[target_id]
+            links = f"{len(found)} link" + ("s" if len(found) != 1 else "")
             out.append(Candidate(
-                "N", "Medium", f"{root.name} links into the {target.name} help center ({len(found)} links)",
+                "N", "Medium", f"{root.name} links into the {target.name} help center ({links})",
                 [quote(p, root, text, f"→ {url}") for p, text, url in found[:MISSING_LISTED]],
                 f"A {root.name} reader following these links lands in another language.", "firm", "",
                 [root.id, target.id],

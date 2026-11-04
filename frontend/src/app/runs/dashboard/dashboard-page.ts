@@ -16,7 +16,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { Site } from '../../sites/site.model';
@@ -113,7 +112,6 @@ export function categoryCards(
     MatIconModule,
     MatInputModule,
     MatSelectModule,
-    MatTooltipModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './dashboard-page.html',

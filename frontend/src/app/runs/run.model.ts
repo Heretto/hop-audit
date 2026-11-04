@@ -386,3 +386,42 @@ export interface ClaimsView {
   claims: ClaimRow[];
   groups: ClaimGroup[];
 }
+
+/** A piece of a report cell (backend report.Run). */
+export interface ReportRun {
+  kind: 'text' | 'quote' | 'slug' | 'note' | 'sev' | 'code' | 'br';
+  text: string;
+}
+
+export type ReportCell = ReportRun[];
+
+export interface ReportTable {
+  columns: { label: string; num: boolean }[];
+  rows: ReportCell[][];
+  heading: string;
+  total: ReportCell[] | null;
+  more: string;
+}
+
+export interface ReportSection {
+  id: string;
+  title: string;
+  lead: string;
+  tables: ReportTable[];
+  after: string;
+}
+
+/** The full findings report, in the skill's section order; empty until triage is confirmed. */
+export interface ReportView {
+  run: RunDetail;
+  purpose: 'own' | 'prospect';
+  ready: boolean;
+  reason: string;
+  title: string;
+  subject: string;
+  as_of: string | null;
+  author: string;
+  sections: ReportSection[];
+  appendix: { label: string; value: string; detail: string }[];
+  counts: Record<string, number>;
+}

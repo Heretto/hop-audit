@@ -1,3 +1,4 @@
+import { apiErrors } from '../sites/sites.service';
 import { RunScope, RunStatus, RunSummary } from './run.model';
 
 /** "Whole site", "/authoring, /api", "Changed pages", "3 listed pages". */
@@ -89,6 +90,19 @@ export function deltaClass(
 }
 
 /** Save a blob as a file in the browser. */
+/** The API's error messages when the response was asked for as a Blob (a file download). */
+export async function blobErrors(error: unknown): Promise<string[]> {
+  const body = (error as { error?: unknown })?.error;
+  if (body instanceof Blob) {
+    try {
+      return apiErrors({ error: JSON.parse(await body.text()) });
+    } catch {
+      return apiErrors(null);
+    }
+  }
+  return apiErrors(error);
+}
+
 export function download(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

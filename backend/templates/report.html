@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ report.title }}</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Roboto+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  /* Print styling from the skill's report-structure.md and brand.md:
+     Poppins, headings #011627, table header rows #edf3fa. */
+  body { margin: 0; font-family: Poppins, sans-serif; font-size: 10pt; line-height: 1.5; color: #3c4c66; }
+  h1 { font-size: 20pt; font-weight: 600; color: #011627; margin: 10pt 0 6pt; line-height: 1.25; }
+  h2 { font-size: 14pt; font-weight: 600; color: #011627; margin: 18pt 0 6pt; break-after: avoid; }
+  h3 { font-size: 11.5pt; font-weight: 600; color: #011627; margin: 12pt 0 4pt; break-after: avoid; }
+  p { margin: 0 0 6pt; }
+  .logo { height: 22px; }
+  .byline { font-size: 9pt; color: #5b6b82; margin-bottom: 8pt; }
+  .chip { display: inline-block; padding: 1pt 7pt; border-radius: 9pt; background: #edf3fa; color: #011627; font-weight: 500; }
+  table { border-collapse: collapse; width: 100%; font-size: 8.5pt; margin: 4pt 0 8pt; }
+  th { text-align: left; font-weight: 600; color: #011627; background: #edf3fa; padding: 4pt 6pt; border-bottom: 1px solid #dde5f0; }
+  td { padding: 4pt 6pt; border-bottom: 1px solid #edf3fa; vertical-align: top; }
+  tr { break-inside: avoid; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.total td { font-weight: 600; border-top: 1px solid #dde5f0; }
+  .quote { font-style: italic; }
+  .slug, .code { font-family: "Roboto Mono", monospace; font-size: 7.5pt; color: #5b6b82; }
+  .code { color: #011627; }
+  .note { color: #5b6b82; }
+  .sev { display: inline-block; padding: 0 5pt; border-radius: 4pt; font-size: 7.5pt; font-weight: 600; white-space: nowrap; }
+  .sev.High { background: #fbeef5; color: #ad4780; }
+  .sev.Medium { background: #f0fdfa; color: #147a72; }
+  .sev.Low { background: #edf3fa; color: #3c4c66; }
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8pt; }
+  .metric { border: 1px solid #dde5f0; border-radius: 6pt; padding: 6pt 8pt; }
+  .metric b { display: block; font-size: 14pt; color: #011627; }
+  .small { font-size: 8.5pt; color: #5b6b82; }
+</style>
+</head>
+<body>
+{%- macro cell(runs) -%}
+  {%- for r in runs -%}
+    {%- if r.kind == 'quote' -%}<span class="quote">“{{ r.text }}”</span>
+    {%- elif r.kind == 'slug' %} <span class="slug">{{ r.text }}</span>
+    {%- elif r.kind == 'note' %} <span class="note">({{ r.text }})</span>
+    {%- elif r.kind == 'sev' -%}<span class="sev {{ r.text }}">{{ r.text }}</span>
+    {%- elif r.kind == 'code' -%}<span class="code">{{ r.text }}</span>
+    {%- elif r.kind == 'br' -%}<br>
+    {%- else -%}{{ r.text }}{%- endif -%}
+  {%- endfor -%}
+{%- endmacro -%}
+<img class="logo" src="{{ wordmark }}" alt="Heretto">
+<h1>{{ report.title }}</h1>
+<div class="byline"><span class="chip">As of {{ as_of }}</span>{% if report.author %} · {{ report.author }}{% endif %}</div>
+{% for s in report.sections %}
+  <h2>{{ s.title }}</h2>
+  <p>{{ s.lead }}</p>
+  {% for t in s.tables %}
+    {% if t.heading %}<h3>{{ t.heading }}</h3>{% endif %}
+    <table>
+      <thead><tr>{% for c in t.columns %}<th{% if c.num %} class="num"{% endif %}>{{ c.label }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for row in t.rows %}<tr>{% for c in row %}<td{% if t.columns[loop.index0].num %} class="num"{% endif %}>{{ cell(c) }}</td>{% endfor %}</tr>{% endfor %}
+        {% if t.total %}<tr class="total">{% for c in t.total %}<td{% if t.columns[loop.index0].num %} class="num"{% endif %}>{{ cell(c) }}</td>{% endfor %}</tr>{% endif %}
+      </tbody>
+    </table>
+  {% endfor %}
+  {% if s.after %}<p class="small">{{ s.after }}</p>{% endif %}
+{% endfor %}
+{% if report.appendix %}
+  <h2>Appendix: site health</h2>
+  <p>Mechanical checks from the same crawl, reported separately from the content-integrity findings above.</p>
+  <div class="metrics">
+    {% for m in report.appendix %}<div class="metric"><span class="small">{{ m.label }}</span><b>{{ m.value }}</b><span class="small">{{ m.detail }}</span></div>{% endfor %}
+  </div>
+{% endif %}
+</body>
+</html>

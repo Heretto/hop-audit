@@ -7,6 +7,7 @@ import {
   PageDetail,
   PageRow,
   Preview,
+  ReportView,
   RunDetail,
   RunListItem,
 } from './run.model';
@@ -425,6 +426,76 @@ export function sampleClaimsView(overrides: Partial<ClaimsView> = {}): ClaimsVie
       },
       { number: 2, subject: 'refund window', status: 'agree', issues: 0, claims: 2, articles: 2 },
     ],
+    ...overrides,
+  };
+}
+
+export function sampleReport(overrides: Partial<ReportView> = {}): ReportView {
+  const sev = (s: string) => [{ kind: 'sev' as const, text: s }];
+  const text = (t: string) => [{ kind: 'text' as const, text: t }];
+  return {
+    run: sampleRun({ status: 'completed' }),
+    purpose: 'prospect',
+    ready: true,
+    reason: '',
+    title: 'Lumen Financial — Content Integrity Review',
+    subject: 'Lumen Financial',
+    as_of: '2026-10-08T07:00:00Z',
+    author: 'Patrick Bosek',
+    sections: [
+      {
+        id: 'categories',
+        title: 'Findings by category',
+        lead: 'Contradictions between articles (19) and … account for 36 of the 63 issues.',
+        tables: [
+          {
+            columns: [
+              { label: 'Category', num: false },
+              { label: 'Total', num: true },
+            ],
+            rows: [[text('Contradictions between articles'), text('19')]],
+            heading: '',
+            total: [text('Total'), text('63')],
+            more: '',
+          },
+        ],
+        after: 'High: a customer could act on wrong information.',
+      },
+      {
+        id: 'contradictions',
+        title: 'Contradictions between articles (19)',
+        lead: '19 findings where two articles give a customer different answers.',
+        tables: [
+          {
+            columns: ['ID', 'Severity', 'Help center', 'Issue', 'Conflicting text (article)'].map(
+              (label) => ({ label, num: false }),
+            ),
+            rows: [
+              [
+                [{ kind: 'code', text: 'C-01' }],
+                sev('High'),
+                text('US'),
+                text('Credit reporting stated both ways'),
+                [
+                  { kind: 'quote', text: 'Late payments may lower your credit score.' },
+                  { kind: 'slug', text: 'how-late-payments-affect-credit' },
+                  { kind: 'br', text: '' },
+                  { kind: 'quote', text: 'Loans are not reported.' },
+                  { kind: 'note', text: 'translated' },
+                  { kind: 'slug', text: 'credit-reporting-faq' },
+                ],
+              ],
+            ],
+            heading: '',
+            total: null,
+            more: '',
+          },
+        ],
+        after: '',
+      },
+    ],
+    appendix: [{ label: 'Broken links', value: '11', detail: '9 internal · 2 external' }],
+    counts: { firm: 63, high: 9, review: 9, articles: 329, help_centers: 3 },
     ...overrides,
   };
 }

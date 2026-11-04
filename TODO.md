@@ -322,8 +322,56 @@ re-read this file before starting the next.
 - [x] Report button (disabled until the report page is built, next)
 - [x] "Re-evaluate everything" removed; re-evaluating is the Run audit toggle
 
+## Milestone 7: full findings report (`_reference/new_screens/Full findings report-html`)
+
+- [x] `report.py`: the report's data from a confirmed triage, in the skill's
+      section order (summary + help centers, by category, contradictions,
+      translation, instructions, remaining categories, items for review,
+      site-health appendix); plain leads written in code from the counts
+- [x] `GET /runs/{id}/report` (409 until triage is confirmed)
+- [x] Exports: Letter PDF (HTML template rendered by Chromium via
+      Playwright; 503 with a reason when the browser isn't installed),
+      Word (.docx, python-docx), findings CSV (existing), full audit JSON;
+      "Claude Doc" shown but unavailable (no Docs connection in the app)
+- [x] Heretto wordmarks from the skill's assets (backend for exports,
+      frontend public for the page)
+- [x] Report page `/audits/:runId/report`: back link (Deliverables for
+      prospect sites, dashboard otherwise), Copy link, Export menu, the
+      article; a "confirm triage first" state
+- [x] Links: dashboard Report button and integrity card "Full findings
+      report"; Findings header "Full report"
+- [x] Dockerfile installs Chromium for Playwright
+- [x] Tests; checks green; commit
+
+## Milestone 8: deliverables (`Deliverables-html`, `Lead one-sheet`, `Executive brief`)
+
+- [ ] `Deliverable` model (run, kind lead | exec, copy JSON, built_at,
+      counts at build) + `Site.prospect_logo` (data URI, PNG/JPEG/SVG,
+      ≤ 512 KB) + marketing sign-off flag; migration
+- [ ] Collateral Writer request: headlines, subhead, exec lead sentence,
+      three why-it-matters lines (imperative + finding codes), three impact
+      cards; counts, categories, severity, mix, examples (the triage's
+      picks), review sentence, eyebrow and footnote computed in code so
+      they always match the triage
+- [ ] The skill's two Jinja templates ported; `GET .../deliverables/{kind}.html`
+      and `.pdf` (PDF fails on overflow, 409 with the excess)
+- [ ] `GET /runs/{id}/deliverables` (steps, cards, copy, prospect,
+      checklist), `POST .../build`, `PATCH` copy, prospect and sign-off,
+      logo upload / removal; prospect-review sites only, confirmed triage only
+- [ ] Internal summary note (`internal-summary.md`) built in code; Copy note
+- [ ] Deliverables page `/audits/:runId/deliverables`: steps, four cards
+      with live thumbnails, copy and business case with budgets, prepared
+      for and sender, before-sending checklist (placeholders, quotes to
+      spot-check, marketing sign-off, overflow measured in the preview,
+      counts match)
+- [ ] Preview page `/audits/:runId/deliverables/:kind`: the Letter page,
+      its measured height, PDF
+- [ ] Findings header: "Confirm triage and build deliverables" on prospect
+      sites
+- [ ] Tests; checks green; commit
+
 ## Later milestones (from the handoff)
 
-- [ ] 7 Full findings report + exports
-- [ ] 8 Deliverables (one-sheets, overflow check, hand-off)
+- [x] 7 Full findings report + exports (see milestone 7 above)
+- [ ] 8 Deliverables (see milestone 8 above)
 - [ ] 9 Scheduling, rerun subsets, polish

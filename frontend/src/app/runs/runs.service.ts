@@ -13,6 +13,7 @@ import {
   PageDetail,
   PageRow,
   Preview,
+  ReportView,
   RunDetail,
   RunInput,
   RunListItem,
@@ -105,6 +106,15 @@ export class RunsService {
 
   claimsCsv(runId: string): Observable<Blob> {
     return this.http.get(`${this.api}/runs/${runId}/claims.csv`, { responseType: 'blob' });
+  }
+
+  report(runId: string): Observable<ReportView> {
+    return this.http.get<ReportView>(`${this.api}/runs/${runId}/report`);
+  }
+
+  /** report.pdf, report.docx or audit.json. */
+  reportFile(runId: string, file: 'report.pdf' | 'report.docx' | 'audit.json'): Observable<Blob> {
+    return this.http.get(`${this.api}/runs/${runId}/${file}`, { responseType: 'blob' });
   }
 
   compare(a: string, b: string): Observable<Comparison> {

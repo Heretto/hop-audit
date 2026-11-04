@@ -27,12 +27,9 @@
         <a mat-stroked-button routerLink="/audits" [queryParams]="{ site: d.run.site_id }">
           <mat-icon>history</mat-icon>History
         </a>
-        <!-- The report page comes next; the button is in place for it. -->
-        <span matTooltip="The report isn't available yet">
-          <button mat-stroked-button class="report" disabled>
-            <mat-icon>description</mat-icon>Report
-          </button>
-        </span>
+        <a mat-stroked-button class="report" [routerLink]="['/audits', d.run.id, 'report']">
+          <mat-icon>description</mat-icon>Report
+        </a>
         <a mat-stroked-button [routerLink]="['/audits', d.run.id, 'progress']"
           ><mat-icon>receipt_long</mat-icon>Run log</a
         >
@@ -119,6 +116,9 @@
             >
             <a mat-stroked-button [routerLink]="['/audits', d.run.id, 'findings']"
               ><mat-icon>rule</mat-icon>Findings and triage</a
+            >
+            <a mat-stroked-button [routerLink]="['/audits', d.run.id, 'report']"
+              ><mat-icon>description</mat-icon>Full findings report</a
             >
           </div>
         </div>

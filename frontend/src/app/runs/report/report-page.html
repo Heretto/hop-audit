@@ -1,0 +1,177 @@
+<div class="hop-page page">
+  @if (view(); as v) {
+    <a class="back" [routerLink]="back()!.link">
+      <mat-icon>arrow_back</mat-icon>{{ back()!.label }}
+    </a>
+
+    <header class="page-header">
+      <div>
+        <h1>Full findings report</h1>
+        <span class="sub">
+          Every confirmed issue with exact quotes and article slugs, plus items for review. Factual
+          and plain: no adjectives about the prospect, no product mention. For the walkthrough, not
+          the first email.
+        </span>
+      </div>
+      <div class="page-actions">
+        <button mat-stroked-button (click)="copyLink()"><mat-icon>link</mat-icon>Copy link</button>
+        <button
+          mat-stroked-button
+          [matMenuTriggerFor]="exports"
+          [disabled]="!v.ready || exporting() !== null"
+        >
+          <mat-icon>download</mat-icon>{{ exporting() ? 'Exporting…' : 'Export'
+          }}<mat-icon iconPositionEnd>expand_more</mat-icon>
+        </button>
+        <mat-menu #exports="matMenu" xPosition="before">
+          <button mat-menu-item (click)="export('report.pdf')">
+            <mat-icon>picture_as_pdf</mat-icon>Report as PDF (Letter)
+          </button>
+          <div matTooltip="Claude Docs isn't connected to HOP Audit; use Word or PDF">
+            <button mat-menu-item disabled>
+              <mat-icon>description</mat-icon>Report as Claude Doc
+            </button>
+          </div>
+          <button mat-menu-item (click)="export('report.docx')">
+            <mat-icon>article</mat-icon>Report as Word (.docx)
+          </button>
+          <button mat-menu-item (click)="export('integrity.csv')">
+            <mat-icon>table</mat-icon>Findings (CSV)
+          </button>
+          <button mat-menu-item (click)="export('audit.json')">
+            <mat-icon>data_object</mat-icon>Full audit (JSON)
+          </button>
+        </mat-menu>
+      </div>
+    </header>
+
+    @if (!v.ready) {
+      <div class="callout" role="status">
+        <mat-icon>info</mat-icon>
+        <span
+          >{{ v.reason }}
+          <a [routerLink]="['/audits', v.run.id, 'findings']">Go to Findings and triage</a></span
+        >
+      </div>
+    } @else {
+      <mat-card class="report-card">
+        <article class="article">
+          <header class="article-head">
+            <img class="wordmark" src="heretto-wordmark.png" alt="Heretto" />
+            <h2>{{ v.title }}</h2>
+            <div class="byline">
+              @if (v.as_of) {
+                <span class="as-of">As of {{ v.as_of | date: 'MMMM d, y' }}</span>
+              }
+              @if (v.author) {
+                <span class="sub">· {{ v.author }}</span>
+              }
+            </div>
+          </header>
+
+          @for (s of v.sections; track s.id) {
+            <section [attr.id]="s.id">
+              <h3>{{ s.title }}</h3>
+              <p>{{ s.lead }}</p>
+              @for (t of s.tables; track $index) {
+                @if (t.heading) {
+                  <h4>{{ t.heading }}</h4>
+                }
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        @for (c of t.columns; track $index) {
+                          <th [class.num]="c.num">{{ c.label }}</th>
+                        }
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (row of t.rows; track $index) {
+                        <tr>
+                          @for (cell of row; track $index; let i = $index) {
+                            <td [class.num]="t.columns[i].num">
+                              <ng-container
+                                *ngTemplateOutlet="runs; context: { $implicit: cell }"
+                              />
+                            </td>
+                          }
+                        </tr>
+                      }
+                      @if (t.total) {
+                        <tr class="total">
+                          @for (cell of t.total; track $index; let i = $index) {
+                            <td [class.num]="t.columns[i].num">
+                              <ng-container
+                                *ngTemplateOutlet="runs; context: { $implicit: cell }"
+                              />
+                            </td>
+                          }
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+              @if (s.after) {
+                <p class="sub">{{ s.after }}</p>
+              }
+            </section>
+          }
+
+          @if (v.appendix.length) {
+            <section class="appendix">
+              <h3>Appendix: site health</h3>
+              <p>
+                Mechanical checks from the same crawl, reported separately from the
+                content-integrity findings above.
+              </p>
+              <div class="metrics">
+                @for (m of v.appendix; track m.label) {
+                  <div class="metric">
+                    <span class="sub">{{ m.label }}</span
+                    ><b>{{ m.value }}</b
+                    ><span class="sub">{{ m.detail }}</span>
+                  </div>
+                }
+              </div>
+              <p class="sub">
+                Full page-level metrics are on the audit dashboard and in the JSON export.
+              </p>
+            </section>
+          }
+        </article>
+      </mat-card>
+    }
+  } @else if (error(); as message) {
+    <div class="hop-status-message error" role="alert">{{ message }}</div>
+  }
+</div>
+
+<ng-template #runs let-cell>
+  @for (r of cell; track $index) {
+    @switch (r.kind) {
+      @case ('quote') {
+        <q>{{ r.text }}</q>
+      }
+      @case ('slug') {
+        <span class="slug"> {{ r.text }}</span>
+      }
+      @case ('note') {
+        <span class="note"> ({{ r.text }})</span>
+      }
+      @case ('sev') {
+        <span class="sev" [class]="'severity-' + r.text.toLowerCase()">{{ r.text }}</span>
+      }
+      @case ('code') {
+        <span class="mono code">{{ r.text }}</span>
+      }
+      @case ('br') {
+        <br />
+      }
+      @default {
+        {{ r.text }}
+      }
+    }
+  }
+</ng-template>

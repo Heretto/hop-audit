@@ -171,8 +171,10 @@ describe('DashboardPage', () => {
       'Run log',
       'Run audit',
     ]);
-    // Re-evaluating unchanged pages is chosen on Run audit; the report page comes next.
-    expect(el.querySelector<HTMLButtonElement>('.page-actions .report')!.disabled).toBe(true);
+    // Re-evaluating unchanged pages is chosen on Run audit.
+    expect(el.querySelector('.page-actions .report')!.getAttribute('href')).toBe(
+      '/audits/r1/report',
+    );
     expect(texts('.toolbar button')).toEqual(['Expand all', 'Collapse all', 'Export CSV']);
     expect(texts('.toolbar .small')).toHaveLength(3);
     // The filter is a placeholder, Show and Sort are named inside their fields.

@@ -7,6 +7,9 @@ RUN python -m venv /venv && /venv/bin/pip install --no-cache-dir -r requirements
 FROM python:3.12-slim
 COPY --from=build /venv /venv
 ENV PATH=/venv/bin:$PATH
+# Chromium for the Letter PDFs (report and one-sheets, pdf.py), with the
+# system libraries it needs.
+RUN playwright install --with-deps chromium && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY . .
 
