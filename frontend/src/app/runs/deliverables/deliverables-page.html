@@ -56,11 +56,8 @@
       <div class="callout" role="status">
         <mat-icon>info</mat-icon>
         <span
-          >{{ v.reason }}
-          @if (v.purpose === 'prospect') {
-            <a [routerLink]="['/audits', v.run.id, 'findings']">Go to Findings and triage</a>
-          }
-        </span>
+          >{{ v.reason }} <a [routerLink]="['/audits', v.run.id]">Back to the dashboard</a></span
+        >
       </div>
     }
     @if (building()) {

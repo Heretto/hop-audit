@@ -8,7 +8,7 @@ import { sampleDashboard, samplePage, sampleRun } from '../testing';
 import { DashboardPage, categoryCards } from './dashboard-page';
 
 describe('DashboardPage', () => {
-  function render(dashboard = sampleDashboard()) {
+  function render(dashboard = sampleDashboard(), purpose: 'own' | 'prospect' = 'own') {
     const runs = {
       dashboard: vi.fn(() => of(dashboard)),
       pages: vi.fn(() =>
@@ -31,7 +31,10 @@ describe('DashboardPage', () => {
       providers: [
         provideRouter([]),
         { provide: RunsService, useValue: runs },
-        { provide: SitesService, useValue: { get: () => of({ ...sampleSite(), id: 's1' }) } },
+        {
+          provide: SitesService,
+          useValue: { get: () => of({ ...sampleSite({ purpose }), id: 's1' }) },
+        },
       ],
     });
     const fixture = TestBed.createComponent(DashboardPage);
@@ -151,6 +154,12 @@ describe('DashboardPage', () => {
       'Translation defects',
     ]);
     expect(el.textContent).toContain('21 confirmed, 3 for review, 3 dropped');
+    expect(el.querySelector('a[href="/audits/r1/deliverables"]')).toBeNull(); // own docs
+    TestBed.resetTestingModule();
+    ({ el } = render(confirmed, 'prospect'));
+    expect(el.querySelector('a[href="/audits/r1/deliverables"]')!.textContent).toContain(
+      'Deliverables',
+    );
     expect(el.textContent).not.toContain('Proposed by the reviewer');
     expect(el.querySelector('.cats:not(.proposed)')).not.toBeNull();
     expect(el.textContent).toContain('1 resolved since the previous audit');

@@ -375,6 +375,8 @@ re-read this file before starting the next.
 - [x] No confirmed triage needed: firm counted, review listed, drop left
       out; the page notes an unconfirmed triage
 - [x] Deliverables' report card depends on content integrity having run
+- [x] Deliverables build from the current tiers too; an unconfirmed triage is a
+      hand-off checklist item; Deliverables linked from Findings and the dashboard
 
 ## Later milestones (from the handoff)
 

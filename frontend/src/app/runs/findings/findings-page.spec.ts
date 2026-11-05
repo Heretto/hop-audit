@@ -188,6 +188,8 @@ describe('FindingsPage', () => {
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     const button = el.querySelector<HTMLButtonElement>('.page-actions button[color="primary"]')!;
     expect(button.textContent).toContain('Confirm triage and build deliverables');
+    // Deliverables can be built before the triage is confirmed.
+    expect(el.querySelector('.page-actions a[href="/audits/r1/deliverables"]')).not.toBeNull();
     page.confirm(true);
     fixture.detectChanges();
     expect(navigate).toHaveBeenCalledWith(['/audits', 'r1', 'deliverables']);

@@ -156,11 +156,13 @@ describe('DeliverablesPage', () => {
     const { el } = render(
       sampleDeliverables({
         available: false,
-        reason: 'Confirm the triage first: the one-sheets use triaged numbers only.',
+        reason:
+          "Content integrity hasn't run for this audit, so there are no findings to build from.",
         copy: null,
       }),
     );
-    expect(el.textContent).toContain('Confirm the triage first');
+    expect(el.textContent).toContain("Content integrity hasn't run for this audit");
+    expect(el.querySelector('.callout a[href="/audits/r1"]')).not.toBeNull();
     const build = [...el.querySelectorAll<HTMLButtonElement>('.page-actions button')].find((b) =>
       b.textContent!.includes('Build deliverables'),
     )!;

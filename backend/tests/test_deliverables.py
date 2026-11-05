@@ -78,17 +78,38 @@ def url(run, rest=""):
     return f"/api/v1/runs/{run.id}/deliverables{rest}"
 
 
-async def test_deliverables_wait_for_a_confirmed_triage(client, user, db, mock, writer):  # noqa: F811
+async def test_deliverables_build_before_the_triage_is_confirmed(client, user, db, mock, writer):  # noqa: F811
     run, _ = await prospect_run(client, user, db, mock, confirm=False)
     h = user["headers"]
     v = client.get(url(run), headers=h).json()
-    assert not v["available"] and v["reason"].startswith("Confirm the triage first")
+    assert v["available"] and v["reason"] == ""
     assert {s["key"]: s["status"] for s in v["steps"]} == {
-        "assess": "done", "triage": "now", "build": "todo", "handoff": "todo",
+        "assess": "done", "triage": "now", "build": "now", "handoff": "todo",
     }  # fmt: skip
-    assert v["copy"] is None and v["internal_note"] == ""
+    assert next(s for s in v["steps"] if s["key"] == "triage")["detail"].endswith("· not confirmed yet")
+    assert v["internal_note"].startswith("X Help Help Center Content Integrity Review")
+
+    v = client.post(url(run, "/build"), headers=h).json()
+    assert v["copy"]["headline_line1"] == "One answer, in every"
+    triage = next(c for c in v["checklist"] if c["key"] == "triage")
+    assert not triage["ok"] and triage["text"].startswith("The triage isn't confirmed yet")
+    assert client.get(url(run, "/lead.html"), headers=h).status_code == 200
+
+    assert client.post(f"/api/v1/runs/{run.id}/triage/confirm", headers=h).status_code == 200
+    v = client.get(url(run), headers=h).json()
+    assert next(c for c in v["checklist"] if c["key"] == "triage")["ok"]
+    assert "· confirmed" in next(s for s in v["steps"] if s["key"] == "triage")["detail"]
+
+
+async def test_no_deliverables_without_content_integrity(client, user, db, mock):  # noqa: F811
+    serve_site(mock)
+    site, _ = integrity_site(client, user)
+    run = await run_integrity(db, site, user, analyses=["links"])
+    h = user["headers"]
+    v = client.get(url(run), headers=h).json()
+    assert not v["available"] and "Content integrity hasn't run" in v["reason"]
+    assert v["internal_note"] == "" and not v["report_ready"]
     assert client.post(url(run, "/build"), headers=h).status_code == 409
-    assert client.get(url(run, "/lead.html"), headers=h).status_code == 409
 
 
 async def test_own_docs_sites_have_no_deliverables(client, user, db, mock):  # noqa: F811

@@ -125,7 +125,8 @@ Read those instead of inferring from this project's code. Do not copy them here.
   and a missing browser answers 503 with how to install it. Brand assets
   (`assets/`) are embedded as data URIs by `rendering.asset`.
 - **Deliverables** (`deliverables.py`, `routes/deliverables.py`): prospect
-  reviews with a confirmed triage only. A one-sheet's numbers (stats,
+  reviews where content integrity has run; the triage needn't be confirmed
+  (the checklist flags it until it is). A one-sheet's numbers (stats,
   categories, severity, issue mix, the triage's three example picks,
   eyebrow, review sentences, footnote) are computed from the triage each
   time it's rendered; only the copy (headlines, subhead opening, executive

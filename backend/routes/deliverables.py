@@ -26,8 +26,8 @@ def unavailable(run: AuditRun) -> str:
     """Why deliverables can't be built for this run, or ""."""
     if run.site.purpose != "prospect":
         return "Deliverables are for prospect reviews; this site is set up as your own documentation."
-    if (run.triage or {}).get("status") != "confirmed":
-        return "Confirm the triage first: the one-sheets use triaged numbers only."
+    if not (run.metrics or {}).get("integrity"):
+        return "Content integrity hasn't run for this audit, so there are no findings to build from."
     return ""
 
 
@@ -55,6 +55,14 @@ def view(db: Session, run: AuditRun) -> DeliverablesView:
     confirmed = triage.get("status") == "confirmed"
 
     checklist = [
+        CheckItem(
+            key="triage",
+            ok=confirmed,
+            text="The triage is confirmed."
+            if confirmed
+            else "The triage isn't confirmed yet: the one-sheets use the tiers as they stand. Confirm it on "
+            "Findings before sending.",
+        ),
         CheckItem(
             key="examples",
             ok=len(f.examples) >= 3,
@@ -131,13 +139,17 @@ def view(db: Session, run: AuditRun) -> DeliverablesView:
                 f"{integrity.get('firm', 0):,} firm · {integrity.get('review', 0):,} review · "
                 f"{integrity.get('drop', 0):,} dropped"
                 + (
-                    f" · confirmed {short(datetime.fromisoformat(triage['confirmed_at']))}"
-                    if triage.get("confirmed_at")
-                    else ""
+                    (
+                        f" · confirmed {short(datetime.fromisoformat(triage['confirmed_at']))}"
+                        if triage.get("confirmed_at")
+                        else " · confirmed"
+                    )
+                    + (f" by {triage['confirmed_by'].split('@')[0]}" if triage.get("confirmed_by") else "")
+                    if confirmed
+                    else " · not confirmed yet"
                 )
-                + (f" by {triage['confirmed_by'].split('@')[0]}" if triage.get("confirmed_by") else "")
-                if confirmed
-                else "Confirm on Findings"
+                if integrity
+                else "Not run yet"
             ),
         ),
         Step(
@@ -180,7 +192,7 @@ def view(db: Session, run: AuditRun) -> DeliverablesView:
         heights=heights,
         counts=f.counts,
         examples=[x.code for x in f.examples[:3]],
-        internal_note=d.internal_note(f) if confirmed else "",
+        internal_note=d.internal_note(f) if integrity else "",
         report_ready=bool(integrity),
     )
 

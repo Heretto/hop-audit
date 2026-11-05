@@ -3,7 +3,8 @@ brief, rendered from the skill's templates, plus the internal note.
 
 What a one-sheet says comes from two places:
 
-- the triage, read every time a sheet is rendered: the stats, categories,
+- the triage as it stands (confirmed or not; the hand-off checklist says
+  which), read every time a sheet is rendered: the stats, categories,
   severity split, issue mix, the three examples (the triage's one-sheet
   picks), the eyebrow, the review sentences and the footnote. These can't
   drift from the confirmed totals.
