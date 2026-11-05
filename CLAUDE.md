@@ -66,8 +66,12 @@ done as you finish it; re-read `TODO.md` before starting a new step.
   mounted as-is.
 - Analyses are run by hop-core Agents; one agent per analysis, assigned per
   site. Model keys are hop-core credentials (Claude, OpenAI, Gemini).
-- Content-integrity findings are never counted or built into deliverables
-  until a person confirms triage (firm / for review / dropped).
+- Content-integrity counts follow the tiers (firm / for review / dropped):
+  firm is counted, for review is listed but not counted, dropped is left
+  out. The dashboard, history and comparisons show counts only once a
+  person confirms triage. The full report and the deliverables are built
+  from the tiers as they stand, confirmed or not; the report page and the
+  deliverables' hand-off checklist say when the triage isn't confirmed.
 - A help center that blocks the crawler is reported, never worked around.
 
 ## hop-core integration notes
