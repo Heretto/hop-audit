@@ -113,8 +113,10 @@ Read those instead of inferring from this project's code. Do not copy them here.
   it. Re-analysis never re-runs the integrity review over an existing
   triage.
 - **Report and PDFs** (`report.py`, `report_export.py`, `pdf.py`): the
-  full findings report is built from a confirmed triage only, in the
-  skill's section order, as one table model (columns, rows of cells, each
+  full findings report is built from the tiers as they stand, confirmed or
+  not (firm counted, review listed, drop left out; the page notes an
+  unconfirmed triage, the exported document doesn't), in the skill's
+  section order, as one table model (columns, rows of cells, each
   cell a list of runs: text, quote, slug, note, sev, code, br) that the
   page, the Jinja print template (`templates/report.html`) and the Word
   export all render. Letter PDFs come from Chromium through Playwright, as

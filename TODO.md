@@ -370,6 +370,12 @@ re-read this file before starting the next.
       sites
 - [x] Tests; checks green; commit
 
+## Report from the current tiers
+
+- [x] No confirmed triage needed: firm counted, review listed, drop left
+      out; the page notes an unconfirmed triage
+- [x] Deliverables' report card depends on content integrity having run
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)

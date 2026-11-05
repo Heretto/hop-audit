@@ -440,6 +440,7 @@ export function sampleReport(overrides: Partial<ReportView> = {}): ReportView {
     purpose: 'prospect',
     ready: true,
     reason: '',
+    confirmed: true,
     title: 'Lumen Financial — Content Integrity Review',
     subject: 'Lumen Financial',
     as_of: '2026-10-08T07:00:00Z',
@@ -623,6 +624,7 @@ export function sampleDeliverables(overrides: Partial<DeliverablesView> = {}): D
     counts: { firm: 63, high: 9, review: 9, articles: 329, help_centers: 3 },
     examples: ['T-03', 'U-02', 'X-01'],
     internal_note: 'Lumen Financial Help Center Content Integrity Review: what it assessed',
+    report_ready: true,
     ...overrides,
   };
 }

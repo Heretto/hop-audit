@@ -49,11 +49,20 @@
       <div class="callout" role="status">
         <mat-icon>info</mat-icon>
         <span
-          >{{ v.reason }}
-          <a [routerLink]="['/audits', v.run.id, 'findings']">Go to Findings and triage</a></span
+          >{{ v.reason }} <a [routerLink]="['/audits', v.run.id]">Back to the dashboard</a></span
         >
       </div>
     } @else {
+      @if (!v.confirmed) {
+        <div class="callout" role="status">
+          <mat-icon>pending</mat-icon>
+          <span
+            >The triage isn't confirmed yet. This report uses the tiers as they stand: confirmed
+            issues are counted, items for review are listed, dropped ones are left out.
+            <a [routerLink]="['/audits', v.run.id, 'findings']">Findings and triage</a></span
+          >
+        </div>
+      }
       <mat-card class="report-card">
         <article class="article">
           <header class="article-head">

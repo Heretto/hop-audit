@@ -55,6 +55,7 @@ class DeliverablesView(BaseModel):
     counts: dict[str, int]
     examples: list[str]  # codes of the one-sheet examples, in order
     internal_note: str
+    report_ready: bool  # content integrity has run, so the full report can be built
 
     model_config = {"populate_by_name": True}
 

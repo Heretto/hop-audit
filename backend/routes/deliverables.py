@@ -181,6 +181,7 @@ def view(db: Session, run: AuditRun) -> DeliverablesView:
         counts=f.counts,
         examples=[x.code for x in f.examples[:3]],
         internal_note=d.internal_note(f) if confirmed else "",
+        report_ready=bool(integrity),
     )
 
 

@@ -42,8 +42,9 @@ class ReportMetric(BaseModel):
 class ReportView(BaseModel):
     run: RunDetail
     purpose: str
-    ready: bool  # False until triage is confirmed; ``reason`` says why
+    ready: bool  # False when content integrity hasn't run; ``reason`` says why
     reason: str
+    confirmed: bool  # the triage the tiers come from has been confirmed
     title: str
     subject: str
     as_of: datetime | None

@@ -417,6 +417,8 @@ export interface ReportView {
   purpose: 'own' | 'prospect';
   ready: boolean;
   reason: string;
+  /** Whether the tiers it's built from are a confirmed triage. */
+  confirmed: boolean;
   title: string;
   subject: string;
   as_of: string | null;
@@ -498,6 +500,8 @@ export interface DeliverablesView {
   counts: Record<string, number>;
   examples: string[];
   internal_note: string;
+  /** The full report can be built (content integrity has run). */
+  report_ready: boolean;
 }
 
 export interface DeliverablesChange {

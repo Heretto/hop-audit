@@ -15,6 +15,7 @@ from tests.test_integrity import (  # noqa: F401  fixtures
     run_integrity,
     serve_site,
 )
+from tests.test_runs import make_site
 
 
 @pytest.fixture
@@ -79,13 +80,37 @@ async def test_report_follows_the_skill_structure(client, user, triaged):
     }
 
 
-async def test_report_waits_for_a_confirmed_triage(client, user, db, mock, model):  # noqa: F811
+async def test_report_follows_the_tiers_as_they_stand(client, user, db, mock, model):  # noqa: F811
     serve_site(mock)
     site, _ = integrity_site(client, user)
     run = await run_integrity(db, site, user)
     h = user["headers"]
     r = client.get(f"/api/v1/runs/{run.id}/report", headers=h).json()
-    assert not r["ready"] and "Confirm the triage" in r["reason"] and r["sections"] == []
+    assert r["ready"] and not r["confirmed"]  # no confirmed triage needed
+    assert r["author"] == ""  # nobody confirmed, no sender
+
+    findings = client.get(f"/api/v1/runs/{run.id}/integrity", headers=h).json()["findings"]
+    two = next(f for f in findings if f["title"] == "Two support numbers")
+    note = next(f for f in findings if f["title"] == "Internal note published")
+    client.patch(f"/api/v1/integrity-findings/{two['id']}", json={"tier": "drop"}, headers=h)
+    client.patch(f"/api/v1/integrity-findings/{note['id']}", json={"tier": "review"}, headers=h)
+    r = client.get(f"/api/v1/runs/{run.id}/report", headers=h).json()
+    text = json.dumps(r["sections"])
+    assert "Two support numbers" not in text  # dropped: left out
+    assert "contradictions" not in [s["id"] for s in r["sections"]]
+    review = next(s for s in r["sections"] if s["id"] == "review")
+    assert "Internal note published" in json.dumps(review)  # for review: listed, not counted
+    assert r["counts"]["review"] == sum(1 for f in findings if f["tier"] == "review") + 1
+    assert client.get(f"/api/v1/runs/{run.id}/report.docx", headers=h).status_code == 200
+
+
+async def test_no_report_without_content_integrity(client, user, db, mock):  # noqa: F811
+    serve_site(mock)
+    site = make_site(client, user)
+    run = await run_integrity(db, site, user, analyses=["links"])
+    h = user["headers"]
+    r = client.get(f"/api/v1/runs/{run.id}/report", headers=h).json()
+    assert not r["ready"] and "Content integrity hasn't run" in r["reason"] and r["sections"] == []
     for export in ("report.pdf", "report.docx"):
         assert client.get(f"/api/v1/runs/{run.id}/{export}", headers=h).status_code == 409
 

@@ -176,8 +176,8 @@
         </a>
         <div class="row between">
           <h3>Full findings report</h3>
-          <span class="hop-status-chip" [class.hop-status-chip-completed]="v.available">{{
-            v.available ? 'Built' : 'Waiting for triage'
+          <span class="hop-status-chip" [class.hop-status-chip-completed]="v.report_ready">{{
+            v.report_ready ? 'Built' : 'Waiting for content integrity'
           }}</span>
         </div>
         <span class="sub"
@@ -192,7 +192,7 @@
             mat-stroked-button
             class="small"
             (click)="report('report.pdf')"
-            [disabled]="!v.available || !!busy()"
+            [disabled]="!v.report_ready || !!busy()"
           >
             <mat-icon>picture_as_pdf</mat-icon>PDF
           </button>
@@ -200,7 +200,7 @@
             mat-stroked-button
             class="small"
             (click)="report('report.docx')"
-            [disabled]="!v.available || !!busy()"
+            [disabled]="!v.report_ready || !!busy()"
           >
             <mat-icon>description</mat-icon>Doc
           </button>

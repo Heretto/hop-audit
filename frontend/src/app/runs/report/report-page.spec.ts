@@ -59,16 +59,33 @@ describe('ReportPage', () => {
     expect(el.querySelector('a.back')!.getAttribute('href')).toBe('/audits/r1');
   });
 
-  it('asks for a confirmed triage first', () => {
+  it('says when there is nothing to report', () => {
     const { el } = render(
-      sampleReport({ ready: false, reason: 'Confirm the triage on Findings first.', sections: [] }),
+      sampleReport({
+        ready: false,
+        reason: "Content integrity hasn't run for this audit, so there is nothing to report.",
+        sections: [],
+      }),
     );
-    expect(el.textContent).toContain('Confirm the triage on Findings first.');
-    expect(el.querySelector('a[href="/audits/r1/findings"]')).not.toBeNull();
+    expect(el.textContent).toContain("Content integrity hasn't run for this audit");
+    expect(el.querySelector('.callout a[href="/audits/r1"]')).not.toBeNull();
     expect(el.querySelector('article')).toBeNull();
     expect(
       el.querySelector<HTMLButtonElement>('.page-actions button[aria-haspopup]')!.disabled,
     ).toBe(true);
+  });
+
+  it('reports before triage is confirmed, saying so on the page only', () => {
+    const { el } = render(sampleReport({ confirmed: false }));
+    expect(el.querySelector('article')).not.toBeNull();
+    expect(el.textContent).toContain("The triage isn't confirmed yet.");
+    expect(el.querySelector('.callout a[href="/audits/r1/findings"]')).not.toBeNull();
+    expect(el.querySelector('article')!.textContent).not.toContain('confirmed yet');
+  });
+
+  it('has no triage note once it is confirmed', () => {
+    const { el } = render();
+    expect(el.textContent).not.toContain("The triage isn't confirmed yet.");
   });
 
   it('exports each format', async () => {

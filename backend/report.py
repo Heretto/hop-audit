@@ -3,8 +3,10 @@
 translation mismatches, instructions, the remaining categories, items for
 review, then a site-health appendix.
 
-Built only from a confirmed triage: firm findings are counted, review items
-are listed and excluded, dropped ones are left out. Every table is the same
+Built from the tiers as they stand, confirmed or not: firm findings are
+counted, review items are listed and excluded from the totals, and only
+dropped ones are left out. ``confirmed`` says whether a person has confirmed
+that triage yet; the page shows it, the exported document doesn't. Every table is the same
 small model (columns, rows of cells, each cell a list of runs) so the page,
 the Letter PDF and the Word file render from one structure. Leads are written
 here from the counts: plain and factual, no adjectives, no product mention.
@@ -100,6 +102,7 @@ class Metric:
 @dataclass
 class Report:
     ready: bool
+    confirmed: bool = False
     reason: str = ""
     title: str = ""
     subject: str = ""
@@ -171,11 +174,9 @@ def severity(f: IntegrityFinding) -> Cell:
 
 
 def build(db: Session, run: AuditRun) -> Report:
-    if (run.triage or {}).get("status") != "confirmed":
-        return Report(False, "The report is built from a confirmed triage. Confirm the triage on Findings first.")
     findings = db.scalars(select(IntegrityFinding).where(IntegrityFinding.run_id == run.id)).all()
     if not findings and not (run.metrics or {}).get("integrity"):
-        return Report(False, "Content integrity hasn't run for this audit, so there is nothing to report.")
+        return Report(False, reason="Content integrity hasn't run for this audit, so there is nothing to report.")
     site = run.site
     prospect = site.prospect or {}
     subject = (prospect.get("company") or "").strip() or site.name
@@ -231,8 +232,10 @@ def build(db: Session, run: AuditRun) -> Report:
         sections.append(_review(review))
 
     author = (prospect.get("sender_name") or "").strip() or (run.triage or {}).get("confirmed_by", "")
+    confirmed = (run.triage or {}).get("status") == "confirmed"
     return Report(
         True,
+        confirmed=confirmed,
         title=f"{subject} — Content Integrity Review",
         subject=subject,
         as_of=run.started_at or run.created_at,
