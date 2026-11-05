@@ -625,6 +625,10 @@ export function sampleDeliverables(overrides: Partial<DeliverablesView> = {}): D
     examples: ['T-03', 'U-02', 'X-01'],
     internal_note: 'Lumen Financial Help Center Content Integrity Review: what it assessed',
     report_ready: true,
+    status: 'idle',
+    started_at: null,
+    error: null,
+    log: [],
     ...overrides,
   };
 }

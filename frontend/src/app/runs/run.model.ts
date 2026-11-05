@@ -502,6 +502,17 @@ export interface DeliverablesView {
   internal_note: string;
   /** The full report can be built (content integrity has run). */
   report_ready: boolean;
+  /** The latest build, which runs in the background. */
+  status: 'idle' | 'building' | 'failed';
+  started_at: string | null;
+  error: string | null;
+  log: BuildLogEntry[];
+}
+
+export interface BuildLogEntry {
+  at: string;
+  level: 'info' | 'warn' | 'error';
+  message: string;
 }
 
 export interface DeliverablesChange {

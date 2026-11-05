@@ -1,8 +1,9 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   inject,
   input,
   OnInit,
@@ -15,6 +16,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -35,6 +37,14 @@ import { RunsService } from '../runs.service';
 import { PAGE_H, SheetFrame } from './sheet-frame';
 
 export const MAX_LOGO_BYTES = 512 * 1024;
+/** How often the page asks for a running build's progress. */
+export const POLL_MS = 2000;
+
+/** "1:05" from milliseconds. */
+export function elapsed(ms: number): string {
+  const seconds = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
 const LOGO_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml'];
 
 /** Tags for the "why it matters" lines, by Business Imperative. */
@@ -57,6 +67,7 @@ export function joinSender(name: string, title: string): string {
   selector: 'app-deliverables-page',
   imports: [
     DatePipe,
+    NgTemplateOutlet,
     FormsModule,
     RouterLink,
     MatButtonModule,
@@ -64,6 +75,7 @@ export function joinSender(name: string, title: string): string {
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    MatProgressBarModule,
     MatProgressSpinnerModule,
     MatTooltipModule,
     SheetFrame,
@@ -79,11 +91,20 @@ export class DeliverablesPage implements OnInit {
   private runs = inject(RunsService);
   private snack = inject(MatSnackBar);
   private dialog = inject(MatDialog);
+  private poll?: ReturnType<typeof setTimeout>;
+  private clock?: ReturnType<typeof setInterval>;
 
   readonly view = signal<DeliverablesView | null>(null);
   readonly error = signal<string | null>(null);
   readonly sheets = signal<Partial<Record<SheetKind, string>>>({});
-  readonly building = signal(false);
+  /** The build request is on its way; then the server's status says. */
+  readonly starting = signal(false);
+  readonly building = computed(() => this.starting() || this.view()?.status === 'building');
+  readonly now = signal(Date.now());
+  readonly elapsedText = computed(() => {
+    const started = this.view()?.started_at;
+    return started ? elapsed(this.now() - new Date(started).getTime()) : '0:00';
+  });
   readonly busy = signal<string | null>(null); // a download in progress
 
   /** Editable copies of the copy and the prospect's details, saved on blur. */
@@ -100,6 +121,13 @@ export class DeliverablesPage implements OnInit {
     (this.view()?.copy?.why ?? []).filter((w) => w.codes.length).map((w) => w.codes.join(', ')),
   );
 
+  constructor() {
+    inject(DestroyRef).onDestroy(() => {
+      clearTimeout(this.poll);
+      clearInterval(this.clock);
+    });
+  }
+
   ngOnInit(): void {
     this.runs.deliverables(this.runId()).subscribe({
       next: (v) => this.show(v, true),
@@ -108,12 +136,46 @@ export class DeliverablesPage implements OnInit {
   }
 
   private show(v: DeliverablesView, sheets: boolean): void {
+    const before = this.view();
     this.view.set(v);
-    this.draft = v.copy ? structuredClone(v.copy) : null;
-    this.company = v.prospect.company;
-    this.sender = joinSender(v.prospect.sender_name, v.prospect.sender_title);
-    this.email = v.prospect.sender_email;
-    if (sheets && v.copy) this.loadSheets();
+    // Keep what's being typed while a poll brings the same copy back.
+    if (JSON.stringify(v.copy) !== JSON.stringify(before?.copy) || !before) {
+      this.draft = v.copy ? structuredClone(v.copy) : null;
+    }
+    if (JSON.stringify(v.prospect) !== JSON.stringify(before?.prospect) || !before) {
+      this.company = v.prospect.company;
+      this.sender = joinSender(v.prospect.sender_name, v.prospect.sender_title);
+      this.email = v.prospect.sender_email;
+    }
+    const finished = before?.status === 'building' && v.status !== 'building';
+    if ((sheets || (finished && v.status === 'idle')) && v.copy) this.loadSheets();
+    if (finished) {
+      this.snack.open(
+        v.status === 'idle' ? 'The one-sheets are built.' : 'The build failed; the log says why.',
+        undefined,
+        { duration: 4000 },
+      );
+    }
+    this.follow(v);
+  }
+
+  /** While a build runs: ask for its progress every few seconds, and keep the clock moving. */
+  private follow(v: DeliverablesView): void {
+    clearTimeout(this.poll);
+    if (v.status !== 'building') {
+      clearInterval(this.clock);
+      this.clock = undefined;
+      return;
+    }
+    this.clock ??= setInterval(() => this.now.set(Date.now()), 1000);
+    this.poll = setTimeout(
+      () =>
+        this.runs.deliverables(this.runId()).subscribe({
+          next: (next) => this.show(next, false),
+          error: () => this.follow(v), // try again on the next tick
+        }),
+      POLL_MS,
+    );
   }
 
   private loadSheets(): void {
@@ -145,14 +207,15 @@ export class DeliverablesPage implements OnInit {
 
   build(): void {
     const start = () => {
-      this.building.set(true);
+      this.starting.set(true);
+      this.now.set(Date.now());
       this.runs.buildDeliverables(this.runId()).subscribe({
         next: (v) => {
-          this.building.set(false);
-          this.show(v, true);
+          this.starting.set(false);
+          this.show(v, false);
         },
         error: (e) => {
-          this.building.set(false);
+          this.starting.set(false);
           this.snack.open(apiErrors(e).join(' '), 'Dismiss');
         },
       });

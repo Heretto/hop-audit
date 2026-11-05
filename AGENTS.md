@@ -139,6 +139,12 @@ Read those instead of inferring from this project's code. Do not copy them here.
   sheet in a sandboxed `srcdoc` frame (`SheetFrame`) and measures its
   natural height the skill's way; the PDF route measures again in Chromium
   and refuses an overflow (409).
+  A build runs in the background (`deliverables.start_build`, `spawn`):
+  the row carries its status (idle | building | failed), error and a step
+  log that also goes to the server log; the page polls every 2 s while it
+  runs. Startup marks interrupted builds failed, and one stuck over 15
+  minutes reads as failed. Tests replace `deliverables.spawn` to await
+  the job.
 - **Routes in the UI**: `/audits/:runId` is the dashboard (active runs
   redirect to `/audits/:runId/progress`), pages are
   `/audits/:runId/pages/:pageId`, triage is `/audits/:runId/findings`, the claims the integrity reviewer took

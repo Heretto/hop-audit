@@ -1,7 +1,7 @@
 """Prospect deliverables: the Deliverables screen, the Collateral Writer's
 copy, the prospect's details and logo, and the one-sheets as HTML and PDF."""
 
-from datetime import UTC, datetime
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -53,6 +53,8 @@ def view(db: Session, run: AuditRun) -> DeliverablesView:
     missing = d.placeholders(site)
     quotes = d.spot_checks(f)
     confirmed = triage.get("status") == "confirmed"
+    build_status, build_error = d.build_state(saved)
+    building = build_status == "building"
 
     checklist = [
         CheckItem(
@@ -155,8 +157,14 @@ def view(db: Session, run: AuditRun) -> DeliverablesView:
         Step(
             key="build",
             label="Build",
-            status="done" if built else ("now" if not reason else "todo"),
-            detail=f"4 deliverables · {overflow(heights)}" if built else "Not built yet",
+            status="now" if building else "done" if built else ("now" if not reason else "todo"),
+            detail="Building…"
+            if building
+            else f"4 deliverables · {overflow(heights)}"
+            if built
+            else "Build failed"
+            if build_status == "failed"
+            else "Not built yet",
         ),
         Step(
             key="handoff",
@@ -194,6 +202,10 @@ def view(db: Session, run: AuditRun) -> DeliverablesView:
         examples=[x.code for x in f.examples[:3]],
         internal_note=d.internal_note(f) if integrity else "",
         report_ready=bool(integrity),
+        status=build_status,
+        started_at=saved.started_at if saved else None,
+        error=build_error,
+        log=(saved.log or []) if saved else [],
     )
 
 
@@ -213,23 +225,14 @@ def get_view(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(
 
 @router.post("/runs/{run_id}/deliverables/build", response_model=DeliverablesView, response_model_by_alias=True)
 async def build(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
-    """Ask the Collateral Writer for fresh copy; replaces any edits."""
+    """Start the Collateral Writer on fresh copy, in the background; it replaces
+    any edits when it succeeds. The view's status and log show its progress."""
     run = get_run(db, ctx, run_id)
     if reason := unavailable(run):
         raise HTTPException(status.HTTP_409_CONFLICT, reason)
-    f = d.facts(db, run)
-    try:
-        copy, agent_name = await d.write(db, run, f)
-    except d.WriterFailed as exc:
-        raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY, f"The Collateral Writer couldn't write the copy: {exc}"
-        ) from exc
-    saved = d.row(db, run) or Deliverables(run_id=run.id)
-    saved.copy, saved.counts, saved.heights = d.dumps(copy), f.counts, {}
-    saved.spot_checked = False  # the copy and its evidence are new
-    saved.agent_name, saved.built_by, saved.built_at = agent_name, ctx.user.email, datetime.now(UTC)
-    db.add(saved)
-    db.commit()
+    if d.build_state(d.row(db, run))[0] == "building":
+        raise HTTPException(status.HTTP_409_CONFLICT, "A build is already running.")
+    d.start_build(db, run, ctx.user.email)
     return view(db, run)
 
 

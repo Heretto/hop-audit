@@ -18,14 +18,19 @@ Rules and length budgets are the skill's (`onesheet-data.md`,
 `business-imperatives.md`); the writer gets them as its context files.
 """
 
+import asyncio
 import json
+import logging
 import re
+import time
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Literal
 from urllib.parse import urlsplit
 
+from hop_core.db import get_session_factory
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -37,6 +42,7 @@ import runner
 from models import AuditRun, Deliverables, IntegrityFinding, Page
 from readability import MIN_WORDS
 
+logger = logging.getLogger(__name__)
 PAGE_H = 1056  # Letter at 96 dpi; a sheet taller than this overflows
 KINDS = ("lead", "exec")
 TEMPLATES = {"lead": "onesheet_lead.html", "exec": "onesheet_exec.html"}
@@ -369,18 +375,26 @@ def material(f: Facts, site) -> str:
     return "\n".join(line for line in lines if line is not None)
 
 
-def parse_copy(raw: dict, codes: set[str]) -> Copy:
+Log = Callable[[str, str], None]  # (level, message): info | warn | error
+
+
+def parse_copy(raw: dict, codes: set[str], log: Log | None = None) -> Copy:
     try:
         copy = Copy.model_validate(raw)
     except ValidationError as exc:
         raise WriterFailed(f"the copy didn't have the expected fields ({exc.error_count()} problems)") from exc
+    unknown = 0
     for item in [*copy.why, *copy.impacts]:
+        unknown += sum(c not in codes for c in item.codes)
         item.codes = [c for c in item.codes if c in codes]
+    if log and unknown:
+        log("warn", f"Dropped {unknown} finding ID(s) the writer cited that aren't confirmed findings.")
     return copy
 
 
-async def write(db: Session, run: AuditRun, f: Facts) -> tuple[Copy, str]:
-    """Ask the site's Collateral Writer for the copy; returns it and the agent's name."""
+async def write(db: Session, run: AuditRun, f: Facts, log: Log) -> tuple[Copy, str]:
+    """Ask the site's Collateral Writer for the copy; returns it and the agent's name.
+    Every step, retry and failure goes to ``log``."""
     site = run.site
     try:
         agent = review.load_agent(db, run.organization_id, (site.agent_assignments or {}).get("deliverables"))
@@ -388,15 +402,111 @@ async def write(db: Session, run: AuditRun, f: Facts) -> tuple[Copy, str]:
         raise WriterFailed(str(exc)) from exc
     errors: list[str] = []
 
+    def relay(_analysis: str, level: str, message: str) -> None:
+        if level == "error":
+            errors.append(message)
+        log(level, message)
+
     async def ready() -> None:
         return None
 
-    asking = review.Review(db, run, "deliverables", agent, lambda _a, level, m: errors.append(m),
-                           lambda _d, _t: None, ready)  # fmt: skip
+    asking = review.Review(db, run, "deliverables", agent, relay, lambda _d, _t: None, ready)
+    listed = min(len(f.firm), MAX_LISTED)
+    log("info", f"Asking {agent.name} ({agent.model}) for the copy, with {listed:,} findings. This usually "
+                "takes from 30 seconds to two minutes.")  # fmt: skip
+    started = time.monotonic()
     raw = await asking.ask("the one-sheet copy", material(f, site), TASK + "\n\n" + ANSWER, parse=review.parse_object)
     if raw is None:
         raise WriterFailed(errors[-1] if errors else f"{agent.name} didn't answer")
-    return parse_copy(raw, {x.code for x in f.firm}), agent.name
+    log("info", f"{agent.name} answered in {time.monotonic() - started:.0f} s "
+                f"({asking.tally.tokens:,} tokens).")  # fmt: skip
+    copy = parse_copy(raw, {x.code for x in f.firm}, log)
+    log("info", f"Checked the copy: {len(copy.why)} why-it-matters lines and {len(copy.impacts)} impact cards.")
+    for problem in budget_problems(copy):
+        log("warn", f"{problem}; edit it before sending.")
+    return copy, agent.name
+
+
+# ── Building in the background ───────────────────────────────────────────────
+
+STALE = timedelta(minutes=15)  # a build this old and still "building" was interrupted
+_tasks: set[asyncio.Task] = set()
+
+
+def spawn(job) -> None:
+    """Run a build on the event loop (tests replace this to await it)."""
+    task = asyncio.get_running_loop().create_task(job)
+    _tasks.add(task)
+    task.add_done_callback(_tasks.discard)
+
+
+def note(saved: Deliverables, level: str, message: str) -> None:
+    saved.log = [*(saved.log or []), {"at": datetime.now(UTC).isoformat(), "level": level, "message": message}]
+    logger.log({"warn": logging.WARNING, "error": logging.ERROR}.get(level, logging.INFO),
+               "Deliverables for run %s: %s", saved.run_id, message)  # fmt: skip
+
+
+def start_build(db: Session, run: AuditRun, email: str) -> Deliverables:
+    """Mark a build as started and run it in the background. The page polls
+    the view for its status and log; an earlier copy stays until it succeeds."""
+    saved = row(db, run) or Deliverables(run_id=run.id)
+    saved.status, saved.error, saved.log, saved.started_at = "building", None, [], datetime.now(UTC)
+    note(saved, "info", f"Build started by {email}.")
+    db.add(saved)
+    db.commit()
+    spawn(build_job(run.id, email))
+    return saved
+
+
+async def build_job(run_id, email: str) -> None:
+    db = get_session_factory()()
+    run = db.get(AuditRun, run_id)
+    saved = row(db, run)
+
+    def log(level: str, message: str) -> None:
+        note(saved, level, message)
+        db.commit()  # each step shows on the page as it happens
+
+    try:
+        f = facts(db, run)
+        confirmed = (run.triage or {}).get("status") == "confirmed"
+        log("info", f"Read the triage: {len(f.firm):,} confirmed issues ({f.severity['High']:,} High), "
+                    f"{len(f.review):,} for review, {len(f.examples[:3])} one-sheet example(s) picked"
+                    + ("." if confirmed else "; the triage isn't confirmed yet."))  # fmt: skip
+        if not f.firm:
+            raise WriterFailed("there are no confirmed issues to write about")
+        copy, agent_name = await write(db, run, f, log)
+        saved.copy, saved.counts, saved.heights = dumps(copy), f.counts, {}
+        saved.spot_checked = False  # the copy and its evidence are new
+        saved.agent_name, saved.built_by, saved.built_at = agent_name, email, datetime.now(UTC)
+        saved.status = "idle"
+        log("info", "Done: the one-sheets are built. They're measured for overflow when their previews load.")
+    except WriterFailed as exc:
+        saved.status, saved.error = "failed", f"The Collateral Writer couldn't write the copy: {exc}"
+        log("error", saved.error)
+    except Exception as exc:  # report it on the page, not only in the server log
+        logger.exception("Deliverables build for run %s failed", run_id)
+        saved.status, saved.error = "failed", f"The build failed: {exc or type(exc).__name__}"
+        log("error", saved.error)
+    finally:
+        db.close()
+
+
+def recover_interrupted(db: Session) -> None:
+    """At startup: builds the server was running when it stopped are failed, not "building" forever."""
+    for saved in db.scalars(select(Deliverables).where(Deliverables.status == "building")):
+        saved.status, saved.error = "failed", "The server restarted during the build. Build again."
+        note(saved, "error", saved.error)
+    db.commit()
+
+
+def build_state(saved: Deliverables | None) -> tuple[str, str | None]:
+    """The build's status and error, treating a long-stalled build as failed."""
+    if saved is None:
+        return "idle", None
+    if saved.status == "building" and saved.started_at and datetime.now(UTC) - saved.started_at > STALE:
+        return "failed", "The build stopped without finishing (over 15 minutes). Build again."
+    return saved.status or "idle", saved.error
 
 
 # ── Hand-off ─────────────────────────────────────────────────────────────────

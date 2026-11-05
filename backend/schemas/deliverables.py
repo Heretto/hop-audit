@@ -37,6 +37,12 @@ class ProspectOut(BaseModel):
     logo: str | None  # data URI
 
 
+class BuildLogEntry(BaseModel):
+    at: datetime
+    level: Literal["info", "warn", "error"]
+    message: str
+
+
 class DeliverablesView(BaseModel):
     run: RunDetail
     purpose: str
@@ -56,6 +62,10 @@ class DeliverablesView(BaseModel):
     examples: list[str]  # codes of the one-sheet examples, in order
     internal_note: str
     report_ready: bool  # content integrity has run, so the full report can be built
+    status: Literal["idle", "building", "failed"]  # the latest build (it runs in the background)
+    started_at: datetime | None
+    error: str | None
+    log: list[BuildLogEntry]
 
     model_config = {"populate_by_name": True}
 

@@ -6,6 +6,7 @@ from hop_core.credentials import AI_PROVIDER_TYPES, register_builtin_types
 from hop_core.db import get_engine, get_session_factory
 from sqlalchemy import text
 
+import deliverables as deliverables_jobs
 import models  # noqa: F401  register our tables before hop-core's startup
 import runner
 from migrate import migrate
@@ -40,6 +41,7 @@ async def lifespan(app):
     migrate()  # before hop-core's create_all; see migrate.py
     with get_session_factory()() as db:
         runner.recover_interrupted(db)
+        deliverables_jobs.recover_interrupted(db)
     async with _hop_lifespan(app):
         yield
 

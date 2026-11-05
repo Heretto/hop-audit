@@ -61,10 +61,41 @@
       </div>
     }
     @if (building()) {
-      <div class="callout" role="status">
-        <mat-spinner diameter="18" />The Collateral Writer is writing the copy from the confirmed
-        findings…
+      <mat-card class="section build" role="status" aria-live="polite">
+        <div class="row between">
+          <div class="row">
+            <mat-spinner diameter="20" />
+            <strong>Building the one-sheets</strong>
+          </div>
+          <span class="sub mono">{{ elapsedText() }} elapsed</span>
+        </div>
+        <mat-progress-bar mode="indeterminate" />
+        <ng-container *ngTemplateOutlet="buildLog; context: { $implicit: v.log }" />
+        <span class="sub"
+          >You can leave this page; the build carries on and the result is here when you come
+          back.</span
+        >
+      </mat-card>
+    } @else if (v.status === 'failed') {
+      <div class="callout error" role="alert">
+        <mat-icon>error</mat-icon>
+        <span>{{ v.error }}</span>
       </div>
+      @if (v.log.length) {
+        <details class="log-details" open>
+          <summary>Build log</summary>
+          <ng-container *ngTemplateOutlet="buildLog; context: { $implicit: v.log }" />
+        </details>
+      }
+    } @else if (v.log.length) {
+      <details class="log-details">
+        <summary>
+          Last build: {{ v.log.length }} steps{{
+            v.started_at ? ', started ' + (v.started_at | date: 'MMM d, HH:mm') : ''
+          }}
+        </summary>
+        <ng-container *ngTemplateOutlet="buildLog; context: { $implicit: v.log }" />
+      </details>
     }
 
     <div class="cards">
@@ -502,3 +533,17 @@
     <div class="hop-status-message error" role="alert">{{ message }}</div>
   }
 </div>
+
+<ng-template #buildLog let-log>
+  <ol class="build-log">
+    @for (e of log; track $index) {
+      <li [class]="e.level">
+        <span class="mono sub">{{ e.at | date: 'HH:mm:ss' }}</span>
+        @if (e.level !== 'info') {
+          <mat-icon>{{ e.level === 'error' ? 'error' : 'warning' }}</mat-icon>
+        }
+        <span>{{ e.message }}</span>
+      </li>
+    }
+  </ol>
+</ng-template>

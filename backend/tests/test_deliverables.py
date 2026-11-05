@@ -2,10 +2,12 @@
 
 import base64
 import json
+import re
 
 import pytest
 from hop_core.agents import AiProviderError, AiProviderRegistry, GenerationResponse
 
+import deliverables
 import pdf
 from tests.test_integrity import (  # noqa: F401  fixtures
     integrity_site,
@@ -74,11 +76,28 @@ async def prospect_run(client, user, db, mock, confirm=True, picks=3):  # noqa: 
     return run, site
 
 
+@pytest.fixture(autouse=True)
+def jobs(monkeypatch):
+    """Builds run in the background; collect them so a test can await them."""
+    started = []
+    monkeypatch.setattr(deliverables, "spawn", started.append)
+    return started
+
+
+async def build(client, run, h, jobs) -> dict:
+    """Start a build, run it to the end, and return the view."""
+    r = client.post(url(run, "/build"), headers=h)
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "building"
+    await jobs.pop()
+    return client.get(url(run), headers=h).json()
+
+
 def url(run, rest=""):
     return f"/api/v1/runs/{run.id}/deliverables{rest}"
 
 
-async def test_deliverables_build_before_the_triage_is_confirmed(client, user, db, mock, writer):  # noqa: F811
+async def test_deliverables_build_before_the_triage_is_confirmed(client, user, db, mock, writer, jobs):  # noqa: F811
     run, _ = await prospect_run(client, user, db, mock, confirm=False)
     h = user["headers"]
     v = client.get(url(run), headers=h).json()
@@ -89,7 +108,7 @@ async def test_deliverables_build_before_the_triage_is_confirmed(client, user, d
     assert next(s for s in v["steps"] if s["key"] == "triage")["detail"].endswith("· not confirmed yet")
     assert v["internal_note"].startswith("X Help Help Center Content Integrity Review")
 
-    v = client.post(url(run, "/build"), headers=h).json()
+    v = await build(client, run, h, jobs)
     assert v["copy"]["headline_line1"] == "One answer, in every"
     triage = next(c for c in v["checklist"] if c["key"] == "triage")
     assert not triage["ok"] and triage["text"].startswith("The triage isn't confirmed yet")
@@ -122,12 +141,12 @@ async def test_own_docs_sites_have_no_deliverables(client, user, db, mock):  # n
     assert r.status_code == 409
 
 
-async def test_build_writes_the_copy_and_the_sheets(client, user, db, mock, writer):  # noqa: F811
+async def test_build_writes_the_copy_and_the_sheets(client, user, db, mock, writer, jobs):  # noqa: F811
     run, _ = await prospect_run(client, user, db, mock)
     h = user["headers"]
     client.patch(url(run), json={"prospect": {"company": "Lumen", "sender_name": "Pat", "sender_title": "AE"}},
                  headers=h)  # fmt: skip
-    v = client.post(url(run, "/build"), headers=h).json()
+    v = await build(client, run, h, jobs)
 
     prompt = writer.prompts[0]
     assert "Prospect: Lumen" in prompt and "Confirmed findings:" in prompt and "- C-01 · High" in prompt
@@ -160,10 +179,10 @@ async def test_build_writes_the_copy_and_the_sheets(client, user, db, mock, writ
     assert client.get(url(run, "/other.html"), headers=h).status_code == 404
 
 
-async def test_editing_the_copy_and_the_checklist(client, user, db, mock, writer):  # noqa: F811
+async def test_editing_the_copy_and_the_checklist(client, user, db, mock, writer, jobs):  # noqa: F811
     run, _ = await prospect_run(client, user, db, mock)
     h = user["headers"]
-    client.post(url(run, "/build"), headers=h)
+    await build(client, run, h, jobs)
     copy = {**COPY, "exec_headline": "Your help center needs one source, everywhere you sell"}
     v = client.patch(url(run), json={"copy": copy, "heights": {"lead": 1000, "exec": 1100}}, headers=h).json()
     assert v["copy"]["exec_headline"].startswith("Your help center")
@@ -193,10 +212,10 @@ async def test_editing_the_copy_and_the_checklist(client, user, db, mock, writer
     assert not checks["counts"]["ok"] and "triage changed" in checks["counts"]["text"]
 
 
-async def test_prospect_logo(client, user, db, mock, writer):  # noqa: F811
+async def test_prospect_logo(client, user, db, mock, writer, jobs):  # noqa: F811
     run, _ = await prospect_run(client, user, db, mock)
     h = user["headers"]
-    client.post(url(run, "/build"), headers=h)
+    await build(client, run, h, jobs)
     png = "data:image/png;base64," + base64.b64encode(b"\x89PNG fake").decode()
     v = client.put(url(run, "/logo"), json={"data_uri": png}, headers=h).json()
     assert v["prospect"]["logo"] == png
@@ -205,10 +224,10 @@ async def test_prospect_logo(client, user, db, mock, writer):  # noqa: F811
     assert client.delete(url(run, "/logo"), headers=h).json()["prospect"]["logo"] is None
 
 
-async def test_sheet_pdfs_and_overflow(client, user, db, mock, writer, monkeypatch):  # noqa: F811
+async def test_sheet_pdfs_and_overflow(client, user, db, mock, writer, jobs, monkeypatch):  # noqa: F811
     run, _ = await prospect_run(client, user, db, mock)
     h = user["headers"]
-    client.post(url(run, "/build"), headers=h)
+    await build(client, run, h, jobs)
     heights = iter([1000, 1100])
 
     async def fake(html):
@@ -228,21 +247,65 @@ async def test_sheet_pdfs_and_overflow(client, user, db, mock, writer, monkeypat
     assert client.get(url(run, "/lead.pdf"), headers=h).status_code == 503
 
 
-async def test_writer_failures_are_reported(client, user, db, mock, writer):  # noqa: F811
+async def test_writer_failures_are_reported(client, user, db, mock, writer, jobs):  # noqa: F811
     run, site = await prospect_run(client, user, db, mock)
     h = user["headers"]
     writer.replies[:] = [AiProviderError("Anthropic returned HTTP 400: bad request", 400)]
-    r = client.post(url(run, "/build"), headers=h)
-    assert r.status_code == 502 and "Collateral Writer couldn't write the copy" in r.json()["detail"]
-    assert "HTTP 400" in r.json()["detail"]
+    v = await build(client, run, h, jobs)
+    assert v["status"] == "failed" and "Collateral Writer couldn't write the copy" in v["error"]
+    assert "HTTP 400" in v["error"] and v["log"][-1]["level"] == "error"
+    assert v["copy"] is None and next(s for s in v["steps"] if s["key"] == "build")["detail"] == "Build failed"
 
     writer.replies[:] = ['{"why": "not a list"}']
-    r = client.post(url(run, "/build"), headers=h)
-    assert r.status_code == 502 and "expected fields" in r.json()["detail"]
+    v = await build(client, run, h, jobs)
+    assert v["status"] == "failed" and "expected fields" in v["error"]
 
     body = {k: v for k, v in site.items() if k not in ("id", "created_at", "updated_at")}
     agents = client.get(f"/api/v1/sites/{site['id']}", headers=h).json()["agent_assignments"]
     body.update(purpose="prospect", agent_assignments={**agents, "deliverables": None})
     client.put(f"/api/v1/sites/{site['id']}", json=body, headers=h)
-    r = client.post(url(run, "/build"), headers=h)
-    assert r.status_code == 502 and "no agent is assigned" in r.json()["detail"]
+    v = await build(client, run, h, jobs)
+    assert v["status"] == "failed" and "no agent is assigned" in v["error"]
+
+
+async def test_a_build_logs_its_progress(client, user, db, mock, writer, jobs):  # noqa: F811
+    run, _ = await prospect_run(client, user, db, mock)
+    h = user["headers"]
+    r = client.post(url(run, "/build"), headers=h).json()
+    assert r["status"] == "building" and r["started_at"] and r["error"] is None
+    assert next(s for s in r["steps"] if s["key"] == "build")["detail"] == "Building…"
+    assert client.post(url(run, "/build"), headers=h).status_code == 409  # one at a time
+    await jobs.pop()
+    v = client.get(url(run), headers=h).json()
+    messages = [e["message"] for e in v["log"]]
+    assert messages[0] == f"Build started by {user['email']}."
+    assert messages[1].startswith("Read the triage: ") and "3 one-sheet example(s) picked." in messages[1]
+    assert messages[2].startswith("Asking Collateral Writer (claude-test) for the copy, with ")
+    assert re.match(r"Collateral Writer answered in \d+ s \([\d,]+ tokens\)\.", messages[3])
+    assert "Dropped 1 finding ID(s)" in messages[4] and v["log"][4]["level"] == "warn"
+    assert messages[5] == "Checked the copy: 3 why-it-matters lines and 1 impact cards."
+    assert messages[-1].startswith("Done: the one-sheets are built.")
+    assert v["status"] == "idle" and v["copy"] is not None
+
+
+async def test_interrupted_builds_fail_instead_of_spinning(client, user, db, mock, writer, jobs):  # noqa: F811
+    from datetime import UTC, datetime, timedelta
+
+    from models import Deliverables
+
+    run, _ = await prospect_run(client, user, db, mock)
+    h = user["headers"]
+    client.post(url(run, "/build"), headers=h)
+    jobs.pop().close()  # the server stops before it runs
+    saved = db.query(Deliverables).filter(Deliverables.run_id == run.id).one()
+    saved.started_at = datetime.now(UTC) - timedelta(minutes=20)
+    db.commit()
+    v = client.get(url(run), headers=h).json()
+    assert v["status"] == "failed" and "over 15 minutes" in v["error"]
+    assert client.post(url(run, "/build"), headers=h).status_code == 200  # a stalled build can be restarted
+    jobs.pop().close()
+
+    deliverables.recover_interrupted(db)
+    db.expire_all()
+    v = client.get(url(run), headers=h).json()
+    assert v["status"] == "failed" and "server restarted" in v["error"]

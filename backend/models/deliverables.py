@@ -1,7 +1,7 @@
 import uuid
 
 from hop_core.db import Base
-from sqlalchemy import JSON, Boolean, Column, ForeignKey, String, Uuid
+from sqlalchemy import JSON, Boolean, Column, ForeignKey, String, Text, Uuid
 
 from models.types import UTCDateTime
 
@@ -27,3 +27,9 @@ class Deliverables(Base):
     agent_name = Column(String(255), nullable=False, default="")
     built_by = Column(String(255), nullable=True)
     built_at = Column(UTCDateTime, nullable=True)
+    # The latest build, run in the background (deliverables.build_job):
+    # idle | building | failed; its log is [{at, level, message}].
+    status = Column(String(16), nullable=False, default="idle", server_default="idle")
+    started_at = Column(UTCDateTime, nullable=True)
+    error = Column(Text, nullable=True)
+    log = Column(JSON, nullable=False, default=list, server_default="[]")

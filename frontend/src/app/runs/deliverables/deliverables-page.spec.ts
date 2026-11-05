@@ -5,7 +5,14 @@ import { of, throwError } from 'rxjs';
 import { DeliverablesView } from '../run.model';
 import { RunsService } from '../runs.service';
 import { sampleCopy, sampleDeliverables } from '../testing';
-import { DeliverablesPage, imperativeTag, joinSender, splitSender } from './deliverables-page';
+import {
+  DeliverablesPage,
+  elapsed,
+  imperativeTag,
+  joinSender,
+  POLL_MS,
+  splitSender,
+} from './deliverables-page';
 
 describe('DeliverablesPage', () => {
   function render(view: DeliverablesView = sampleDeliverables()) {
@@ -205,5 +212,89 @@ describe('DeliverablesPage', () => {
       ),
     );
     click.mockRestore();
+  });
+
+  it('formats elapsed time', () => {
+    expect(elapsed(0)).toBe('0:00');
+    expect(elapsed(65_400)).toBe('1:05');
+    expect(elapsed(-5)).toBe('0:00');
+  });
+
+  it('follows a build in the background until it finishes', async () => {
+    vi.useFakeTimers();
+    try {
+      const started = new Date(Date.now() - 42_000).toISOString();
+      const log = [
+        { at: started, level: 'info' as const, message: 'Build started by pat@heretto.com.' },
+        {
+          at: started,
+          level: 'info' as const,
+          message: 'Asking Collateral Writer (claude) for the copy.',
+        },
+      ];
+      const building = sampleDeliverables({
+        copy: null,
+        status: 'building',
+        started_at: started,
+        log,
+      });
+      const { page, runs, el, fixture } = render(sampleDeliverables({ copy: null }));
+      runs.buildDeliverables.mockReturnValue(of(building));
+      runs.deliverables.mockReturnValue(of(building));
+      page.build();
+      fixture.detectChanges();
+      expect(page.building()).toBe(true);
+      expect(el.querySelector('.build')!.textContent).toContain('Building the one-sheets');
+      expect(el.querySelector('.build')!.textContent).toContain('0:42 elapsed');
+      expect(el.querySelectorAll('.build-log li').length).toBe(2);
+      expect(el.querySelector('mat-progress-bar')).not.toBeNull();
+
+      vi.advanceTimersByTime(POLL_MS);
+      expect(runs.deliverables).toHaveBeenCalledTimes(2); // the first load, then a poll
+
+      const done = sampleDeliverables({
+        log: [...log, { at: started, level: 'info', message: 'Done: the one-sheets are built.' }],
+      });
+      runs.deliverables.mockReturnValue(of(done));
+      const snack = vi.spyOn(page['snack'], 'open');
+      vi.advanceTimersByTime(POLL_MS);
+      fixture.detectChanges();
+      expect(page.building()).toBe(false);
+      expect(snack).toHaveBeenCalledWith('The one-sheets are built.', undefined, {
+        duration: 4000,
+      });
+      expect(runs.sheetHtml).toHaveBeenCalledTimes(2); // the new sheets load
+      expect(el.querySelector('.build')).toBeNull();
+      expect(el.querySelector('.log-details summary')!.textContent).toContain(
+        'Last build: 3 steps',
+      );
+      vi.advanceTimersByTime(POLL_MS * 3);
+      expect(runs.deliverables).toHaveBeenCalledTimes(3); // polling stopped
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows why a build failed, with its log', () => {
+    const { el } = render(
+      sampleDeliverables({
+        copy: null,
+        status: 'failed',
+        error: "The Collateral Writer couldn't write the copy: Anthropic returned HTTP 400",
+        log: [
+          {
+            at: '2026-11-05T14:41:00Z',
+            level: 'info',
+            message: 'Build started by pat@heretto.com.',
+          },
+          { at: '2026-11-05T14:41:30Z', level: 'error', message: 'Anthropic returned HTTP 400' },
+        ],
+      }),
+    );
+    expect(el.querySelector('.callout.error')!.textContent).toContain('HTTP 400');
+    expect(el.querySelector('.build-log li.error')!.textContent).toContain(
+      'Anthropic returned HTTP 400',
+    );
+    expect(el.querySelector<HTMLDetailsElement>('.log-details')!.open).toBe(true);
   });
 });

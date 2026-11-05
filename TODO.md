@@ -378,6 +378,14 @@ re-read this file before starting the next.
 - [x] Deliverables build from the current tiers too; an unconfirmed triage is a
       hand-off checklist item; Deliverables linked from Findings and the dashboard
 
+## Deliverables build progress
+
+- [x] Build runs in the background with a status, an error and a step log
+      (also in the server log); one build at a time; interrupted or stalled
+      builds read as failed
+- [x] The page polls while building: elapsed time, progress bar, the log as
+      it grows; the error and log when it fails; the last build's log after
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)
