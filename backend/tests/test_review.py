@@ -269,6 +269,34 @@ async def test_retries_rate_limits_and_asks_again_for_json(client, user, db, moc
     assert any("reply wasn't JSON; asked again" in m for m in messages)
 
 
+async def test_retries_timeouts_and_skips_a_page_that_keeps_timing_out(client, user, db, mock, model, monkeypatch):
+    serve(mock)
+    monkeypatch.setattr(review, "AGENT_CONCURRENCY", 1)  # one page at a time, so the order is exact
+    site, _ = configured_site(client, user)
+    timeout = httpx.ReadTimeout("", request=httpx.Request("POST", "https://api.anthropic.com/v1/messages"))
+    model.failures = [timeout]  # the first page times out once, then answers
+    run = await execute(db, add_run(db, site, user, analyses=["readability"]))
+    assert run.status == "completed"
+    stats = next(iter(run.agent_stats.values()))
+    assert stats["retries"] == 1 and stats["errors"] == 0 and stats["findings"] > 0
+    assert any("anthropic timed out after 600 s on /" in e.message and "retried after 0 s." in e.message
+               for e in run.log)  # fmt: skip
+
+    model.failures = [timeout] * 3
+    run = await execute(db, add_run(db, site, user, number=2, analyses=["readability"], force_reevaluate=True))
+    assert run.status == "completed" and run.error is None  # one page skipped, not the whole run
+    stats = next(iter(run.agent_stats.values()))
+    assert stats["errors"] == 1 and stats["findings"] > 0
+    assert any("timed out after 600 s 3 times; skipped." in e.message for e in run.log)
+
+
+def test_waits_longer_than_hop_core_for_a_reply():
+    from hop_core.agents import providers
+
+    assert providers.GENERATION_TIMEOUT_SECONDS >= review.GENERATION_TIMEOUT == 600
+    assert review.transport_problem(httpx.ConnectError("refused")) == "connection failed (ConnectError)"
+
+
 async def test_agent_stops_after_three_failed_requests(client, user, db, mock, model, monkeypatch):
     serve(mock)
     monkeypatch.setattr(review, "AGENT_CONCURRENCY", 1)  # one page at a time, so the count is exact

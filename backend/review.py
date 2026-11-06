@@ -21,7 +21,8 @@ from dataclasses import dataclass
 from typing import Literal
 from uuid import UUID
 
-from hop_core.agents import AgentDefinition, AgentRequest, AgentRunner, AiProviderError, CredentialAiService
+import httpx
+from hop_core.agents import AgentDefinition, AgentRequest, AgentRunner, AiProviderError, CredentialAiService, providers
 from hop_core.core.security import decrypt_credentials
 from hop_core.models.agent import Agent
 from pydantic import BaseModel, Field, ValidationError
@@ -43,6 +44,11 @@ CUT_OFF = {"max_tokens", "length", "MAX_TOKENS"}  # what providers report when t
 RETRYABLE = {429, 500, 502, 503, 504, 529}
 RETRIES = 2
 RETRY_DELAY = 12.0  # seconds, times the attempt; tests shorten it
+# hop-core waits 120 s for a model's reply. Replies aren't streamed, so a page
+# review with a large reply budget can take longer than that; wait as long as
+# the vendors' own SDKs do. hop-core reads this when it opens each request.
+GENERATION_TIMEOUT = 600.0
+providers.GENERATION_TIMEOUT_SECONDS = max(providers.GENERATION_TIMEOUT_SECONDS, GENERATION_TIMEOUT)
 MAX_FAILED = 3  # failed requests in a row before an agent stops
 LABELS = {"readability": "readability", "seo": "SEO and metadata", "content_integrity": "content integrity"}
 
@@ -220,6 +226,13 @@ def page_input(ref: str, page: Page, language: str, analysis: str) -> str:
 # ── Answers ───────────────────────────────────────────────────────────────────
 
 
+def transport_problem(exc: httpx.TransportError) -> str:
+    """ "timed out after 600 s" or "connection failed (ConnectError)", for the run log."""
+    if isinstance(exc, httpx.TimeoutException):
+        return f"timed out after {providers.GENERATION_TIMEOUT_SECONDS:g} s"
+    return f"connection failed ({type(exc).__name__})"
+
+
 def out_of_room(exc: AiProviderError) -> bool:
     """hop-core's error for a reply with no text because max_tokens ran out
     (typically all spent thinking)."""
@@ -320,6 +333,19 @@ class Review:
                     await asyncio.sleep(wait)
                     continue
                 self.log(self.analysis, "error", f"{self.agent.name}, {where}: {exc.message}")
+                return None
+            except httpx.TransportError as exc:  # timed out, or the connection dropped
+                problem = transport_problem(exc)
+                if retries < RETRIES:
+                    retries += 1
+                    wait = RETRY_DELAY * retries
+                    self.tally.retries += 1
+                    self.log(
+                        self.analysis, "warn", f"{self.agent.provider} {problem} on {where}; retried after {wait:g} s."
+                    )
+                    await asyncio.sleep(wait)
+                    continue
+                self.log(self.analysis, "error", f"{self.agent.name}, {where}: {problem} {RETRIES + 1} times; skipped.")
                 return None
             self.tally.tokens += (result.input_tokens or 0) + (result.output_tokens or 0)
             if result.stop_reason in CUT_OFF:  # the JSON was cut off mid-reply

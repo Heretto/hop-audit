@@ -161,6 +161,27 @@ async def test_run_fails_when_every_help_center_refuses(client, user, db, mock):
     }
 
 
+async def test_an_unexpected_error_fails_the_run_and_says_what_it_was(client, user, db, mock, monkeypatch):
+    serve(mock)
+    site = make_site(client, user)
+    request = httpx.Request("POST", "https://api.anthropic.com/v1/messages")
+
+    async def times_out(*args, **kwargs):
+        raise httpx.ReadTimeout("", request=request)
+
+    monkeypatch.setattr(runner.analysis, "analyze", times_out)
+    run = await execute(db, add_run(db, site, user))
+    assert run.status == "failed"
+    assert run.error == "ReadTimeout from api.anthropic.com (the request timed out)"
+    assert run.log[-1].message == run.error
+
+
+def test_failure_messages():
+    assert runner.failure(ValueError("bad value")) == "bad value"
+    assert runner.failure(KeyError()) == "KeyError"
+    assert runner.failure(httpx.ConnectError("refused")) == "ConnectError: refused"  # no request attached
+
+
 async def test_blocked_help_center_is_reported_and_the_rest_crawled(client, user, db, mock):
     serve(mock, **{"de/": httpx.Response(403)})
     site = make_site(client, user)

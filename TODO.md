@@ -414,6 +414,14 @@ re-read this file before starting the next.
       on hover (global rule in `shared/_page.scss`); text links in tables and
       sentences keep hop-ui's underline
 
+## Model timeouts don't fail the audit
+
+- [x] Timeouts and dropped connections to the model are retried, then the
+      page is skipped (was: the whole run failed with "ReadTimeout")
+- [x] Wait up to 600 s for a reply (hop-core's default is 120 s)
+- [x] A failed run names the error, the host and the timeout; traceback in
+      the server log
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)

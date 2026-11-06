@@ -11,10 +11,12 @@ marked skipped with the reason.
 """
 
 import asyncio
+import logging
 from datetime import UTC, datetime
 from urllib.parse import urlsplit
 from uuid import UUID
 
+import httpx
 from hop_core.db import get_session_factory
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -25,6 +27,24 @@ import discovery
 from models import ACTIVE_STATUSES, AuditRun, HelpCenter, IntegrityFinding, Page, RunLogEntry
 from schemas.site import CrawlRules
 from scope import Root
+
+logger = logging.getLogger(__name__)
+
+
+def failure(exc: Exception) -> str:
+    """What a failed run says: its message, or the error's name; for a request
+    that went wrong, also which host it was for ("ReadTimeout from api.anthropic.com")."""
+    if not isinstance(exc, httpx.RequestError):
+        return str(exc) or type(exc).__name__
+    name = type(exc).__name__
+    try:
+        name += f" from {exc.request.url.host}"
+    except RuntimeError:  # no request attached
+        pass
+    if isinstance(exc, httpx.TimeoutException):
+        name += " (the request timed out)"
+    return f"{name}: {exc}" if str(exc) else name
+
 
 STAGE_LABELS = {
     "discover": "Discover",
@@ -93,7 +113,8 @@ async def reanalyze(run_id: UUID, control: crawler.Control, http=None) -> None:
         _settle(rec, "skipped")
     except Exception as exc:
         db.rollback()
-        rec.log("run", "error", f"Analysis failed: {exc or type(exc).__name__}")
+        logger.exception("Analysis of run %s failed", run_id)
+        rec.log("run", "error", f"Analysis failed: {failure(exc)}")
         _settle(rec, "failed")
     finally:
         run.status = "completed"  # the crawl itself still stands
@@ -260,7 +281,8 @@ async def execute(run_id: UUID, control: crawler.Control, http=None) -> None:
         _settle(rec, "skipped")
     except Exception as exc:  # recorded on the run, never re-raised into the loop
         db.rollback()
-        run.status, run.error = "failed", str(exc) or type(exc).__name__
+        logger.exception("Run %s failed", run_id)
+        run.status, run.error = "failed", failure(exc)
         rec.log("run", "error", run.error)
         _settle(rec, "failed")
     finally:

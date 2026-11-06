@@ -86,8 +86,13 @@ Read those instead of inferring from this project's code. Do not copy them here.
   JSON array (asked again once); a reply that runs out of `max_tokens`
   (reasoning models think inside it) is asked again with double the budget
   up to 65,536 (`REPLY_BUDGET`); quotes not found on the page are removed;
-  429/5xx are retried; three failed requests in a row stop the agent and
-  fail its stage. With no usable agent the stage keeps HOP Audit's metrics
+  429/5xx, timeouts and dropped connections (`httpx.TransportError`, which
+  hop-core doesn't wrap in `AiProviderError`) are retried, then that page
+  is skipped; three failed requests in a row stop the agent and fail its
+  stage. `review.py` raises hop-core's `providers.GENERATION_TIMEOUT_SECONDS`
+  from 120 s to 600 s: replies aren't streamed, and a large reply budget
+  takes longer than 120 s. Anything that still escapes fails the run with
+  its type and host (`runner.failure`) and a traceback in the server log. With no usable agent the stage keeps HOP Audit's metrics
   and says why. Dismissing a finding appends to the agent's feedback memory
   in hop-core's `### heading` format. Tests register a fake provider in
   `AiProviderRegistry` (see `tests/test_review.py`).
