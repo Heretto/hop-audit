@@ -1,23 +1,16 @@
 <div class="hop-page page">
-  <a class="back" routerLink="/sites"><mat-icon>arrow_back</mat-icon>Sites</a>
+  <a class="back" [routerLink]="['/sites', site()]"
+    ><mat-icon>arrow_back</mat-icon>{{ siteName() ?? 'Site' }}</a
+  >
 
   <header class="page-header">
     <div>
-      <h1>Audit history</h1>
+      <h1>Audit history{{ siteName() ? ' for ' + siteName() : '' }}</h1>
       <span class="sub">
-        Every run of {{ siteName() ?? 'this site' }}. Pick two to compare, or open one for its
-        dashboard or run log.
+        Every audit of this site. Pick two to compare, or open one for its dashboard or run log.
       </span>
     </div>
     <div class="page-actions">
-      <mat-form-field subscriptSizing="dynamic">
-        <mat-label>Site</mat-label>
-        <mat-select [value]="site()" (selectionChange)="pickSite($event.value)">
-          @for (s of siteList(); track s.id) {
-            <mat-option [value]="s.id">{{ s.name }}</mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
       <a mat-flat-button color="primary" [routerLink]="['/sites', site(), 'run']"
         ><mat-icon>play_arrow</mat-icon>Run audit</a
       >

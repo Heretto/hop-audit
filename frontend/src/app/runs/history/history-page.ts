@@ -12,13 +12,10 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { HopDataTableComponent, HopTableCellDirective, HopTableColumn } from '@heretto/hop-ui';
-import { SiteSummary } from '../../sites/site.model';
 import { apiErrors, SitesService } from '../../sites/sites.service';
 import {
   deltaClass,
@@ -43,9 +40,7 @@ import { chartPoints, comparisonCsv, defaultPair, scoreDeltas } from './history'
     MatButtonModule,
     MatCardModule,
     MatCheckboxModule,
-    MatFormFieldModule,
     MatIconModule,
-    MatSelectModule,
     MatTooltipModule,
     HopDataTableComponent,
     HopTableCellDirective,
@@ -60,16 +55,14 @@ export class HistoryPage implements OnInit {
 
   private runs = inject(RunsService);
   private sites = inject(SitesService);
-  private router = inject(Router);
 
   private all = signal<RunListItem[] | null>(null);
-  readonly siteList = signal<SiteSummary[]>([]);
+  readonly siteName = signal<string | null>(null);
   readonly error = signal<string | null>(null);
   readonly selected = signal<string[]>([]);
   readonly comparison = signal<Comparison | null>(null);
 
   readonly rows = computed(() => this.all()?.filter((r) => r.site_id === this.site()) ?? null);
-  readonly siteName = computed(() => this.siteList().find((s) => s.id === this.site())?.name);
   readonly points = computed(() => chartPoints(this.rows() ?? []));
   readonly deltas = computed(() => scoreDeltas(this.all() ?? []));
 
@@ -124,15 +117,13 @@ export class HistoryPage implements OnInit {
   }
 
   ngOnInit(): void {
-    this.sites.list().subscribe({ next: (s) => this.siteList.set(s), error: () => {} });
+    this.sites
+      .get(this.site())
+      .subscribe({ next: (s) => this.siteName.set(s.name), error: () => {} });
     this.runs.all().subscribe({
       next: (rows) => this.all.set(rows),
       error: (e) => this.error.set(apiErrors(e).join(' ')),
     });
-  }
-
-  pickSite(id: string): void {
-    this.router.navigate(['/sites', id, 'history']);
   }
 
   canSelect(r: RunListItem): boolean {

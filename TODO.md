@@ -405,7 +405,7 @@ re-read this file before starting the next.
 ## Audits under sites
 
 - [x] Sidebar: no Audits item; Audit history is per site at
-      `/sites/:site/history` (site switcher, no "All sites"); old `/audits`
+      `/sites/:site/history` (named for the site, back to it, no switcher); old `/audits`
       links redirect; every history link points there
 
 ## No hover underlines on buttons

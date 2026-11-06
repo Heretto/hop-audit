@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter, Router } from '@angular/router';
+import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 import { SitesService } from '../../sites/sites.service';
 import { RunsService } from '../runs.service';
@@ -38,7 +38,10 @@ describe('HistoryPage', () => {
         { provide: RunsService, useValue: service },
         {
           provide: SitesService,
-          useValue: { list: () => of([{ id: 's1', name: 'Heretto Help Center' }]) },
+          useValue: {
+            get: (id: string) =>
+              of({ id, name: id === 's1' ? 'Heretto Help Center' : 'Developer Portal' }),
+          },
         },
       ],
     });
@@ -65,14 +68,16 @@ describe('HistoryPage', () => {
     expect(el.textContent).toContain('Score over time');
   });
 
-  it("lists only the site's own runs, with a way back to Sites", () => {
+  it("lists only the site's own runs, named for the site, with a way back to it", () => {
     const { page, el } = render('s2');
     expect(page.rows()!.map((r) => r.id)).toEqual(['z1']);
     expect(page.points()).toEqual([]); // nothing analyzed yet
     expect(el.textContent).toContain('Running · 61%');
-    expect(el.querySelector('h1')!.textContent).toBe('Audit history');
-    expect(el.querySelector('.back')!.getAttribute('href')).toBe('/sites');
-    expect(el.textContent).not.toContain('All sites');
+    expect(el.querySelector('h1')!.textContent).toBe('Audit history for Developer Portal');
+    const back = el.querySelector('.back')!;
+    expect(back.getAttribute('href')).toBe('/sites/s2');
+    expect(back.textContent).toContain('Developer Portal');
+    expect(el.querySelector('mat-select')).toBeNull(); // no site switcher
   });
 
   it('opens each run log from its row', () => {
@@ -105,12 +110,5 @@ describe('HistoryPage', () => {
     expect(page.change('tokens', -100_000)).toBe('−100k');
     expect(page.change('flesch', 1.2)).toBe('+1.2');
     expect(page.change('score', null)).toBe('—');
-  });
-
-  it('switches site through the URL', () => {
-    const { page } = render();
-    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
-    page.pickSite('s1');
-    expect(navigate).toHaveBeenCalledWith(['/sites', 's1', 'history']);
   });
 });
