@@ -267,7 +267,7 @@
           } @empty {
             <span class="sub">No audits yet.</span>
           }
-          <a routerLink="/audits" [queryParams]="{ site: id() }">All runs</a>
+          <a [routerLink]="['/sites', id(), 'history']">Audit history</a>
         </mat-card>
       </aside>
     </div>

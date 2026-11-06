@@ -117,8 +117,7 @@
               @if (s.last_run) {
                 <a
                   mat-icon-button
-                  routerLink="/audits"
-                  [queryParams]="{ site: s.id }"
+                  [routerLink]="['/sites', s.id, 'history']"
                   aria-label="Audit history"
                   matTooltip="Audit history"
                 >

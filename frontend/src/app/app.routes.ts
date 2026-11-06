@@ -32,8 +32,15 @@ export const routes: Routes = [
         loadComponent: () => import('./runs/run-audit/run-audit').then((m) => m.RunAudit),
       },
       {
-        path: 'audits',
+        path: 'sites/:site/history',
         loadComponent: () => import('./runs/history/history-page').then((m) => m.HistoryPage),
+      },
+      // Audits live under their site; old /audits?site= links land on its history.
+      {
+        path: 'audits',
+        pathMatch: 'full',
+        redirectTo: ({ queryParams }) =>
+          queryParams['site'] ? `/sites/${queryParams['site']}/history` : '/sites',
       },
       {
         path: 'audits/:runId',

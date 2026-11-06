@@ -402,6 +402,12 @@ re-read this file before starting the next.
 
 - [x] Content Integrity card: no Full findings report or Reports buttons
       (Reports is opened from the dashboard header)
+## Audits under sites
+
+- [x] Sidebar: no Audits item; Audit history is per site at
+      `/sites/:site/history` (site switcher, no "All sites"); old `/audits`
+      links redirect; every history link points there
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)

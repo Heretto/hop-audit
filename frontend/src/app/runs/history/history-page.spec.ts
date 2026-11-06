@@ -29,7 +29,7 @@ const comparison = {
 };
 
 describe('HistoryPage', () => {
-  function render(siteId?: string) {
+  function render(siteId = 's1') {
     const service = { all: vi.fn(() => of(runs)), compare: vi.fn(() => of(comparison)) };
     TestBed.configureTestingModule({
       imports: [HistoryPage],
@@ -43,7 +43,7 @@ describe('HistoryPage', () => {
       ],
     });
     const fixture = TestBed.createComponent(HistoryPage);
-    if (siteId) fixture.componentRef.setInput('site', siteId);
+    fixture.componentRef.setInput('site', siteId);
     fixture.detectChanges();
     TestBed.tick();
     fixture.detectChanges();
@@ -65,11 +65,14 @@ describe('HistoryPage', () => {
     expect(el.textContent).toContain('Score over time');
   });
 
-  it('lists every site without a chart', () => {
-    const { page, el } = render();
-    expect(page.rows()).toHaveLength(4);
-    expect(page.points()).toEqual([]);
+  it("lists only the site's own runs, with a way back to Sites", () => {
+    const { page, el } = render('s2');
+    expect(page.rows()!.map((r) => r.id)).toEqual(['z1']);
+    expect(page.points()).toEqual([]); // nothing analyzed yet
     expect(el.textContent).toContain('Running · 61%');
+    expect(el.querySelector('h1')!.textContent).toBe('Audit history');
+    expect(el.querySelector('.back')!.getAttribute('href')).toBe('/sites');
+    expect(el.textContent).not.toContain('All sites');
   });
 
   it('opens each run log from its row', () => {
@@ -108,6 +111,6 @@ describe('HistoryPage', () => {
     const { page } = render();
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     page.pickSite('s1');
-    expect(navigate).toHaveBeenCalledWith(['/audits'], { queryParams: { site: 's1' } });
+    expect(navigate).toHaveBeenCalledWith(['/sites', 's1', 'history']);
   });
 });

@@ -31,7 +31,7 @@ describe('routes', () => {
   it('opens on Sites', () => {
     expect(child('sites')?.loadComponent).toBeDefined();
     for (const path of [
-      'audits',
+      'sites/:site/history',
       'audits/:runId',
       'sites/new',
       'sites/:id/edit',
@@ -40,5 +40,12 @@ describe('routes', () => {
       expect(child(path)?.loadComponent, path).toBeDefined();
     }
     expect(shell.children!.find((r) => r.path === '' && r.redirectTo)?.redirectTo).toBe('sites');
+  });
+
+  it('keeps audits under their site: old /audits links go to the site or Sites', () => {
+    const redirect = child('audits')!.redirectTo as (r: { queryParams: object }) => string;
+    expect(child('audits')?.loadComponent).toBeUndefined();
+    expect(redirect({ queryParams: { site: 's1' } })).toBe('/sites/s1/history');
+    expect(redirect({ queryParams: {} })).toBe('/sites');
   });
 });

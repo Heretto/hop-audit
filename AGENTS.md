@@ -161,7 +161,9 @@ Read those instead of inferring from this project's code. Do not copy them here.
   `/audits/:runId/pages/:pageId`, triage is `/audits/:runId/findings`, the claims the integrity reviewer took
   from articles (and how pass 3 grouped them, `AuditRun.claim_groups`) are
   `/audits/:runId/claims`,
-  `/sites/:id` opens the latest dashboard.
+  `/sites/:id` opens the latest dashboard, and `/sites/:site/history` is the
+  site's Audit history (there is no cross-site audit list; the sidebar has
+  no Audits item and `/audits?site=` redirects there, `/audits` to Sites).
 - **Timestamps**: use `models.types.UTCDateTime`, not `DateTime`. SQLite
   drops offsets, and naive values compare and serialize as local time.
 - **Frontend tests** run Vitest in worker threads (`frontend/vitest.config.mts`,

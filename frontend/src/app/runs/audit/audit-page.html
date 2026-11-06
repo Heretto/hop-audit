@@ -1,7 +1,7 @@
 <div class="hop-page page">
   @if (run(); as r) {
-    <a class="back" routerLink="/audits" [queryParams]="{ site: r.site_id }">
-      <mat-icon>arrow_back</mat-icon>{{ r.site_name }} · Audits
+    <a class="back" [routerLink]="['/sites', r.site_id, 'history']">
+      <mat-icon>arrow_back</mat-icon>{{ r.site_name }} · Audit history
     </a>
 
     <header class="page-header">

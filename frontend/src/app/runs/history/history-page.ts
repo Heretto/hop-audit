@@ -55,8 +55,8 @@ import { chartPoints, comparisonCsv, defaultPair, scoreDeltas } from './history'
   styleUrl: './history-page.scss',
 })
 export class HistoryPage implements OnInit {
-  /** Query parameter: one site's runs. */
-  readonly site = input<string>();
+  /** Route parameter: the site whose runs are listed. */
+  readonly site = input.required<string>();
 
   private runs = inject(RunsService);
   private sites = inject(SitesService);
@@ -68,13 +68,9 @@ export class HistoryPage implements OnInit {
   readonly selected = signal<string[]>([]);
   readonly comparison = signal<Comparison | null>(null);
 
-  readonly rows = computed(() => {
-    const site = this.site();
-    const all = this.all();
-    return all && site ? all.filter((r) => r.site_id === site) : all;
-  });
+  readonly rows = computed(() => this.all()?.filter((r) => r.site_id === this.site()) ?? null);
   readonly siteName = computed(() => this.siteList().find((s) => s.id === this.site())?.name);
-  readonly points = computed(() => (this.site() ? chartPoints(this.rows() ?? []) : []));
+  readonly points = computed(() => chartPoints(this.rows() ?? []));
   readonly deltas = computed(() => scoreDeltas(this.all() ?? []));
 
   readonly chip = statusChip;
@@ -86,12 +82,9 @@ export class HistoryPage implements OnInit {
   readonly tokens = tokens;
   readonly isActive = (r: RunListItem) => ACTIVE.includes(r.status);
 
-  readonly columns = computed<HopTableColumn<RunListItem>[]>(() => [
+  readonly columns: HopTableColumn<RunListItem>[] = [
     { key: 'select', label: '', sortable: false, filterable: false },
     { key: 'run', label: 'Run', value: (r) => r.number },
-    ...(this.site()
-      ? []
-      : [{ key: 'site', label: 'Site', value: (r: RunListItem) => r.site_name }]),
     { key: 'scope', label: 'Scope', value: (r) => scopeLabel(r.scope) },
     {
       key: 'trigger',
@@ -109,7 +102,7 @@ export class HistoryPage implements OnInit {
     { key: 'score', label: 'Score', align: 'end', value: (r) => r.metrics.score ?? null },
     { key: 'status', label: 'Status', value: (r) => statusChip(r).label },
     { key: 'actions', label: '', sortable: false, filterable: false },
-  ]);
+  ];
 
   constructor() {
     // A new pair of runs (or a new site) loads its comparison.
@@ -138,8 +131,8 @@ export class HistoryPage implements OnInit {
     });
   }
 
-  pickSite(id: string | null): void {
-    this.router.navigate(['/audits'], { queryParams: id ? { site: id } : {} });
+  pickSite(id: string): void {
+    this.router.navigate(['/sites', id, 'history']);
   }
 
   canSelect(r: RunListItem): boolean {

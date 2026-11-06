@@ -1,27 +1,26 @@
 <div class="hop-page page">
+  <a class="back" routerLink="/sites"><mat-icon>arrow_back</mat-icon>Sites</a>
+
   <header class="page-header">
     <div>
-      <h1>Audits</h1>
+      <h1>Audit history</h1>
       <span class="sub">
-        Every run{{ siteName() ? ' of ' + siteName() : ', for every site' }}. Pick two to compare,
-        or open one for its dashboard.
+        Every run of {{ siteName() ?? 'this site' }}. Pick two to compare, or open one for its
+        dashboard or run log.
       </span>
     </div>
     <div class="page-actions">
       <mat-form-field subscriptSizing="dynamic">
         <mat-label>Site</mat-label>
-        <mat-select [value]="site() ?? null" (selectionChange)="pickSite($event.value)">
-          <mat-option [value]="null">All sites</mat-option>
+        <mat-select [value]="site()" (selectionChange)="pickSite($event.value)">
           @for (s of siteList(); track s.id) {
             <mat-option [value]="s.id">{{ s.name }}</mat-option>
           }
         </mat-select>
       </mat-form-field>
-      @if (site()) {
-        <a mat-flat-button color="primary" [routerLink]="['/sites', site(), 'run']"
-          ><mat-icon>play_arrow</mat-icon>Run audit</a
-        >
-      }
+      <a mat-flat-button color="primary" [routerLink]="['/sites', site(), 'run']"
+        ><mat-icon>play_arrow</mat-icon>Run audit</a
+      >
     </div>
   </header>
 
@@ -88,7 +87,7 @@
             >
           </div>
           <hop-data-table
-            [columns]="columns()"
+            [columns]="columns"
             [data]="runs"
             [filterable]="true"
             filterPlaceholder="Filter audits"

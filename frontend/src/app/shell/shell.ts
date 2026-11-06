@@ -5,7 +5,6 @@ import { SetupService } from '../shared/setup.service';
 /** Sidebar per Nav.dc.html; hop-core appends Account and Administration. */
 export const NAV_ITEMS: NavItem[] = [
   { label: 'Sites', route: '/sites', icon: 'language' },
-  { label: 'Audits', route: '/audits', icon: 'fact_check' },
   { label: 'Agents', route: '/agents', icon: 'smart_toy' },
   { label: 'Credentials', route: '/credentials', icon: 'key' },
 ];

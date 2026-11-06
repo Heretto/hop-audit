@@ -24,7 +24,7 @@
         </span>
       </div>
       <div class="page-actions">
-        <a mat-stroked-button routerLink="/audits" [queryParams]="{ site: d.run.site_id }">
+        <a mat-stroked-button [routerLink]="['/sites', d.run.site_id, 'history']">
           <mat-icon>history</mat-icon>Audit History
         </a>
         <a mat-stroked-button class="report" [routerLink]="['/audits', d.run.id, 'deliverables']">

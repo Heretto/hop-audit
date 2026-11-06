@@ -11,9 +11,9 @@ describe('Shell', () => {
     return TestBed.runInInjectionContext(() => new Shell());
   }
 
-  it('lists Sites, Audits, Agents, Credentials in order (hop-core adds Account and Administration)', () => {
-    expect(NAV_ITEMS.map((i) => i.label)).toEqual(['Sites', 'Audits', 'Agents', 'Credentials']);
-    expect(NAV_ITEMS.map((i) => i.route)).toEqual(['/sites', '/audits', '/agents', '/credentials']);
+  it('lists Sites, Agents, Credentials in order (hop-core adds Account and Administration)', () => {
+    expect(NAV_ITEMS.map((i) => i.label)).toEqual(['Sites', 'Agents', 'Credentials']);
+    expect(NAV_ITEMS.map((i) => i.route)).toEqual(['/sites', '/agents', '/credentials']);
   });
 
   it('runs organization setup on load', () => {
