@@ -114,14 +114,6 @@
             <a mat-stroked-button [routerLink]="['/audits', d.run.id, 'findings']"
               ><mat-icon>rule</mat-icon>Findings and triage</a
             >
-            <a mat-stroked-button [routerLink]="['/audits', d.run.id, 'report']"
-              ><mat-icon>description</mat-icon>Full findings report</a
-            >
-            @if (site()?.purpose === 'prospect') {
-              <a mat-stroked-button [routerLink]="['/audits', d.run.id, 'deliverables']"
-                ><mat-icon>inventory_2</mat-icon>Reports</a
-              >
-            }
           </div>
         </div>
         @if (showCards()) {

@@ -400,6 +400,8 @@ re-read this file before starting the next.
 - [x] Reports: no Assess / Triage / Build / Hand off boxes (removed from the
       API too); own-docs sites see only the full findings report
 
+- [x] Content Integrity card: no Full findings report or Reports buttons
+      (Reports is opened from the dashboard header)
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)

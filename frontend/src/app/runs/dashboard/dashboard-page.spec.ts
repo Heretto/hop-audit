@@ -154,12 +154,15 @@ describe('DashboardPage', () => {
       'Translation defects',
     ]);
     expect(el.textContent).toContain('21 confirmed, 3 for review, 3 dropped');
+    // Reports are opened from the header only, never from the integrity card.
     const reports = () => el.querySelectorAll('a[href="/audits/r1/deliverables"]');
-    expect(reports()).toHaveLength(1); // the header's Reports; own docs have no one-sheets
+    const fullReport = () => el.querySelector('a[href="/audits/r1/report"]');
+    expect(reports()).toHaveLength(1);
+    expect(fullReport()).toBeNull();
     TestBed.resetTestingModule();
     ({ el } = render(confirmed, 'prospect'));
-    expect(reports()).toHaveLength(2);
-    expect(reports()[1].textContent).toContain('Reports');
+    expect(reports()).toHaveLength(1);
+    expect(fullReport()).toBeNull();
     expect(el.textContent).not.toContain('Proposed by the reviewer');
     expect(el.querySelector('.cats:not(.proposed)')).not.toBeNull();
     expect(el.textContent).toContain('1 resolved since the previous audit');
