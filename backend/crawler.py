@@ -27,9 +27,12 @@ from discovery import BLOCKED_STATUSES, MAX_BYTES, USER_AGENT, Blocked
 from extract import PageContent, checksum, extract, page_url
 from schemas.site import CrawlRules
 from scope import (
+    Prefix,
     Root,
     allowed,
     breadcrumb_section,
+    describe_prefix,
+    detect_prefix,
     help_center_for,
     listed_urls,
     path_section,
@@ -125,6 +128,7 @@ class Plan:
     follow: bool
     per_root: Counter = field(default_factory=Counter)  # root id -> targets
     sections: Counter = field(default_factory=Counter)  # section -> targets
+    prefixes: dict[UUID, Prefix] = field(default_factory=dict)  # root id -> segments before the section
 
 
 def _base(url: str) -> str:
@@ -177,6 +181,20 @@ async def plan(
         if root.id in blocked:
             log("discover", "error", f"{root.name}: {blocked[root.id]}. Reported, not worked around; skipped.")
 
+    # Sections start below a language or shared base segment, found per help center from its sitemap URLs.
+    listed_paths: dict[UUID, list[str]] = {r.id: [] for r in roots}
+    for e in entries:
+        if root := help_center_for(e.url, roots):
+            listed_paths[root.id].append(relative_path(e.url, root))
+    prefixes = {r.id: detect_prefix(listed_paths[r.id]) for r in roots}
+    for root in roots:
+        if prefixes[root.id] and rules.section_grouping != "sitemap":
+            log(
+                "discover",
+                "info",
+                f"{root.name}: paths start with {describe_prefix(prefixes[root.id])}, so sections are read below it.",
+            )
+
     def target(url: str, lastmod=None, sitemap: str | None = None, depth=1) -> Target | None:
         root = help_center_for(url, roots)
         if root is None or root.id in blocked:
@@ -188,7 +206,9 @@ async def plan(
         if rules.respect_robots and host in robots and not robots[host].can_fetch(USER_AGENT, url):
             return None
         section = (
-            sitemap_section(sitemap) if rules.section_grouping == "sitemap" and sitemap else path_section(relative)
+            sitemap_section(sitemap)
+            if rules.section_grouping == "sitemap" and sitemap
+            else path_section(relative, prefixes[root.id])
         )
         return Target(page_url(url), root, section, lastmod, depth)
 
@@ -223,6 +243,7 @@ async def plan(
         follow=follow,
         per_root=Counter(t.root.id for t in targets),
         sections=Counter(t.section for t in targets if t.depth > 0),
+        prefixes=prefixes,
     )
 
 
@@ -438,7 +459,7 @@ class Crawler:
             robots = self.plan.robots.get(host)
             if self.rules.respect_robots and robots and not robots.can_fetch(USER_AGENT, url):
                 continue
-            section = path_section(relative)
+            section = path_section(relative, self.plan.prefixes.get(root.id, ()))
             if self.mode == "sections" and section not in self.sections:
                 continue
             self.seen.add(url)

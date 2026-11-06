@@ -89,6 +89,17 @@ async def test_plan_assigns_help_centers_and_sections(mock):
     assert p.sitemaps == {"help.x.com": f"{BASE}sitemap.xml"}
 
 
+async def test_plan_reads_sections_below_a_language_segment(mock):
+    entries = [(p, None) for p in ("", "en/", "en/ccms/a", "en/ccms/b", "en/portal/c", "fr/ccms/a")]
+    serve(mock, entries=entries)
+    p, log = await make_plan(roots=[EN])
+    assert p.sections == {"/ccms": 3, "/portal": 1, "/": 2}
+    assert {t.section for t in p.targets if t.url == f"{BASE}fr/ccms/a"} == {"/ccms"}
+    assert "US English: paths start with a language (en, fr)" in log.text("info")
+    sectioned, _ = await make_plan(scope={"mode": "sections", "sections": ["/portal"]}, roots=[EN])
+    assert {t.url for t in sectioned.targets} == urls("en/portal/c")
+
+
 async def test_plan_applies_include_exclude_and_max_pages(mock):
     serve(mock)
     p, _ = await make_plan(CrawlRules(include=["/authoring/**", "/api/**"], exclude=["/authoring/b"]))

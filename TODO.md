@@ -386,6 +386,12 @@ re-read this file before starting the next.
 - [x] The page polls while building: elapsed time, progress bar, the log as
       it grows; the error and log when it fails; the last build's log after
 
+## Sections below a language segment
+
+- [x] Detect leading segments that aren't sections per help center (language
+      codes, a shared base folder); planner, link-following and site discovery
+      group by the segment after them; the run log says so
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)

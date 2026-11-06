@@ -18,6 +18,8 @@ from urllib.robotparser import RobotFileParser
 
 import httpx
 
+from scope import detect_prefix, path_section
+
 USER_AGENT = "HOP-Audit/0.1 (+https://heretto.com)"
 BLOCKED_STATUSES = {401, 403, 407, 429, 451}
 MAX_BYTES = 20 * 1024 * 1024  # per sitemap or page
@@ -97,14 +99,11 @@ def parse_lastmod(text: str) -> datetime | None:
     return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
-def section_of(url: str) -> str:
-    """The first path segment: /authoring/topics/x -> /authoring; the root -> /."""
-    segment = urlsplit(url).path.strip("/").split("/", 1)[0]
-    return f"/{segment}" if segment else "/"
-
-
 def group_sections(urls: list[str]) -> list[Section]:
-    counts = Counter(section_of(u) for u in urls)
+    """Pages per section, looking past a language or shared base segment (scope.detect_prefix)."""
+    paths = [urlsplit(u).path for u in urls]
+    prefix = detect_prefix(paths)
+    counts = Counter(path_section(p, prefix) for p in paths)
     return [Section(path, n) for path, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
 
 

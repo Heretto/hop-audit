@@ -3,11 +3,15 @@ import uuid
 import pytest
 
 from scope import (
+    Level,
     Root,
     allowed,
     breadcrumb_section,
+    describe_prefix,
+    detect_prefix,
     glob_regex,
     help_center_for,
+    is_language,
     listed_urls,
     path_section,
     relative_path,
@@ -45,6 +49,47 @@ def test_relative_paths_and_sections():
     assert sitemap_section("https://a.com/sitemaps/sitemap-api.xml.gz") == "sitemap-api"
     assert breadcrumb_section(["Home", "Authoring", "Reuse"], "/authoring") == "Authoring"
     assert breadcrumb_section([], "/authoring") == "/authoring"
+
+
+def test_is_language():
+    for segment in ("en", "DE", "pt-br", "en_US", "zh-Hans", "es-419"):
+        assert is_language(segment), segment
+    for segment in ("api", "ui", "js", "e", "english", "en-", "guide", "en-us-x"):
+        assert not is_language(segment), segment
+
+
+HERETTO = ["/en/", "/en/ccms/a", "/en/ccms/b", "/en/portal/c", "/de/ccms/a", "/de/", "/"]
+
+
+def test_detect_prefix_languages():
+    prefix = detect_prefix(HERETTO)
+    assert prefix == (Level(frozenset({"en", "de"}), languages=True),)
+    assert path_section("/en/ccms/a", prefix) == "/ccms"
+    assert path_section("/de/ccms/a", prefix) == "/ccms"
+    assert path_section("/fr-ca/portal/x", prefix) == "/portal"  # a language found later by following links
+    assert path_section("/en/", prefix) == "/"  # a language's landing page is the home section
+    assert path_section("/search", prefix) == "/search"
+    assert describe_prefix(prefix) == "a language (de, en)"
+
+
+def test_detect_prefix_single_language_and_shared_base():
+    assert detect_prefix(["/en/a/1", "/en/b/1"]) == (Level(frozenset({"en"}), languages=True),)
+    docs = detect_prefix(["/docs/", "/docs/a/1", "/docs/b/1", "/docs/b/2"])
+    assert docs == (Level(frozenset({"docs"})),)
+    assert path_section("/docs/b/2", docs) == "/b"
+    both = detect_prefix(["/docs/en/a/1", "/docs/en/b/1", "/docs/de/a/1"])
+    assert describe_prefix(both) == "/docs and a language (de, en)"
+    assert path_section("/docs/de/a/1", both) == "/a"
+
+
+def test_detect_prefix_leaves_ordinary_sites_alone():
+    assert detect_prefix([]) == ()
+    assert detect_prefix(["/authoring/a", "/authoring/b", "/api/c", "/"]) == ()
+    # Two-letter sections that look like languages, but too few of them.
+    assert detect_prefix(["/it/setup", "/guide/a", "/guide/b", "/api/c", "/faq/d"]) == ()
+    # Everything in one folder with nothing below it to group by: keep the folder.
+    assert detect_prefix(["/guide/a", "/guide/b"]) == ()
+    assert path_section("/authoring/x", ()) == "/authoring"
 
 
 @pytest.mark.parametrize(

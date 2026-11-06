@@ -8,7 +8,7 @@ import pytest
 import respx
 
 import discovery
-from discovery import group_sections, parse_hreflang, parse_lastmod, parse_sitemap, section_of
+from discovery import group_sections, parse_hreflang, parse_lastmod, parse_sitemap
 
 URLSET = b"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -55,10 +55,13 @@ def test_parse_invalid_xml():
 
 
 def test_sections():
-    assert section_of("https://a.com/authoring/topics/x") == "/authoring"
-    assert section_of("https://a.com/") == "/"
     groups = group_sections(["https://a.com/b/1", "https://a.com/a/1", "https://a.com/b/2", "https://a.com/"])
     assert [(s.path, s.count) for s in groups] == [("/b", 2), ("/", 1), ("/a", 1)]
+    # A Heretto portal: the first segment is the language, the second the section.
+    heretto = group_sections(
+        ["https://d.com/en/", "https://d.com/en/ccms/x", "https://d.com/en/ccms/y", "https://d.com/de/portal/z"]
+    )
+    assert [(s.path, s.count) for s in heretto] == [("/ccms", 2), ("/", 1), ("/portal", 1)]
 
 
 def test_parse_hreflang():

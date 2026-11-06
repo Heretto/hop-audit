@@ -57,6 +57,12 @@ Read those instead of inferring from this project's code. Do not copy them here.
   content hash) and follows links within help centers. Paths, sections and
   include/exclude globs are relative to each help center's root
   (`backend/scope.py`), so `/de/authoring/x` is in section `/authoring`.
+  Sections start below leading segments that aren't sections, found per help
+  center from its sitemap paths (`scope.detect_prefix`): a language code when
+  most pages sit under one (`/en/ccms/x` is in `/ccms`, as on Heretto portals),
+  or one base folder every page shares with folders below it (`/docs/a/x` is
+  in `/a`). Pages found by following links use the same prefix; a language
+  code not in the sitemap is still skipped. The run log names the prefix.
   Pages keep the extraction (`backend/extract.py`), not raw HTML.
 - **Analyses** (`backend/analysis.py`): readability (`readability.py`, a
   Flesch formula per language, none for ja/zh/ko…), SEO (`seo.py`) and links
