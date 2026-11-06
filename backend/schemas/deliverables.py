@@ -7,13 +7,6 @@ from deliverables import Copy
 from schemas.run import RunDetail
 
 
-class Step(BaseModel):
-    key: Literal["assess", "triage", "build", "handoff"]
-    label: str
-    status: Literal["done", "now", "todo"]
-    detail: str
-
-
 class SpotCheck(BaseModel):
     code: str
     slug: str
@@ -48,7 +41,6 @@ class DeliverablesView(BaseModel):
     purpose: str
     available: bool  # a prospect review with a confirmed triage
     reason: str
-    steps: list[Step]
     built_at: datetime | None
     built_by: str | None
     agent_name: str

@@ -459,13 +459,6 @@ export interface SheetCopy {
   impacts: ImpactCard[];
 }
 
-export interface DeliverableStep {
-  key: 'assess' | 'triage' | 'build' | 'handoff';
-  label: string;
-  status: 'done' | 'now' | 'todo';
-  detail: string;
-}
-
 export interface CheckItem {
   key: string;
   ok: boolean;
@@ -487,7 +480,6 @@ export interface DeliverablesView {
   purpose: 'own' | 'prospect';
   available: boolean;
   reason: string;
-  steps: DeliverableStep[];
   built_at: string | null;
   built_by: string | null;
   agent_name: string;

@@ -1,50 +1,6 @@
 @use '../../shared/form-layout';
 
-// The Deliverables mockup in hop-ui tokens.
-.steps {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.step {
-  flex: 1 1 200px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--border-default);
-  background: var(--bg-primary);
-
-  > div {
-    display: flex;
-    flex-direction: column;
-  }
-
-  mat-icon {
-    color: var(--text-tertiary);
-  }
-
-  &.done {
-    border-color: var(--color-success-border);
-    background: var(--color-success-bg);
-
-    mat-icon {
-      color: var(--color-success-text);
-    }
-  }
-
-  &.now {
-    border-color: var(--color-accent);
-    background: var(--color-accent-bg);
-
-    mat-icon {
-      color: var(--color-accent-text);
-    }
-  }
-}
-
+// The Reports page (the Deliverables mockup) in hop-ui tokens.
 .cards {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

@@ -151,6 +151,11 @@ Read those instead of inferring from this project's code. Do not copy them here.
   runs. Startup marks interrupted builds failed, and one stuck over 15
   minutes reads as failed. Tests replace `deliverables.spawn` to await
   the job.
+  In the UI the page is called **Reports** (route still
+  `/audits/:runId/deliverables`): the dashboard's Reports button opens it
+  for every site; own-docs sites see only the full findings report card,
+  prospect reviews also get the one-sheets, internal note, copy and
+  checklist. The run log is reached from Audit History (a row action).
 - **Routes in the UI**: `/audits/:runId` is the dashboard (active runs
   redirect to `/audits/:runId/progress`), pages are
   `/audits/:runId/pages/:pageId`, triage is `/audits/:runId/findings`, the claims the integrity reviewer took

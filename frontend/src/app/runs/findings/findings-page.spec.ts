@@ -194,7 +194,7 @@ describe('FindingsPage', () => {
     fixture.detectChanges();
     expect(navigate).toHaveBeenCalledWith(['/audits', 'r1', 'deliverables']);
     const link = el.querySelector('.page-actions a[href="/audits/r1/deliverables"]');
-    expect(link?.textContent).toContain('Deliverables');
+    expect(link?.textContent).toContain('Reports');
   });
 
   it('only confirms for an own-docs site', () => {

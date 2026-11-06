@@ -150,6 +150,13 @@
                   matTooltip="Dashboard"
                   ><mat-icon>analytics</mat-icon></a
                 >
+                <a
+                  mat-icon-button
+                  [routerLink]="['/audits', r.id, 'progress']"
+                  aria-label="Run log"
+                  matTooltip="Run log"
+                  ><mat-icon>receipt_long</mat-icon></a
+                >
               }
             </ng-template>
           </hop-data-table>

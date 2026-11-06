@@ -58,18 +58,11 @@ describe('DeliverablesPage', () => {
     expect(imperativeTag(ai)).toEqual({ cls: 'risk', label: 'Risk · AI' });
   });
 
-  it('shows the steps, the four deliverables, the copy and the checklist', () => {
+  it('shows the four deliverables, the copy and the checklist', () => {
     const { el, runs } = render();
     const text = el.textContent!;
-    expect([...el.querySelectorAll('.step strong')].map((s) => s.textContent)).toEqual([
-      'Assess',
-      'Triage',
-      'Build',
-      'Hand off',
-    ]);
-    expect(el.querySelector('.step.now')!.textContent).toContain(
-      '2 placeholders · 3 quotes to spot-check',
-    );
+    expect(el.querySelector('h1')!.textContent).toBe('Reports');
+    expect(el.querySelector('.step')).toBeNull(); // no Assess / Triage / Build / Hand off boxes
     expect([...el.querySelectorAll('.deliverable h3')].map((h) => h.textContent)).toEqual([
       'Lead one-sheet',
       'Executive brief',
@@ -90,6 +83,24 @@ describe('DeliverablesPage', () => {
     expect(spot.textContent).toBe('T-03 (fr/paiement-automatique)');
     expect(el.querySelector('.unverified')!.textContent).toBe('unverified');
     expect(el.querySelector('a[href="/audits/r1/deliverables/lead"]')).not.toBeNull();
+  });
+
+  it('shows only the full report for a site that is your own documentation', () => {
+    const own = sampleDeliverables({
+      purpose: 'own',
+      available: false,
+      reason: 'One-sheets are for prospect reviews; this site is set up as your own documentation.',
+      copy: null,
+    });
+    const { el, runs } = render(own);
+    expect([...el.querySelectorAll('.deliverable h3')].map((h) => h.textContent)).toEqual([
+      'Full findings report',
+    ]);
+    expect(el.querySelector('.page-actions')).toBeNull(); // nothing to build
+    expect(el.querySelector('.callout')).toBeNull();
+    expect(el.querySelector('.layout')).toBeNull();
+    expect(el.querySelector('.back')!.getAttribute('href')).toBe('/audits/r1');
+    expect(runs.sheetHtml).not.toHaveBeenCalled();
   });
 
   it('flags copy over its budget as you type', async () => {

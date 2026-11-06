@@ -35,12 +35,12 @@
         </button>
         @if (v.purpose === 'prospect' && v.triage.status !== 'confirmed') {
           <a mat-stroked-button [routerLink]="['/audits', v.run.id, 'deliverables']"
-            ><mat-icon>inventory_2</mat-icon>Deliverables</a
+            ><mat-icon>inventory_2</mat-icon>Reports</a
           >
         }
         @if (v.purpose === 'prospect' && v.triage.status === 'confirmed') {
           <a mat-flat-button color="primary" [routerLink]="['/audits', v.run.id, 'deliverables']"
-            ><mat-icon>inventory_2</mat-icon>Deliverables</a
+            ><mat-icon>inventory_2</mat-icon>Reports</a
           >
         } @else {
           <button

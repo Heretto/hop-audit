@@ -154,12 +154,12 @@ describe('DashboardPage', () => {
       'Translation defects',
     ]);
     expect(el.textContent).toContain('21 confirmed, 3 for review, 3 dropped');
-    expect(el.querySelector('a[href="/audits/r1/deliverables"]')).toBeNull(); // own docs
+    const reports = () => el.querySelectorAll('a[href="/audits/r1/deliverables"]');
+    expect(reports()).toHaveLength(1); // the header's Reports; own docs have no one-sheets
     TestBed.resetTestingModule();
     ({ el } = render(confirmed, 'prospect'));
-    expect(el.querySelector('a[href="/audits/r1/deliverables"]')!.textContent).toContain(
-      'Deliverables',
-    );
+    expect(reports()).toHaveLength(2);
+    expect(reports()[1].textContent).toContain('Reports');
     expect(el.textContent).not.toContain('Proposed by the reviewer');
     expect(el.querySelector('.cats:not(.proposed)')).not.toBeNull();
     expect(el.textContent).toContain('1 resolved since the previous audit');
@@ -175,14 +175,13 @@ describe('DashboardPage', () => {
       });
     // Export left the header for the toolbar.
     expect(texts('.page-actions a, .page-actions button')).toEqual([
-      'History',
-      'Report',
-      'Run log',
+      'Audit History',
+      'Reports',
       'Run audit',
     ]);
-    // Re-evaluating unchanged pages is chosen on Run audit.
+    // Re-evaluating unchanged pages is chosen on Run audit; the run log is under Audit History.
     expect(el.querySelector('.page-actions .report')!.getAttribute('href')).toBe(
-      '/audits/r1/report',
+      '/audits/r1/deliverables',
     );
     expect(texts('.toolbar button')).toEqual(['Expand all', 'Collapse all', 'Export CSV']);
     expect(texts('.toolbar .small')).toHaveLength(3);

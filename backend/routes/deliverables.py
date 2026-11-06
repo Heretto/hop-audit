@@ -1,7 +1,6 @@
 """Prospect deliverables: the Deliverables screen, the Collateral Writer's
 copy, the prospect's details and logo, and the one-sheets as HTML and PDF."""
 
-from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -14,7 +13,7 @@ import pdf
 from models import AuditRun, Deliverables
 from routes.report import download
 from routes.runs import detail, get_run
-from schemas.deliverables import CheckItem, DeliverablesUpdate, DeliverablesView, LogoIn, ProspectOut, Step
+from schemas.deliverables import CheckItem, DeliverablesUpdate, DeliverablesView, LogoIn, ProspectOut
 
 router = APIRouter(tags=["deliverables"])
 Ctx = Depends(get_current_active_user_with_org)
@@ -25,14 +24,10 @@ COUNTS_MATCH = "Counts on the one-sheets match the triaged totals ({firm} · {hi
 def unavailable(run: AuditRun) -> str:
     """Why deliverables can't be built for this run, or ""."""
     if run.site.purpose != "prospect":
-        return "Deliverables are for prospect reviews; this site is set up as your own documentation."
+        return "One-sheets are for prospect reviews; this site is set up as your own documentation."
     if not (run.metrics or {}).get("integrity"):
         return "Content integrity hasn't run for this audit, so there are no findings to build from."
     return ""
-
-
-def short(when) -> str:
-    return f"{when:%b} {when.day}" if when else ""
 
 
 def overflow(heights: dict) -> str:
@@ -54,7 +49,6 @@ def view(db: Session, run: AuditRun) -> DeliverablesView:
     quotes = d.spot_checks(f)
     confirmed = triage.get("status") == "confirmed"
     build_status, build_error = d.build_state(saved)
-    building = build_status == "building"
 
     checklist = [
         CheckItem(
@@ -124,65 +118,12 @@ def view(db: Session, run: AuditRun) -> DeliverablesView:
             ),
         ),
     ]
-    built = bool(copy)
-    handoff_left = sum(not c.ok for c in checklist)
-    steps = [
-        Step(
-            key="assess",
-            label="Assess",
-            status="done" if integrity else "now",
-            detail=f"{integrity.get('candidates', 0):,} candidates · {short(f.as_of)}" if integrity else "Not run yet",
-        ),
-        Step(
-            key="triage",
-            label="Triage",
-            status="done" if confirmed else ("now" if integrity else "todo"),
-            detail=(
-                f"{integrity.get('firm', 0):,} firm · {integrity.get('review', 0):,} review · "
-                f"{integrity.get('drop', 0):,} dropped"
-                + (
-                    (
-                        f" · confirmed {short(datetime.fromisoformat(triage['confirmed_at']))}"
-                        if triage.get("confirmed_at")
-                        else " · confirmed"
-                    )
-                    + (f" by {triage['confirmed_by'].split('@')[0]}" if triage.get("confirmed_by") else "")
-                    if confirmed
-                    else " · not confirmed yet"
-                )
-                if integrity
-                else "Not run yet"
-            ),
-        ),
-        Step(
-            key="build",
-            label="Build",
-            status="now" if building else "done" if built else ("now" if not reason else "todo"),
-            detail="Building…"
-            if building
-            else f"4 deliverables · {overflow(heights)}"
-            if built
-            else "Build failed"
-            if build_status == "failed"
-            else "Not built yet",
-        ),
-        Step(
-            key="handoff",
-            label="Hand off",
-            status=("done" if not handoff_left else "now") if built else "todo",
-            detail=(
-                f"{len(missing)} placeholder{'s' if len(missing) != 1 else ''} · "
-                f"{len(quotes)} quote{'s' if len(quotes) != 1 else ''} to spot-check"
-            ),
-        ),
-    ]
     p = site.prospect or {}
     return DeliverablesView(
         run=detail(run),
         purpose=site.purpose,
         available=not reason,
         reason=reason,
-        steps=steps,
         built_at=saved.built_at if saved else None,
         built_by=saved.built_by if saved else None,
         agent_name=saved.agent_name if saved else "",

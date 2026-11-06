@@ -25,14 +25,11 @@
       </div>
       <div class="page-actions">
         <a mat-stroked-button routerLink="/audits" [queryParams]="{ site: d.run.site_id }">
-          <mat-icon>history</mat-icon>History
+          <mat-icon>history</mat-icon>Audit History
         </a>
-        <a mat-stroked-button class="report" [routerLink]="['/audits', d.run.id, 'report']">
-          <mat-icon>description</mat-icon>Report
+        <a mat-stroked-button class="report" [routerLink]="['/audits', d.run.id, 'deliverables']">
+          <mat-icon>description</mat-icon>Reports
         </a>
-        <a mat-stroked-button [routerLink]="['/audits', d.run.id, 'progress']"
-          ><mat-icon>receipt_long</mat-icon>Run log</a
-        >
         <a mat-flat-button color="primary" [routerLink]="['/sites', d.run.site_id, 'run']">
           <mat-icon>play_arrow</mat-icon>Run audit
         </a>
@@ -122,7 +119,7 @@
             >
             @if (site()?.purpose === 'prospect') {
               <a mat-stroked-button [routerLink]="['/audits', d.run.id, 'deliverables']"
-                ><mat-icon>inventory_2</mat-icon>Deliverables</a
+                ><mat-icon>inventory_2</mat-icon>Reports</a
               >
             }
           </div>

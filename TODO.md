@@ -392,6 +392,14 @@ re-read this file before starting the next.
       codes, a shared base folder); planner, link-following and site discovery
       group by the segment after them; the run log says so
 
+## Navigation: Audit History and Reports
+
+- [x] Dashboard: "History" is "Audit History"; "Run log" removed (each run's
+      log is a row action under Audit History); "Report" is "Reports" and opens
+      the Deliverables page, renamed Reports
+- [x] Reports: no Assess / Triage / Build / Hand off boxes (removed from the
+      API too); own-docs sites see only the full findings report
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)

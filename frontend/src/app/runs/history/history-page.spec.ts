@@ -72,6 +72,15 @@ describe('HistoryPage', () => {
     expect(el.textContent).toContain('Running · 61%');
   });
 
+  it('opens each run log from its row', () => {
+    const { el } = render();
+    const logs = [...el.querySelectorAll('a[aria-label="Run log"]')].map((a) =>
+      a.getAttribute('href'),
+    );
+    expect(logs).toEqual(['/audits/r3/progress', '/audits/r2/progress', '/audits/r1/progress']);
+    expect(el.querySelector('a[href="/audits/r3"][aria-label="Dashboard"]')).not.toBeNull();
+  });
+
   it('only pairs analyzed runs of one site, earlier first', () => {
     const { page } = render();
     const [r3, r2, r1, z1] = runs;

@@ -102,10 +102,7 @@ async def test_deliverables_build_before_the_triage_is_confirmed(client, user, d
     h = user["headers"]
     v = client.get(url(run), headers=h).json()
     assert v["available"] and v["reason"] == ""
-    assert {s["key"]: s["status"] for s in v["steps"]} == {
-        "assess": "done", "triage": "now", "build": "now", "handoff": "todo",
-    }  # fmt: skip
-    assert next(s for s in v["steps"] if s["key"] == "triage")["detail"].endswith("· not confirmed yet")
+    assert "steps" not in v
     assert v["internal_note"].startswith("X Help Help Center Content Integrity Review")
 
     v = await build(client, run, h, jobs)
@@ -117,7 +114,6 @@ async def test_deliverables_build_before_the_triage_is_confirmed(client, user, d
     assert client.post(f"/api/v1/runs/{run.id}/triage/confirm", headers=h).status_code == 200
     v = client.get(url(run), headers=h).json()
     assert next(c for c in v["checklist"] if c["key"] == "triage")["ok"]
-    assert "· confirmed" in next(s for s in v["steps"] if s["key"] == "triage")["detail"]
 
 
 async def test_no_deliverables_without_content_integrity(client, user, db, mock):  # noqa: F811
@@ -153,7 +149,6 @@ async def test_build_writes_the_copy_and_the_sheets(client, user, db, mock, writ
     assert v["agent_name"] == "Collateral Writer" and v["built_by"] == user["email"]
     assert v["copy"]["why"][0]["codes"] == ["C-01"]  # unknown codes are dropped
     assert v["copy"]["headline_line1"] == "One answer, in every"
-    assert {s["key"]: s["status"] for s in v["steps"]}["build"] == "done"
     assert v["problems"] == []
     fits = next(c for c in v["checklist"] if c["key"] == "fits")
     assert not fits["ok"] and fits["text"] == "The one-sheets are measured when their previews load on this page."
@@ -201,7 +196,6 @@ async def test_editing_the_copy_and_the_checklist(client, user, db, mock, writer
         "Both one-sheets fit on one page (lead 1,000 px, exec 1,040 px of 1,056)."
     )
     assert checks["spot_checked"]["ok"] and checks["marketing_ok"]["ok"]
-    assert "no overflow" in {s["key"]: s["detail"] for s in v["steps"]}["build"]
 
     # A later change to the triage shows as a mismatch.
     findings = client.get(f"/api/v1/runs/{run.id}/integrity", headers=h).json()["findings"]
@@ -254,7 +248,7 @@ async def test_writer_failures_are_reported(client, user, db, mock, writer, jobs
     v = await build(client, run, h, jobs)
     assert v["status"] == "failed" and "Collateral Writer couldn't write the copy" in v["error"]
     assert "HTTP 400" in v["error"] and v["log"][-1]["level"] == "error"
-    assert v["copy"] is None and next(s for s in v["steps"] if s["key"] == "build")["detail"] == "Build failed"
+    assert v["copy"] is None
 
     writer.replies[:] = ['{"why": "not a list"}']
     v = await build(client, run, h, jobs)
@@ -273,7 +267,6 @@ async def test_a_build_logs_its_progress(client, user, db, mock, writer, jobs): 
     h = user["headers"]
     r = client.post(url(run, "/build"), headers=h).json()
     assert r["status"] == "building" and r["started_at"] and r["error"] is None
-    assert next(s for s in r["steps"] if s["key"] == "build")["detail"] == "Building…"
     assert client.post(url(run, "/build"), headers=h).status_code == 409  # one at a time
     await jobs.pop()
     v = client.get(url(run), headers=h).json()

@@ -555,22 +555,6 @@ export function sampleDeliverables(overrides: Partial<DeliverablesView> = {}): D
     purpose: 'prospect',
     available: true,
     reason: '',
-    steps: [
-      { key: 'assess', label: 'Assess', status: 'done', detail: '78 candidates · Oct 8' },
-      {
-        key: 'triage',
-        label: 'Triage',
-        status: 'done',
-        detail: '63 firm · 9 review · 6 dropped · confirmed Oct 9 by patrick',
-      },
-      { key: 'build', label: 'Build', status: 'done', detail: '4 deliverables · no overflow' },
-      {
-        key: 'handoff',
-        label: 'Hand off',
-        status: 'now',
-        detail: '2 placeholders · 3 quotes to spot-check',
-      },
-    ],
     built_at: '2026-10-09T10:00:00Z',
     built_by: 'patrick@heretto.com',
     agent_name: 'Collateral Writer',
