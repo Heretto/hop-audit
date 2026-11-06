@@ -408,6 +408,12 @@ re-read this file before starting the next.
       `/sites/:site/history` (site switcher, no "All sites"); old `/audits`
       links redirect; every history link points there
 
+## No hover underlines on buttons
+
+- [x] Buttons, back links, icon links, card and chart links don't underline
+      on hover (global rule in `shared/_page.scss`); text links in tables and
+      sentences keep hop-ui's underline
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)

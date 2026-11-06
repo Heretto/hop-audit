@@ -26,6 +26,24 @@
   flex-wrap: wrap;
 }
 
+// hop-ui underlines every link on hover. Buttons and button-like links
+// (back links, icon links, cards, chart bars, KPI labels) don't underline;
+// text links in tables and sentences keep it.
+a.mat-mdc-button-base,
+a.back,
+a.thumb,
+a.thumb-link,
+a.bar-col,
+a.hop-stat-label,
+a.open,
+a.details,
+a.icon-link {
+  &:hover,
+  &:focus {
+    text-decoration: none;
+  }
+}
+
 .sub {
   font-size: 0.875rem;
   color: var(--text-tertiary);

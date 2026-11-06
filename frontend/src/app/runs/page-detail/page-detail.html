@@ -12,7 +12,12 @@
         </div>
         <span class="mono sub">
           {{ p.url }}
-          <a [href]="p.url" target="_blank" rel="noopener" aria-label="Open page in a new tab"
+          <a
+            class="icon-link"
+            [href]="p.url"
+            target="_blank"
+            rel="noopener"
+            aria-label="Open page in a new tab"
             ><mat-icon class="inline">open_in_new</mat-icon></a
           >
         </span>
