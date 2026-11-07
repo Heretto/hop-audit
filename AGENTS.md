@@ -3,7 +3,8 @@
 Built on [hop-core](https://github.com/Heretto/hop-core), pinned at **v0.1.18**
 (`backend/requirements.txt` and the `@heretto/hop-ui` tarball in
 `frontend/package.json`). Product spec and build order: `CLAUDE.md` and
-`design/HANDOFF.md`; progress: `TODO.md`.
+`design/HANDOFF.md`; progress: `TODO.md`; where the last session left
+off and what's open: `HANDOFF-NOTES.md`.
 
 ## Before changing anything
 

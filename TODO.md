@@ -17,7 +17,7 @@ Before triage the bars were grey (`.proposed`), and confirmed they were one acce
 Cause: two `.example` rules in findings-page.scss. The second, meant for the picked-examples list in the side panel (`display: flex; align-items: baseline`), also hit the button, so its star sat on the text baseline and Material's button layout was overridden.
 - [x] The picked list gets its own class (`.pick`); the button keeps `.example`
 - [x] The button matches the mockup's `.ex` exactly: 30px, 0 10px padding, 6px gap, 8px radius, strong border, 500 12px secondary text, 16px star; on: accent border, background and text
-- [ ] Spec covers the button's classes and icon; `./dev.sh check`
+- [x] Spec covers the button's classes and icon; `./dev.sh check` (5f13988)
 
 Build order from `design/HANDOFF.md`. Mark each step `[x]` when done and
 re-read this file before starting the next.
