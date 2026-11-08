@@ -37,6 +37,17 @@ def overflow(heights: dict) -> str:
     return "no overflow" if all(k in heights for k in d.KINDS) else "not measured yet"
 
 
+def examples_text(f: d.Facts) -> str:
+    picked = len(f.picked[: d.EXAMPLES])
+    if picked >= d.EXAMPLES:
+        return "Three one-sheet examples are picked in triage."
+    filled = [x.code for x in f.examples[picked:]]
+    if not filled:
+        return f"Pick three one-sheet examples on Findings ({picked} picked)."
+    return (f"{picked} of three one-sheet examples picked in triage; the sheet fills in with the most severe "
+            f"confirmed issues ({', '.join(filled)}). Pick on Findings to choose them.")  # fmt: skip
+
+
 def view(db: Session, run: AuditRun) -> DeliverablesView:
     site, saved = run.site, d.row(db, run)
     reason = unavailable(run)
@@ -49,6 +60,7 @@ def view(db: Session, run: AuditRun) -> DeliverablesView:
     quotes = d.spot_checks(f)
     confirmed = triage.get("status") == "confirmed"
     build_status, build_error = d.build_state(saved)
+    picked = len(f.picked[: d.EXAMPLES])
 
     checklist = [
         CheckItem(
@@ -59,13 +71,7 @@ def view(db: Session, run: AuditRun) -> DeliverablesView:
             else "The triage isn't confirmed yet: the one-sheets use the tiers as they stand. Confirm it on "
             "Findings before sending.",
         ),
-        CheckItem(
-            key="examples",
-            ok=len(f.examples) >= 3,
-            text="Three one-sheet examples are picked in triage."
-            if len(f.examples) >= 3
-            else f"Pick three one-sheet examples on Findings ({len(f.examples)} picked).",
-        ),
+        CheckItem(key="examples", ok=picked >= d.EXAMPLES, text=examples_text(f)),
         CheckItem(
             key="placeholders",
             ok=not missing,
@@ -140,7 +146,7 @@ def view(db: Session, run: AuditRun) -> DeliverablesView:
         checklist=checklist,
         heights=heights,
         counts=f.counts,
-        examples=[x.code for x in f.examples[:3]],
+        examples=[x.code for x in f.examples],
         internal_note=d.internal_note(f) if integrity else "",
         report_ready=bool(integrity),
         status=build_status,

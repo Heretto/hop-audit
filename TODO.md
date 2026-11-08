@@ -422,6 +422,15 @@ re-read this file before starting the next.
 - [x] A failed run names the error, the host and the timeout; traceback in
       the server log
 
+## One-sheet examples never blank (user: "select issues blank … include the next highest severity issues")
+
+- [x] `Facts.examples`: the triage's picks (in order), then the most severe
+      confirmed issues not picked (High → Low, then code), up to three;
+      `Facts.picked` keeps the picks alone
+- [x] Checklist: still unticked until three are picked, and names the
+      issues filled in; the Collateral Writer is told which were picked
+- [x] Tests: the fill order, and a build with no picks; `./dev.sh check`
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)

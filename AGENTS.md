@@ -139,7 +139,8 @@ Read those instead of inferring from this project's code. Do not copy them here.
 - **Deliverables** (`deliverables.py`, `routes/deliverables.py`): prospect
   reviews where content integrity has run; the triage needn't be confirmed
   (the checklist flags it until it is). A one-sheet's numbers (stats,
-  categories, severity, issue mix, the triage's three example picks,
+  categories, severity, issue mix, three examples: the triage's picks,
+  then the most severe confirmed issues so the section is never empty,
   eyebrow, review sentences, footnote) are computed from the triage each
   time it's rendered; only the copy (headlines, subhead opening, executive
   lead sentence, why-it-matters lines, impact cards) comes from the

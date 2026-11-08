@@ -6,7 +6,7 @@ What a one-sheet says comes from two places:
 - the triage as it stands (confirmed or not; the hand-off checklist says
   which), read every time a sheet is rendered: the stats, categories,
   severity split, issue mix, the three examples (the triage's one-sheet
-  picks), the eyebrow, the review sentences and the footnote. These can't
+  picks, then the most severe confirmed issues), the eyebrow, the review sentences and the footnote. These can't
   drift from the confirmed totals.
 - the copy, written once by the Collateral Writer and then edited by people:
   headlines, the subhead's opening, the executive lead sentence, three "why
@@ -45,6 +45,7 @@ from readability import MIN_WORDS
 logger = logging.getLogger(__name__)
 PAGE_H = 1056  # Letter at 96 dpi; a sheet taller than this overflows
 KINDS = ("lead", "exec")
+EXAMPLES = 3  # "What we found" items on the lead one-sheet
 TEMPLATES = {"lead": "onesheet_lead.html", "exec": "onesheet_exec.html"}
 IMPERATIVES = ("Risk", "Customer Acquisition", "Customer Retention", "Cost")
 MIX_COLORS = ["#79ecdd", "#2bb1a9", "#4f8fa0", "#3c5a70"]  # the skill's build_onesheet.py
@@ -144,9 +145,16 @@ class Facts:
                 "articles": self.articles, "help_centers": len(self.centers)}  # fmt: skip
 
     @property
-    def examples(self) -> list[IntegrityFinding]:
+    def picked(self) -> list[IntegrityFinding]:
         """The triage's one-sheet picks, in their order: three, then a backup."""
         return sorted((f for f in self.firm if f.example_rank), key=lambda f: f.example_rank)
+
+    @property
+    def examples(self) -> list[IntegrityFinding]:
+        """The three issues the one-sheet shows: the picks, then the most severe
+        confirmed issues not picked, so the section is never empty."""
+        picks = self.picked[:EXAMPLES]
+        return picks + [x for x in report.ordered(self.firm) if x not in picks][: EXAMPLES - len(picks)]
 
     @property
     def date(self) -> str:
@@ -273,27 +281,24 @@ def sheet_context(kind: str, f: Facts, copy: Copy, site) -> dict:
         total = sum(sev.values()) or 1
         high, medium = round(100 * sev["High"] / total, 1), round(100 * sev["Medium"] / total, 1)
         subhead = " ".join(p for p in (copy.subhead_lead.strip(), lead_review_sentence(f)) if p)
-        return (
-            ctx
-            | {
-                "eyebrow": f"Content Integrity Snapshot · {f.prospect} Help Center",
-                "headline_line1": copy.headline_line1,
-                "headline_line2": copy.headline_line2,
-                "subhead": subhead,
-                "categories": cats,
-                "sev": {
-                    "high": sev["High"],
-                    "medium": sev["Medium"],
-                    "low": sev["Low"],
-                    "high_pct": high,
-                    "medium_pct": medium,
-                    "low_pct": round(100 - high - medium, 1),
-                },  # fmt: skip
-                "examples": [example(x, f) for x in f.examples[:3]],
-                "examples_heading": "What we found: selected issues",
-                "why": [{"lead": w.lead, "text": w.text} for w in copy.why],
-            }
-        )
+        return ctx | {
+            "eyebrow": f"Content Integrity Snapshot · {f.prospect} Help Center",
+            "headline_line1": copy.headline_line1,
+            "headline_line2": copy.headline_line2,
+            "subhead": subhead,
+            "categories": cats,
+            "sev": {
+                "high": sev["High"],
+                "medium": sev["Medium"],
+                "low": sev["Low"],
+                "high_pct": high,
+                "medium_pct": medium,
+                "low_pct": round(100 - high - medium, 1),
+            },  # fmt: skip
+            "examples": [example(x, f) for x in f.examples],
+            "examples_heading": "What we found: selected issues",
+            "why": [{"lead": w.lead, "text": w.text} for w in copy.why],
+        }
     counts = by_category(f)
     mix = [{"label": f.mix_labels[c], "count": n} for c, n in counts[:3]]
     if rest := sum(n for _, n in counts[3:]):
@@ -363,7 +368,8 @@ def material(f: Facts, site) -> str:
         f"({f.severity['High']} High, {f.severity['Medium']} Medium, {f.severity['Low']} Low); "
         f"{len(f.review):,} items for review, not counted.",
         "By category: " + "; ".join(f"{f.labels[c]} {n}" for c, n in by_category(f)),
-        "One-sheet examples picked in triage: " + (", ".join(x.code for x in f.examples[:3]) or "none yet"),
+        f"One-sheet examples ({len(f.picked[:EXAMPLES])} picked in triage, the rest the most severe): "
+        + ", ".join(x.code for x in f.examples),
         "",
         "Confirmed findings:",
     ]
@@ -471,7 +477,7 @@ async def build_job(run_id, email: str) -> None:
         f = facts(db, run)
         confirmed = (run.triage or {}).get("status") == "confirmed"
         log("info", f"Read the triage: {len(f.firm):,} confirmed issues ({f.severity['High']:,} High), "
-                    f"{len(f.review):,} for review, {len(f.examples[:3])} one-sheet example(s) picked"
+                    f"{len(f.review):,} for review, {len(f.picked[:EXAMPLES])} one-sheet example(s) picked"
                     + ("." if confirmed else "; the triage isn't confirmed yet."))  # fmt: skip
         if not f.firm:
             raise WriterFailed("there are no confirmed issues to write about")
@@ -527,7 +533,7 @@ def placeholders(site) -> list[str]:
 def spot_checks(f: Facts) -> list[dict]:
     """The one-sheet quotes to check in a live browser before sending."""
     out = []
-    for x in f.examples[:3]:
+    for x in f.examples:
         for q in x.quotes[:2]:
             out.append({"code": x.code, "slug": q.get("slug", ""), "page_id": q.get("page_id"),
                         "verified": bool(q.get("verified", True))})  # fmt: skip

@@ -3,6 +3,7 @@
 import base64
 import json
 import re
+from types import SimpleNamespace
 
 import pytest
 from hop_core.agents import AiProviderError, AiProviderRegistry, GenerationResponse
@@ -172,6 +173,40 @@ async def test_build_writes_the_copy_and_the_sheets(client, user, db, mock, writ
     assert "Support content needs a single source" in exec_ and "Customers call the wrong number" in exec_
     assert "Worth 20 minutes to walk through what we found?" in exec_
     assert client.get(url(run, "/other.html"), headers=h).status_code == 404
+
+
+def test_examples_are_the_picks_then_the_most_severe():
+    def finding(code, severity, rank=None):
+        return SimpleNamespace(code=code, severity=severity, example_rank=rank)
+
+    firm = [finding("C-02", "Low", rank=1), finding("U-01", "Medium"), finding("C-01", "High"),
+            finding("T-01", "High"), finding("D-01", "Low")]  # fmt: skip
+    facts = deliverables.Facts(prospect="Lumen", as_of=None, firm=firm, review=[], articles=0, centers=[],
+                               languages=[], hosts=[])  # fmt: skip
+    assert [x.code for x in facts.examples] == ["C-02", "C-01", "T-01"]
+    for x in firm:
+        x.example_rank = None
+    assert [x.code for x in facts.examples] == ["C-01", "T-01", "U-01"]
+    facts.firm = firm[:2]
+    assert [x.code for x in facts.examples] == ["U-01", "C-02"]  # fewer than three: all of them
+    facts.firm = []
+    assert facts.examples == []
+
+
+async def test_with_no_picks_the_sheet_shows_the_most_severe_issues(client, user, db, mock, writer, jobs):  # noqa: F811
+    run, _ = await prospect_run(client, user, db, mock, picks=0)
+    h = user["headers"]
+    v = await build(client, run, h, jobs)
+    findings = client.get(f"/api/v1/runs/{run.id}/integrity", headers=h).json()["findings"]
+    order = {"High": 0, "Medium": 1, "Low": 2}
+    firm = sorted((f for f in findings if f["tier"] == "firm"), key=lambda f: (order[f["severity"]], f["code"]))
+    assert v["examples"] == [f["code"] for f in firm[:3]] and v["examples"]
+    checks = {c["key"]: c for c in v["checklist"]}
+    assert not checks["examples"]["ok"]
+    assert checks["examples"]["text"].startswith("0 of three one-sheet examples picked in triage; the sheet fills")
+    lead = client.get(url(run, "/lead.html"), headers=h).text
+    assert firm[0]["title"].replace("'", "&#39;").replace('"', "&#34;") in lead
+    assert "picked in triage, the rest the most severe" in writer.prompts[0]
 
 
 async def test_editing_the_copy_and_the_checklist(client, user, db, mock, writer, jobs):  # noqa: F811
