@@ -19,6 +19,11 @@ only what those files don't: where things stand and what's open.
 
 ## Recent changes (this session, newest first)
 
+0. **Lead one-sheet** (2026-11-08): "What we found" is never blank (picks,
+   then the most severe confirmed issues; `cc781f2`), and a second page lists
+   up to seven more issues with links to their pages (`aae42e6`). Neither has
+   been rendered to PDF or seen in a browser.
+
 All are in `TODO.md` and `AGENTS.md`. They're listed here so you know
 what's fresh and has had no use in a browser yet.
 
