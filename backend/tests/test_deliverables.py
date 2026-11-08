@@ -1,6 +1,7 @@
 """Prospect deliverables: the Collateral Writer's copy, the one-sheets and the hand-off."""
 
 import base64
+import html
 import json
 import re
 from types import SimpleNamespace
@@ -212,7 +213,8 @@ def test_the_second_page_lists_the_rest_with_their_pages():
     assert item["links"][0]["href"] == "https://help.lumen.example/en/a/"
     assert item["more_pages"] == 1  # p9 isn't a crawled page, so only p3 is left over
     assert len(item["title"]) <= 100 and item["title"].endswith("…")
-    assert item["quote"].startswith("“long") and len(item["quote"]) <= 202
+    assert len(item["lines"]) == 2  # both sides of the contradiction
+    assert item["lines"][0]["text"].startswith("“long") and len(item["lines"][0]["text"]) <= 152
     assert deliverables.listed(facts.more[1], facts)["more_pages"] == 0
     assert deliverables.clip("short", 10) == "short" and deliverables.clip("one two, three", 10) == "one two…"
 
@@ -236,6 +238,11 @@ async def test_with_no_picks_the_sheet_shows_the_most_severe_issues(client, user
     assert len(firm) > 3
     assert "More of what we found" in lead and lead.count("page-break-before: always") == 1
     assert re.search(r'<a href="https?://[^"]+" target="_blank"', lead)
+    page_two = lead.split("More of what we found")[1]
+    assert any(len(f["quotes"]) > 1 for f in firm[3:9])
+    for f in firm[3:9]:
+        for q in f["quotes"][:2]:  # both sides of a contradiction, not just the first
+            assert html.escape(" ".join(q["text"].split())[:40]) in page_two, (f["code"], q["text"])
 
 
 async def test_editing_the_copy_and_the_checklist(client, user, db, mock, writer, jobs):  # noqa: F811

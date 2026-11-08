@@ -48,7 +48,8 @@ logger = logging.getLogger(__name__)
 PAGE_H = 1056  # Letter at 96 dpi; a sheet taller than this overflows
 KINDS = ("lead", "exec")
 EXAMPLES = 3  # "What we found" items on the lead one-sheet
-MORE = 7  # issues listed on the lead sheet's second page, each with its pages
+MORE = 6  # issues listed on the lead sheet's second page, each with its pages
+QUOTE_CHARS = 150  # per quote there, so two quotes take at most two lines each
 MORE_LINKS = 2  # pages linked per listed issue
 TEMPLATES = {"lead": "onesheet_lead.html", "exec": "onesheet_exec.html"}
 IMPERATIVES = ("Risk", "Customer Acquisition", "Customer Retention", "Cost")
@@ -256,12 +257,13 @@ def footnote(f: Facts) -> str:
     )
 
 
-def example(f: IntegrityFinding, facts_: Facts) -> dict:
-    """One "What we found" item: severity, where, title and its quotes as lines."""
+def example(f: IntegrityFinding, facts_: Facts, limit: int | None = None) -> dict:
+    """One "What we found" item: severity, where, title and its quotes as lines
+    (both sides of a contradiction or translation), each clipped to ``limit``."""
     kind = {"T": "Translation", "C": "Contradiction", "U": "Instructions"}.get(f.category, facts_.labels[f.category])
     lines = []
     for q in f.quotes[:2]:
-        line = {"text": f"“{q['text']}”"}
+        line = {"text": f"“{clip(q['text'], limit) if limit else q['text']}”"}
         if f.category == "T" and q.get("label"):
             line["label"] = q["label"]
         if q.get("note"):
@@ -279,16 +281,16 @@ def clip(text: str, limit: int) -> str:
 
 
 def listed(f: IntegrityFinding, facts_: Facts) -> dict:
-    """One issue on the second page: severity, where, title, its first quote and links to its pages."""
-    item = example(f, facts_)
+    """One issue on the second page: severity, where, title, its quotes (as page one shows them) and
+    links to its pages."""
+    item = example(f, facts_, limit=QUOTE_CHARS)
     pages = list(dict.fromkeys(facts_.urls[q["page_id"]] for q in f.quotes if q.get("page_id") in facts_.urls))
     links = [{"href": u, "text": clip(u.split("://", 1)[-1].rstrip("/"), 60)} for u in pages[:MORE_LINKS]]
-    quote = f.quotes[0]["text"] if f.quotes else ""
     return {
         "severity": item["severity"],
         "where": item["where"],
         "title": clip(f.title, 100),
-        "quote": f"“{clip(quote, 200)}”" if quote else "",
+        "lines": item["lines"],
         "links": links,
         "more_pages": max(0, len(pages) - MORE_LINKS),
     }

@@ -40,8 +40,7 @@ export const SHEETS: Record<SheetKind, { title: string; file: string }> = {
             <span class="sub" [class.over]="overflow() > 0">
               @if (height(); as h) {
                 @if (overflow() > 0) {
-                  A page overflows Letter by {{ overflow() }} px: shorten the copy on
-                  Deliverables.
+                  A page overflows Letter by {{ overflow() }} px: shorten the copy on Deliverables.
                 } @else {
                   Every page fits on Letter (tallest {{ h }} px of {{ pageHeight }}).
                 }

@@ -444,6 +444,9 @@ re-read this file before starting the next.
 - [x] Wording: checklist, preview page, lead card
 - [x] Tests: the list, links, clipping, one page when there's nothing
       more; frame measuring two pages; `./dev.sh check`
+- [x] Both quotes of a contradiction or translation on page two (was only
+      the first), each clipped to 150 characters; six issues instead of seven
+      to leave room
 
 ## Later milestones (from the handoff)
 

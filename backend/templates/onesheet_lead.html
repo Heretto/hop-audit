@@ -121,7 +121,8 @@
         <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; line-height: 1.5">
           <div style="display: flex; align-items: center; gap: 8px">{% if e.severity == 'High' %}<span style="font-size: 10px; font-weight: 600; color: #ad4780; background: #fbeef5; border-radius: 999px; padding: 2px 9px">High</span>{% elif e.severity == 'Medium' %}<span style="font-size: 10px; font-weight: 600; color: #147a72; background: #f0fdfa; border-radius: 999px; padding: 2px 9px">Medium</span>{% else %}<span style="font-size: 10px; font-weight: 600; color: #3c4c66; background: #edf3fa; border-radius: 999px; padding: 2px 9px">Low</span>{% endif %}<span style="font-size: 10.5px; color: #5b6b82">{{ e.where }}</span></div>
           <div style="font-size: 12.5px; font-weight: 600; color: #011627">{{ e.title }}</div>
-          {% if e.quote %}<div>{{ e.quote }}</div>{% endif %}
+          {% for line in e.lines %}<div>{% if line.label %}<span style="font-weight: 600; color: #011627">{{ line.label }}</span> {% endif %}{{ line.text }}{% if line.note %} <span style="color: #5b6b82">{{ line.note }}</span>{% endif %}</div>
+          {% endfor %}
           {% if e.links %}<div style="font-size: 10.5px; color: #5b6b82; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{% for l in e.links %}{% if not loop.first %} · {% endif %}<a href="{{ l.href }}" target="_blank" rel="noopener" style="color: #147a72; text-decoration: none">{{ l.text }}</a>{% endfor %}{% if e.more_pages %} · and {{ e.more_pages }} more page{{ 's' if e.more_pages != 1 }}{% endif %}</div>{% endif %}
         </div>
         {% endfor %}

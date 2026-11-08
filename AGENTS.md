@@ -142,7 +142,8 @@ Read those instead of inferring from this project's code. Do not copy them here.
   categories, severity, issue mix, three examples: the triage's picks,
   then the most severe confirmed issues so the section is never empty,
   the lead sheet's second page (the next `MORE` confirmed issues, most
-  severe first, each with its first quote and links to its pages; left
+  severe first, each with its quotes as page one shows them (both sides
+  of a contradiction) and links to its pages; left
   out when there are none),
   eyebrow, review sentences, footnote) are computed from the triage each
   time it's rendered; only the copy (headlines, subhead opening, executive
