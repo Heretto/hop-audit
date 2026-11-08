@@ -102,5 +102,40 @@
 
   <div style="padding: 10px 46px 16px; font-size: 10.5px; line-height: 1.5; color: #5b6b82">{{ footnote }}</div>
 </div>
+{% if more %}
+<div style="width: 816px; height: 1056px; box-sizing: border-box; background: #f8fafc; font-family: Poppins, sans-serif; color: #3c4c66; display: flex; flex-direction: column; overflow: hidden; break-before: page; page-break-before: always">
+
+  <div style="flex-shrink: 0; background: radial-gradient(ellipse 90% 160% at 78% -10%, #14505f 0%, #08303f 36%, #001322 78%); padding: 20px 48px; display: flex; justify-content: space-between; align-items: center">
+    <img src="{{ heretto_logo }}" alt="Heretto" style="height: 24px; width: auto; display: block">
+    <div style="font-size: 11px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #79ecdd">{{ eyebrow }}</div>
+  </div>
+
+  <div style="padding: 18px 40px 0; display: flex; flex-direction: column; flex-grow: 1">
+    <div style="border: 1px solid #dde5f0; border-radius: 16px; padding: 7px; background: #f8fafc">
+      <div style="background: #ffffff; border-radius: 11px; padding: 18px 22px 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 1px 2px rgba(1, 22, 39, 0.05)">
+        <div style="display: flex; flex-direction: column; gap: 3px">
+          <h2 style="margin: 0; font-size: 15px; font-weight: 600; color: #011627">More of what we found</h2>
+          <div style="font-size: 11px; color: #5b6b82">Further confirmed issues, most severe first, with the pages they appear on.</div>
+        </div>
+        {% for e in more %}<div style="height: 1px; background: #edf3fa"></div>
+        <div style="display: flex; flex-direction: column; gap: 4px; font-size: 11px; line-height: 1.5">
+          <div style="display: flex; align-items: center; gap: 8px">{% if e.severity == 'High' %}<span style="font-size: 10px; font-weight: 600; color: #ad4780; background: #fbeef5; border-radius: 999px; padding: 2px 9px">High</span>{% elif e.severity == 'Medium' %}<span style="font-size: 10px; font-weight: 600; color: #147a72; background: #f0fdfa; border-radius: 999px; padding: 2px 9px">Medium</span>{% else %}<span style="font-size: 10px; font-weight: 600; color: #3c4c66; background: #edf3fa; border-radius: 999px; padding: 2px 9px">Low</span>{% endif %}<span style="font-size: 10.5px; color: #5b6b82">{{ e.where }}</span></div>
+          <div style="font-size: 12.5px; font-weight: 600; color: #011627">{{ e.title }}</div>
+          {% if e.quote %}<div>{{ e.quote }}</div>{% endif %}
+          {% if e.links %}<div style="font-size: 10.5px; color: #5b6b82; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{% for l in e.links %}{% if not loop.first %} · {% endif %}<a href="{{ l.href }}" target="_blank" rel="noopener" style="color: #147a72; text-decoration: none">{{ l.text }}</a>{% endfor %}{% if e.more_pages %} · and {{ e.more_pages }} more page{{ 's' if e.more_pages != 1 }}{% endif %}</div>{% endif %}
+        </div>
+        {% endfor %}
+        {% if more_left %}<div style="height: 1px; background: #edf3fa"></div>
+        <div style="font-size: 11px; color: #5b6b82">{{ more_left }} more confirmed issue{{ 's are' if more_left != 1 else ' is' }} in the full findings report, each with its exact quotes and URLs.</div>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div style="padding: 10px 46px 16px; display: flex; justify-content: space-between; gap: 16px; font-size: 10.5px; line-height: 1.5; color: #5b6b82">
+    <span>{{ contact_name }} · {{ contact_email }}</span>
+    <span>heretto.com</span>
+  </div>
+</div>
+{% endif %}
 
 </body></html>

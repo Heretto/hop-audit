@@ -431,6 +431,20 @@ re-read this file before starting the next.
       issues filled in; the Collateral Writer is told which were picked
 - [x] Tests: the fill order, and a build with no picks; `./dev.sh check`
 
+## Lead one-sheet: a second page of issues (user: "two pages … more issues on the second page … links to the example pages")
+
+- [x] Page two of `onesheet_lead.html`: the confirmed issues not on page
+      one, most severe first, up to `MORE` (7), each with severity, where,
+      title, its first quote (clipped) and links to up to two of its pages;
+      a line counts the rest, which are in the full findings report.
+      Left out when there's nothing more to list
+- [x] Page URLs from the quotes' `page_id`s (`Facts.urls`)
+- [x] Overflow is measured per page, tallest kept (Chromium and the frame);
+      the frame shows every page; the preview's links open in a new tab
+- [x] Wording: checklist, preview page, lead card
+- [x] Tests: the list, links, clipping, one page when there's nothing
+      more; frame measuring two pages; `./dev.sh check`
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)

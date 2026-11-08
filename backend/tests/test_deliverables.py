@@ -193,6 +193,30 @@ def test_examples_are_the_picks_then_the_most_severe():
     assert facts.examples == []
 
 
+def test_the_second_page_lists_the_rest_with_their_pages():
+    def finding(code, severity, pages=(), title="A title", quote="A quote"):
+        quotes = [{"text": quote, "page_id": p} for p in pages]
+        return SimpleNamespace(code=code, severity=severity, example_rank=None, category="C", locale="EN",
+                               title=title, quotes=quotes)  # fmt: skip
+
+    firm = [finding("C-01", "High"), finding("C-02", "High"), finding("C-03", "High"),
+            finding("C-05", "Low", pages=["p1"]), finding("C-04", "Medium", pages=["p1", "p2", "p3", "p9"],
+                                                             title="word " * 40, quote="long " * 80)]  # fmt: skip
+    facts = deliverables.Facts(prospect="Lumen", as_of=None, firm=firm, review=[], articles=0, centers=[],
+                               languages=[], hosts=[], labels=dict(deliverables.SHEET_LABELS),
+                               urls={"p1": "https://help.lumen.example/en/a/", "p2": "https://help.lumen.example/en/b",
+                                     "p3": "https://help.lumen.example/en/c"})  # fmt: skip
+    assert [x.code for x in facts.more] == ["C-04", "C-05"]  # not on page 1, most severe first
+    item = deliverables.listed(facts.more[0], facts)
+    assert [link["text"] for link in item["links"]] == ["help.lumen.example/en/a", "help.lumen.example/en/b"]
+    assert item["links"][0]["href"] == "https://help.lumen.example/en/a/"
+    assert item["more_pages"] == 1  # p9 isn't a crawled page, so only p3 is left over
+    assert len(item["title"]) <= 100 and item["title"].endswith("…")
+    assert item["quote"].startswith("“long") and len(item["quote"]) <= 202
+    assert deliverables.listed(facts.more[1], facts)["more_pages"] == 0
+    assert deliverables.clip("short", 10) == "short" and deliverables.clip("one two, three", 10) == "one two…"
+
+
 async def test_with_no_picks_the_sheet_shows_the_most_severe_issues(client, user, db, mock, writer, jobs):  # noqa: F811
     run, _ = await prospect_run(client, user, db, mock, picks=0)
     h = user["headers"]
@@ -207,6 +231,11 @@ async def test_with_no_picks_the_sheet_shows_the_most_severe_issues(client, user
     lead = client.get(url(run, "/lead.html"), headers=h).text
     assert firm[0]["title"].replace("'", "&#39;").replace('"', "&#34;") in lead
     assert "picked in triage, the rest the most severe" in writer.prompts[0]
+
+    # Page two lists the confirmed issues not on page one, linked to their pages.
+    assert len(firm) > 3
+    assert "More of what we found" in lead and lead.count("page-break-before: always") == 1
+    assert re.search(r'<a href="https?://[^"]+" target="_blank"', lead)
 
 
 async def test_editing_the_copy_and_the_checklist(client, user, db, mock, writer, jobs):  # noqa: F811
@@ -228,7 +257,7 @@ async def test_editing_the_copy_and_the_checklist(client, user, db, mock, writer
                      headers=h).json()  # fmt: skip
     checks = {c["key"]: c for c in v["checklist"]}
     assert checks["fits"]["ok"] and checks["fits"]["text"] == (
-        "Both one-sheets fit on one page (lead 1,000 px, exec 1,040 px of 1,056)."
+        "Every page of both one-sheets fits (tallest: lead 1,000 px, exec 1,040 px of 1,056)."
     )
     assert checks["spot_checked"]["ok"] and checks["marketing_ok"]["ok"]
 
@@ -337,3 +366,13 @@ async def test_interrupted_builds_fail_instead_of_spinning(client, user, db, moc
     db.expire_all()
     v = client.get(url(run), headers=h).json()
     assert v["status"] == "failed" and "server restarted" in v["error"]
+
+
+def test_a_sheet_with_nothing_more_to_list_stays_one_page():
+    import rendering
+
+    sev = {"high": 0, "medium": 0, "low": 0}
+    assert "More of what we found" not in rendering.render("onesheet_lead.html", sev=sev, more=[], more_left=0)
+    item = {"severity": "Low", "title": "T", "links": []}
+    two = rendering.render("onesheet_lead.html", sev=sev, more=[item], more_left=4)
+    assert "More of what we found" in two and "4 more confirmed issues are in the full findings report" in two

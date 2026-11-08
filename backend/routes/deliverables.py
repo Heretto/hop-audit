@@ -103,7 +103,7 @@ def view(db: Session, run: AuditRun) -> DeliverablesView:
             key="fits",
             ok=all(0 < heights.get(k, 0) <= d.PAGE_H for k in d.KINDS),
             text=(
-                "Both one-sheets fit on one page (lead {:,} px, exec {:,} px of {:,}).".format(
+                "Every page of both one-sheets fits (tallest: lead {:,} px, exec {:,} px of {:,}).".format(
                     heights["lead"], heights["exec"], d.PAGE_H
                 )
                 if all(0 < heights.get(k, 0) <= d.PAGE_H for k in d.KINDS)
@@ -241,7 +241,7 @@ def sheet_html(run_id: UUID, kind: str, ctx: CurrentUserContext = Ctx, db: Sessi
 
 @router.get("/runs/{run_id}/deliverables/{kind}.pdf")
 async def sheet_pdf(run_id: UUID, kind: str, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
-    """The one-sheet as a one-page Letter PDF; refused when it overflows the page."""
+    """The one-sheet as a Letter PDF (the lead sheet has a second page); refused when a page overflows."""
     run = get_run(db, ctx, run_id)
     saved = built_row(db, run)
     kind = _kind(kind)

@@ -1,6 +1,6 @@
 """Letter PDFs from HTML, rendered by Chromium through Playwright, the way the
 skill's `build_onesheet.py` does: the report (paged Letter with margins) and
-the one-sheets (one fixed 816×1056 px page, measured for overflow).
+the one-sheets (fixed 816×1056 px pages, each measured for overflow).
 
 The browser is installed apart from the Python package (`playwright install
 chromium`; the Dockerfile does it). Without it every call raises
@@ -12,11 +12,11 @@ from dataclasses import dataclass
 PAGE_W, PAGE_H = 816, 1056  # Letter at 96 dpi
 LOAD_TIMEOUT = 20_000  # ms; fonts come from Google Fonts
 
-# The one-sheet's natural height: its root without the fixed height, as the skill measures it.
-NATURAL_HEIGHT = """() => {
-  const r = document.body.firstElementChild;
+# The sheet's natural height: each page's root without its fixed height, as the skill
+# measures it; the tallest page. More than PAGE_H means a page overflows.
+NATURAL_HEIGHT = """() => Math.max(0, ...[...document.body.children].filter(r => r.tagName === 'DIV').map(r => {
   const prev = r.style.height; r.style.height = 'auto';
-  const h = r.scrollHeight; r.style.height = prev; return h; }"""
+  const h = r.scrollHeight; r.style.height = prev; return h; }))"""
 
 
 class PdfUnavailable(Exception):
@@ -26,7 +26,7 @@ class PdfUnavailable(Exception):
 @dataclass
 class Rendered:
     pdf: bytes
-    height: int | None = None  # natural content height of a one-page sheet
+    height: int | None = None  # natural content height of a sheet's tallest page
 
 
 async def _render(html: str, sheet: bool) -> Rendered:
@@ -63,7 +63,7 @@ async def _render(html: str, sheet: bool) -> Rendered:
 
 
 async def sheet(html: str) -> Rendered:
-    """A one-page Letter sheet (816×1056 px) and its natural content height."""
+    """A Letter sheet (816×1056 px pages) and the natural content height of its tallest page."""
     return await _render(html, sheet=True)
 
 

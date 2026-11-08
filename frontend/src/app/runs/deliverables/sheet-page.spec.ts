@@ -36,10 +36,10 @@ describe('SheetPage', () => {
     expect(el.textContent).toContain('Measuring…');
     page.height.set(1038);
     fixture.detectChanges();
-    expect(el.textContent).toContain('Fits on one Letter page (1038 px of 1056).');
+    expect(el.textContent).toContain('Every page fits on Letter (tallest 1038 px of 1056).');
     page.height.set(1100);
     fixture.detectChanges();
-    expect(el.textContent).toContain('Overflows the Letter page by 44 px');
+    expect(el.textContent).toContain('A page overflows Letter by 44 px');
   });
 
   it('downloads the PDF', () => {

@@ -18,17 +18,29 @@ export const PAGE_W = 816;
 export const PAGE_H = 1056;
 
 /**
- * The sheet's natural height: its root without the fixed page height, as the
- * skill's build_onesheet.py measures it. More than PAGE_H means it overflows.
+ * The sheet's natural height: each page's root without its fixed height, as
+ * the skill's build_onesheet.py measures it; the tallest page. More than
+ * PAGE_H means a page overflows.
  */
 export function naturalHeight(doc: Document): number | null {
-  const root = doc.body?.firstElementChild as HTMLElement | null;
-  if (!root) return null;
-  const before = root.style.height;
-  root.style.height = 'auto';
-  const height = root.scrollHeight;
-  root.style.height = before;
-  return height;
+  const pages = [...(doc.body?.children ?? [])].filter(
+    (el): el is HTMLElement => el.tagName === 'DIV',
+  );
+  if (!pages.length) return null;
+  return Math.max(
+    ...pages.map((page) => {
+      const before = page.style.height;
+      page.style.height = 'auto';
+      const height = page.scrollHeight;
+      page.style.height = before;
+      return height;
+    }),
+  );
+}
+
+/** How many Letter pages the sheet has. */
+export function pageCount(doc: Document): number {
+  return [...(doc.body?.children ?? [])].filter((el) => el.tagName === 'DIV').length || 1;
 }
 
 /**
@@ -40,12 +52,13 @@ export function naturalHeight(doc: Document): number | null {
   selector: 'app-sheet-frame',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="frame" #box [style.height.px]="crop() ?? pageHeight()">
+    <div class="frame" #box [style.height.px]="crop() ?? pageHeight() * pages()">
       <iframe
         #frame
         [attr.title]="label()"
         [srcdoc]="safeHtml()"
-        sandbox="allow-same-origin"
+        sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+        [style.height.px]="unscaledPage * pages()"
         [style.transform]="'scale(' + scale() + ')'"
         (load)="measure()"
       ></iframe>
@@ -67,7 +80,6 @@ export function naturalHeight(doc: Document): number | null {
       top: 0;
       left: 0;
       width: ${PAGE_W}px;
-      height: ${PAGE_H}px;
       border: 0;
       transform-origin: 0 0;
     }
@@ -88,6 +100,9 @@ export class SheetFrame implements AfterViewInit, OnDestroy {
   readonly width = signal(PAGE_W);
   readonly scale = computed(() => Math.min(1, this.width() / PAGE_W));
   readonly pageHeight = computed(() => PAGE_H * this.scale());
+  readonly unscaledPage = PAGE_H;
+  /** Letter pages in the sheet; the frame grows to show them all. */
+  readonly pages = signal(1);
   /** Our own server's rendering of our own template; the frame runs no scripts. */
   readonly safeHtml = computed(() => this.sanitizer.bypassSecurityTrustHtml(this.html()));
 
@@ -108,6 +123,7 @@ export class SheetFrame implements AfterViewInit, OnDestroy {
     const doc = this.frame().nativeElement.contentDocument;
     if (!doc) return;
     await doc.fonts?.ready; // Poppins changes the line breaks
+    this.pages.set(pageCount(doc));
     const height = naturalHeight(doc);
     if (height) this.measured.emit(height);
   }

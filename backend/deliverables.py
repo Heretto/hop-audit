@@ -6,8 +6,9 @@ What a one-sheet says comes from two places:
 - the triage as it stands (confirmed or not; the hand-off checklist says
   which), read every time a sheet is rendered: the stats, categories,
   severity split, issue mix, the three examples (the triage's one-sheet
-  picks, then the most severe confirmed issues), the eyebrow, the review sentences and the footnote. These can't
-  drift from the confirmed totals.
+  picks, then the most severe confirmed issues), the lead sheet's second
+  page (more issues, each linked to its pages), the eyebrow, the review
+  sentences and the footnote. These can't drift from the confirmed totals.
 - the copy, written once by the Collateral Writer and then edited by people:
   headlines, the subhead's opening, the executive lead sentence, three "why
   it matters" lines and three impact cards (``Copy``). The counts it was
@@ -29,6 +30,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 from urllib.parse import urlsplit
+from uuid import UUID
 
 from hop_core.db import get_session_factory
 from pydantic import BaseModel, Field, ValidationError
@@ -46,6 +48,8 @@ logger = logging.getLogger(__name__)
 PAGE_H = 1056  # Letter at 96 dpi; a sheet taller than this overflows
 KINDS = ("lead", "exec")
 EXAMPLES = 3  # "What we found" items on the lead one-sheet
+MORE = 7  # issues listed on the lead sheet's second page, each with its pages
+MORE_LINKS = 2  # pages linked per listed issue
 TEMPLATES = {"lead": "onesheet_lead.html", "exec": "onesheet_exec.html"}
 IMPERATIVES = ("Risk", "Customer Acquisition", "Customer Retention", "Cost")
 MIX_COLORS = ["#79ecdd", "#2bb1a9", "#4f8fa0", "#3c5a70"]  # the skill's build_onesheet.py
@@ -134,6 +138,7 @@ class Facts:
     blocked: list[str] = field(default_factory=list)  # help centers the crawler couldn't read
     labels: dict[str, str] = field(default_factory=dict)  # sheet category labels, with T named
     mix_labels: dict[str, str] = field(default_factory=dict)
+    urls: dict[str, str] = field(default_factory=dict)  # page id → URL, for the pages quoted
 
     @property
     def severity(self) -> Counter:
@@ -157,6 +162,12 @@ class Facts:
         return picks + [x for x in report.ordered(self.firm) if x not in picks][: EXAMPLES - len(picks)]
 
     @property
+    def more(self) -> list[IntegrityFinding]:
+        """The confirmed issues after the examples, most severe first: the second page's list."""
+        shown = self.examples
+        return [x for x in report.ordered(self.firm) if x not in shown]
+
+    @property
     def date(self) -> str:
         return f"{self.as_of:%B} {self.as_of.day}, {self.as_of:%Y}" if self.as_of else ""
 
@@ -177,6 +188,8 @@ def facts(db: Session, run: AuditRun) -> Facts:
     t_label = f"{report.joined(others)} and {languages[0]} don't match" if others else "Language versions don't match"
     t_mix = f"{report.joined(others)} vs. {languages[0]}" if others else "Translations"
     read = {c for (c,) in db.execute(select(Page.help_center_id).where(Page.run_id == run.id, Page.http_status == 200))}
+    quoted = {_uuid(q.get("page_id")) for f in findings if f.tier == "firm" for q in f.quotes} - {None}
+    urls = dict(db.execute(select(Page.id, Page.url).where(Page.id.in_(quoted))).tuples().all()) if quoted else {}
     return Facts(
         prospect=((site.prospect or {}).get("company") or "").strip() or site.name,
         as_of=run.started_at or run.created_at,
@@ -189,7 +202,15 @@ def facts(db: Session, run: AuditRun) -> Facts:
         blocked=[c.name for c in centers if c.id not in read],
         labels={**SHEET_LABELS, "T": t_label},
         mix_labels={**MIX_LABELS, "T": t_mix},
+        urls={str(k): v for k, v in urls.items()},
     )
+
+
+def _uuid(value) -> UUID | None:
+    try:
+        return UUID(str(value))
+    except ValueError:
+        return None
 
 
 def by_category(f: Facts) -> list[tuple[str, int]]:
@@ -249,6 +270,30 @@ def example(f: IntegrityFinding, facts_: Facts) -> dict:
     return {"severity": f.severity, "where": f"{f.locale} · {kind}", "title": f.title, "lines": lines}
 
 
+def clip(text: str, limit: int) -> str:
+    """At most ``limit`` characters, cut at a word with an ellipsis, so a listed issue keeps its lines."""
+    text = " ".join(text.split())
+    if len(text) <= limit:
+        return text
+    return text[: limit - 1].rsplit(" ", 1)[0].rstrip(" ,;:.") + "…"
+
+
+def listed(f: IntegrityFinding, facts_: Facts) -> dict:
+    """One issue on the second page: severity, where, title, its first quote and links to its pages."""
+    item = example(f, facts_)
+    pages = list(dict.fromkeys(facts_.urls[q["page_id"]] for q in f.quotes if q.get("page_id") in facts_.urls))
+    links = [{"href": u, "text": clip(u.split("://", 1)[-1].rstrip("/"), 60)} for u in pages[:MORE_LINKS]]
+    quote = f.quotes[0]["text"] if f.quotes else ""
+    return {
+        "severity": item["severity"],
+        "where": item["where"],
+        "title": clip(f.title, 100),
+        "quote": f"“{clip(quote, 200)}”" if quote else "",
+        "links": links,
+        "more_pages": max(0, len(pages) - MORE_LINKS),
+    }
+
+
 # ── Rendering ────────────────────────────────────────────────────────────────
 
 
@@ -281,24 +326,29 @@ def sheet_context(kind: str, f: Facts, copy: Copy, site) -> dict:
         total = sum(sev.values()) or 1
         high, medium = round(100 * sev["High"] / total, 1), round(100 * sev["Medium"] / total, 1)
         subhead = " ".join(p for p in (copy.subhead_lead.strip(), lead_review_sentence(f)) if p)
-        return ctx | {
-            "eyebrow": f"Content Integrity Snapshot · {f.prospect} Help Center",
-            "headline_line1": copy.headline_line1,
-            "headline_line2": copy.headline_line2,
-            "subhead": subhead,
-            "categories": cats,
-            "sev": {
-                "high": sev["High"],
-                "medium": sev["Medium"],
-                "low": sev["Low"],
-                "high_pct": high,
-                "medium_pct": medium,
-                "low_pct": round(100 - high - medium, 1),
-            },  # fmt: skip
-            "examples": [example(x, f) for x in f.examples],
-            "examples_heading": "What we found: selected issues",
-            "why": [{"lead": w.lead, "text": w.text} for w in copy.why],
-        }
+        return (
+            ctx
+            | {
+                "eyebrow": f"Content Integrity Snapshot · {f.prospect} Help Center",
+                "headline_line1": copy.headline_line1,
+                "headline_line2": copy.headline_line2,
+                "subhead": subhead,
+                "categories": cats,
+                "sev": {
+                    "high": sev["High"],
+                    "medium": sev["Medium"],
+                    "low": sev["Low"],
+                    "high_pct": high,
+                    "medium_pct": medium,
+                    "low_pct": round(100 - high - medium, 1),
+                },  # fmt: skip
+                "examples": [example(x, f) for x in f.examples],
+                "examples_heading": "What we found: selected issues",
+                "more": [listed(x, f) for x in f.more[:MORE]],
+                "more_left": max(0, len(f.more) - MORE),
+                "why": [{"lead": w.lead, "text": w.text} for w in copy.why],
+            }
+        )
     counts = by_category(f)
     mix = [{"label": f.mix_labels[c], "count": n} for c, n in counts[:3]]
     if rest := sum(n for _, n in counts[3:]):

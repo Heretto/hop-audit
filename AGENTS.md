@@ -141,6 +141,9 @@ Read those instead of inferring from this project's code. Do not copy them here.
   (the checklist flags it until it is). A one-sheet's numbers (stats,
   categories, severity, issue mix, three examples: the triage's picks,
   then the most severe confirmed issues so the section is never empty,
+  the lead sheet's second page (the next `MORE` confirmed issues, most
+  severe first, each with its first quote and links to its pages; left
+  out when there are none),
   eyebrow, review sentences, footnote) are computed from the triage each
   time it's rendered; only the copy (headlines, subhead opening, executive
   lead sentence, why-it-matters lines, impact cards) comes from the
@@ -148,10 +151,12 @@ Read those instead of inferring from this project's code. Do not copy them here.
   keeps the copy, the counts it was written against (a mismatch shows on
   the checklist), the heights the page measured, and the two hand-off
   ticks. The templates are the skill's, unchanged (`templates/onesheet_*`);
-  their hex colors are the approved print design. The page shows each
-  sheet in a sandboxed `srcdoc` frame (`SheetFrame`) and measures its
-  natural height the skill's way; the PDF route measures again in Chromium
-  and refuses an overflow (409).
+  their hex colors are the approved print design, and the lead's second
+  page is ours in the same style. Each page is a top-level `div` of the
+  sheet. The page shows each sheet in a sandboxed `srcdoc` frame
+  (`SheetFrame`, every page, links open in a new tab) and measures each
+  page's natural height the skill's way, keeping the tallest; the PDF
+  route measures again in Chromium and refuses an overflow (409).
   A build runs in the background (`deliverables.start_build`, `spawn`):
   the row carries its status (idle | building | failed), error and a step
   log that also goes to the server log; the page polls every 2 s while it
