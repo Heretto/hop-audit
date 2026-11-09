@@ -1,0 +1,15 @@
+# The shared HOP VM: layered on docker-compose.yml by hop-server-tools.
+# Caddy owns 80/443 and forwards audit.herettoopenprojects.ai over plain
+# HTTP to hop-audit:8080 on the external `edge` network. Only the web
+# container joins `edge`; the backend stays on this project's network.
+services:
+  hop-audit-web:
+    ports: !reset []  # Caddy is the way in; nothing published
+    networks:
+      default:
+      edge:
+        aliases: [hop-audit]
+
+networks:
+  edge:
+    external: true

@@ -28,6 +28,17 @@ Read those instead of inferring from this project's code. Do not copy them here.
   never overwrites it. `ENCRYPTION_KEY` cannot be rotated.
 - **Start**: `./dev.sh` (free ports, generated proxy config, backend with
   `--reload`). `docker compose up --build` serves on :8080.
+- **Deployment**: the shared HOP VM (`deploy/shared-vm/README.md`) layers
+  `deploy/shared-vm/docker-compose.override.yml` on `docker-compose.yml`:
+  Caddy terminates TLS and reaches `hop-audit-web` (nginx, port 8080) as
+  `hop-audit` on the external `edge` network; nothing is published. Service
+  names are prefixed (`hop-audit-web`, `hop-audit-backend`) because the web
+  container shares `edge` with other apps; nginx reaches the backend by its
+  prefixed name. The app is plain HTTP and never redirects to HTTPS; nginx
+  and uvicorn (`--proxy-headers`) trust forwarded headers from private
+  ranges. Compose derives the public-URL settings from `PUBLIC_URL` and
+  sets `COOKIE_SECURE`; `GET /health` on the web container proxies
+  `/api/health`. Keep one uvicorn worker (audits run in-process).
 - **Schema**: new NOT NULL columns need a `server_default` so existing
   databases upgrade. Alembic in `backend/migrations`, run in-process at startup
   *before* hop-core's `create_all` (`backend/migrate.py`), so our tables are
