@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Executive brief: one-sheet</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#147a72}a:hover{color:#0f5c56}
+.frame{border:1px solid #dde5f0;border-radius:16px;padding:7px;background:#f8fafc}
+.inner{background:#fff;border-radius:11px;box-shadow:0 1px 2px rgba(1,22,39,.05);padding:11px 22px;display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:22px}
+.pill{align-self:flex-start;font-size:10.5px;font-weight:600;border-radius:999px;padding:2px 10px}
+.pill.risk{color:#ad4780;background:#fbeef5}.pill.cost{color:#147a72;background:#f0fdfa}
+.ev{border-left:1px solid #edf3fa;padding-left:18px;display:flex;flex-direction:column;gap:5px;font-size:11px;line-height:1.5}
+.ev .k{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#5b6b82}
+.stat{font-size:11.5px;color:#c5d2e0}.stat b{font-size:18px;font-weight:600;color:#fff}
+</style>
+</helmet>
+<div style="width: 816px; height: 1056px; box-sizing: border-box; background: #f8fafc; font-family: Poppins, sans-serif; color: #3c4c66; display: flex; flex-direction: column; overflow: hidden">
+
+  <div style="position: relative; flex-shrink: 0; background: radial-gradient(ellipse 90% 120% at 78% -10%, #14505f 0%, #08303f 36%, #001322 78%); padding: 26px 48px 22px; display: flex; flex-direction: column; gap: 16px; overflow: hidden">
+    <svg width="816" height="360" viewBox="0 0 816 360" style="position: absolute; left: 0; top: 0; pointer-events: none" aria-hidden="true">
+      <path d="M 640 -40 C 560 80, 560 260, 660 400" fill="none" stroke="#79ecdd" stroke-opacity="0.18" stroke-width="1"></path>
+      <path d="M 720 -40 C 640 80, 640 260, 740 400" fill="none" stroke="#79ecdd" stroke-opacity="0.10" stroke-width="1"></path>
+      <path d="M 40 -40 C 120 80, 120 260, 20 400" fill="none" stroke="#79ecdd" stroke-opacity="0.08" stroke-width="1"></path>
+    </svg>
+    <div style="position: relative; display: flex; justify-content: space-between; align-items: center">
+      <img src="./assets/b2e83805d39d5b8c550b737c377dc006.png" alt="Heretto" style="height: 28px; width: auto; display: block">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <span style="font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #b1bfd2">Prepared for</span>
+        <div style="display: flex; align-items: center; justify-content: center; min-width: 104px; height: 32px; padding: 0 10px; box-sizing: border-box; border: 1px dashed #3c4c66; border-radius: 6px; font-size: 11px; font-weight: 500; color: #b1bfd2">Lumen Financial logo</div>
+      </div>
+    </div>
+    <div style="position: relative; display: flex; flex-direction: column; gap: 12px">
+      <div style="font-size: 11.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: #79ecdd">Executive Brief · Lumen Financial Help Center Content</div>
+      <h1 style="margin: 0; font-size: 32px; line-height: 1.2; font-weight: 500; color: #ffffff; letter-spacing: -0.015em; max-width: 680px">Regulated lending needs governed content</h1>
+      <p style="margin: 0; font-size: 12.5px; line-height: 1.6; color: #c5d2e0; max-width: 640px">Structured content is critical to controlling risk; without it, the same terms read differently by page, by language, and in every AI answer. A review of 329 of Lumen Financial's public help articles on October 8, 2026 found 63 confirmed issues.</p>
+    </div>
+    <div style="position: relative; display: flex; flex-direction: column; gap: 9px; border-top: 1px solid rgba(197, 210, 224, 0.22); padding-top: 14px">
+      <div style="display: flex; gap: 28px"><span class="stat"><b style="color: #79ecdd">63</b>&nbsp; confirmed issues</span><span class="stat"><b>9</b>&nbsp; high severity</span><span class="stat"><b>329</b>&nbsp; articles reviewed</span><span class="stat"><b>3</b>&nbsp; help centers</span></div>
+      <div style="display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px"><div style="width: 30%; background: #79ecdd"></div><div style="width: 27%; background: #2bb1a9"></div><div style="width: 11%; background: #147a72"></div><div style="width: 32%; background: #3c4c66"></div></div>
+      <div style="display: flex; gap: 22px; font-size: 11px; color: #c5d2e0">
+        <span style="display: flex; align-items: center; gap: 6px"><span style="width: 8px; height: 8px; border-radius: 2px; background: #79ecdd"></span>Contradictions between articles <b style="color: #fff; font-weight: 600">19</b></span>
+        <span style="display: flex; align-items: center; gap: 6px"><span style="width: 8px; height: 8px; border-radius: 2px; background: #2bb1a9"></span>French vs. English <b style="color: #fff; font-weight: 600">17</b></span>
+        <span style="display: flex; align-items: center; gap: 6px"><span style="width: 8px; height: 8px; border-radius: 2px; background: #147a72"></span>Mismatched instructions <b style="color: #fff; font-weight: 600">7</b></span>
+        <span style="display: flex; align-items: center; gap: 6px"><span style="width: 8px; height: 8px; border-radius: 2px; background: #3c4c66"></span>Other <b style="color: #fff; font-weight: 600">20</b></span>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding: 18px 40px 0; display: flex; flex-direction: column; gap: 10px; flex-grow: 1">
+    <h2 style="margin: 0 0 2px 6px; font-size: 18px; font-weight: 600; color: #011627">What this means for the business</h2>
+
+    <div class="frame"><div class="inner">
+      <div style="display: flex; flex-direction: column; gap: 7px"><span class="pill risk">Regulatory risk</span><div style="font-size: 17px; line-height: 1.3; font-weight: 600; color: #011627">Regulated terms differ from page to page</div><div style="font-size: 12.5px; line-height: 1.55">Credit reporting, eligibility, and dispute rights are stated differently across articles and languages. Regulators judge what the customer was told, and each new market adds rules to keep in step.</div></div>
+      <div class="ev"><div class="k">From the review</div><div>One article says late payments “may lower your credit score.” Another says newer loans “are not reported to credit bureaus at this time.”</div></div>
+    </div></div>
+
+    <div class="frame"><div class="inner">
+      <div style="display: flex; flex-direction: column; gap: 7px"><span class="pill risk">AI risk</span><div style="font-size: 17px; line-height: 1.3; font-weight: 600; color: #011627">AI answers inherit every conflict</div><div style="font-size: 12.5px; line-height: 1.55">Companies are bound by what their AI tells customers (Moffatt v. Air Canada, 2024), so an assistant answering from these articles needs them to agree.</div></div>
+      <div class="ev"><div class="k">From the review</div><div>“Paid interest is not refundable” in one article. “You may also be eligible for an interest refund” in another.</div></div>
+    </div></div>
+
+    <div class="frame"><div class="inner">
+      <div style="display: flex; flex-direction: column; gap: 7px"><span class="pill cost">Cost to serve</span><div style="font-size: 17px; line-height: 1.3; font-weight: 600; color: #011627">Customers act on wrong instructions</div><div style="font-size: 12.5px; line-height: 1.55">Wrong numbers, reversed steps, and conflicting timelines turn self-service into failed payments and support contacts, a load that grows with the customer base.</div></div>
+      <div class="ev"><div class="k">From the review</div><div>The French AutoPay article tells customers to turn AutoPay on to stop automatic payments. A Canadian support number has two digits swapped.</div></div>
+    </div></div>
+
+    <div style="margin-top: 4px; background: radial-gradient(ellipse 80% 140% at 85% 0%, #0e3a4a 0%, #062536 45%, #011627 85%); border-radius: 14px; padding: 18px 22px; display: flex; justify-content: space-between; align-items: center; gap: 20px">
+      <div style="display: flex; flex-direction: column; gap: 3px"><div style="font-size: 15px; font-weight: 500; color: #ffffff">Worth 20 minutes to walk through what we found?</div><div style="font-size: 11px; color: #c5d2e0">The full findings, with every quote and where it appears, are ready.</div></div>
+      <div style="display: flex; align-items: center; gap: 16px">
+        <div style="display: flex; flex-direction: column; align-items: flex-end; font-size: 11px; color: #c5d2e0; white-space: nowrap"><span style="font-weight: 600; color: #ffffff">[Name, Title]</span><span>[email]</span></div>
+        <a href="https://heretto.com" style="background: #79ecdd; color: #011627; font-size: 12px; font-weight: 500; border-radius: 999px; padding: 10px 18px; white-space: nowrap; text-decoration: none">heretto.com</a>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding: 8px 46px 12px; font-size: 10.5px; line-height: 1.5; color: #5b6b82">Review of public pages at help.lumenfinancial.com and help.lumenfinancial.ca as of October 8, 2026; nine items that depend on internal policy are excluded. Lumen Financial is a trademark of its owner; Heretto is not affiliated with Lumen Financial.</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":816,"height":1056}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
