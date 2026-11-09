@@ -1,25 +1,66 @@
+# HOP Audit: the whole app. `docker compose up -d --build` serves it on
+# http://localhost:8080. On the shared HOP VM, deploy/shared-vm/
+# docker-compose.override.yml removes the published port and puts the web
+# container behind Caddy (deploy/shared-vm/README.md).
+#
+# Service names are prefixed: on the VM the web container also joins the
+# shared `edge` network, where an unprefixed name (`backend`, `frontend`)
+# could resolve to another app's container.
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
-  backend:
+  hop-audit-backend:
     build: ./backend
+    restart: unless-stopped
     env_file: .env
     environment:
       APP_ENV: production
       DATABASE_URL: sqlite:////data/audit.db
-      CORS_ORIGINS: http://localhost:8080
-      FRONTEND_BASE_URL: http://localhost:8080
+      # The public origin: links in emails, CORS and SSO redirects.
+      FRONTEND_BASE_URL: ${PUBLIC_URL:-http://localhost:8080}
+      CORS_ORIGINS: ${PUBLIC_URL:-http://localhost:8080}
+      OAUTH_REDIRECT_BASE_URL: ${PUBLIC_URL:-http://localhost:8080}
+      # Served over HTTPS (Caddy on the VM); browsers also accept secure
+      # cookies on http://localhost. COOKIE_DOMAIN stays unset: cookies keep
+      # to their own host.
+      COOKIE_SECURE: "true"
       # Fail at compose time, with a readable message, when a secret is missing.
       APP_SECRET_KEY: ${APP_SECRET_KEY:?not set, see .env.example}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?not set, see .env.example}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:?not set, see .env.example}
     volumes:
       - audit-data:/data
+    # Audits, crawls and Chromium (PDFs) run in this one process.
+    mem_limit: 1536m
+    logging: *logging
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4)"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
 
-  frontend:
+  hop-audit-web:
     build: ./frontend
+    restart: unless-stopped
     ports:
-      - "8080:80"
+      - "8080:8080"  # local only; the shared-VM override removes it
     depends_on:
-      - backend
+      hop-audit-backend:
+        condition: service_healthy
+    mem_limit: 128m
+    logging: *logging
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
 
 volumes:
   audit-data:

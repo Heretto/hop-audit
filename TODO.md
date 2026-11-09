@@ -458,6 +458,25 @@ re-read this file before starting the next.
       default background
 - [x] Spec: the login page shows the brand; `./dev.sh check`
 
+## Shared HOP VM deployment (branch `shared-vm-deploy`; brief from hop-server-tools)
+
+- [x] `docker-compose.yml`: prefixed services (`hop-audit-web`,
+      `hop-audit-backend`), `restart: unless-stopped`, memory limits
+      (128 MB, 1.5 GB), json-file logs 10 MB × 3, healthchecks, the
+      `audit-data` volume, public-URL settings from `PUBLIC_URL`,
+      `COOKIE_SECURE`
+- [x] `deploy/shared-vm/docker-compose.override.yml`: no published ports;
+      web on `edge` as `hop-audit`
+- [x] nginx on 8080, plain HTTP, trusts X-Forwarded-* from private ranges,
+      `GET /health`; uvicorn `--proxy-headers` for the same ranges
+- [x] `.env.example`: `PUBLIC_URL`, sign-up limits for the VM
+- [x] `deploy/shared-vm/README.md`: first run, containers, data, jobs
+- [x] Checked locally with Docker: merged config, build, both healthy,
+      `/health` 200 from `edge` with no redirect, visitor IP reaches
+      uvicorn, backend unreachable from `edge`, nothing published
+- [ ] The full backend image with Chromium: blocked here (deb.debian.org
+      and cdn.playwright.dev need firewall approval)
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)

@@ -14,5 +14,9 @@ WORKDIR /app
 COPY . .
 
 EXPOSE 8000
-# Single replica: the scheduler (milestone 9) runs in-process.
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# One process: audits run as asyncio tasks in it (and the scheduler will).
+# The web container's nginx (and Caddy on the VM) are on private addresses;
+# trust their X-Forwarded-For / -Proto, so rate limits see the visitor and
+# requests know they arrived over HTTPS.
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", \
+     "--forwarded-allow-ips", "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,127.0.0.1"]
