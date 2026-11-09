@@ -17,12 +17,13 @@ export const routes: Routes = [
     loadComponent: () => import('./shell/shell').then((m) => m.Shell),
     children: [
       { path: 'sites', loadComponent: () => import('./sites/sites-page').then((m) => m.SitesPage) },
-      // Opens the site's latest dashboard (see the guard); never renders.
-      { path: 'sites/:id', canActivate: [siteHomeGuard], children: [] },
+      // Before sites/:id, which would otherwise take "new" as a site id.
       {
         path: 'sites/new',
         loadComponent: () => import('./sites/settings/site-settings').then((m) => m.SiteSettings),
       },
+      // Opens the site's latest dashboard (see the guard); never renders.
+      { path: 'sites/:id', canActivate: [siteHomeGuard], children: [] },
       {
         path: 'sites/:id/edit',
         loadComponent: () => import('./sites/settings/site-settings').then((m) => m.SiteSettings),

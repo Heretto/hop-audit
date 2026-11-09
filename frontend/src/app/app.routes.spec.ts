@@ -42,6 +42,11 @@ describe('routes', () => {
     expect(shell.children!.find((r) => r.path === '' && r.redirectTo)?.redirectTo).toBe('sites');
   });
 
+  it('sends /sites/new to the form, not the site-home guard', () => {
+    const paths = shell.children!.map((r) => r.path);
+    expect(paths.indexOf('sites/new')).toBeLessThan(paths.indexOf('sites/:id'));
+  });
+
   it('keeps audits under their site: old /audits links go to the site or Sites', () => {
     const redirect = child('audits')!.redirectTo as (r: { queryParams: object }) => string;
     expect(child('audits')?.loadComponent).toBeUndefined();
