@@ -13,3 +13,4 @@ node_modules/
 frontend/dist/
 frontend/.angular/
 .platform-stamp
+_reference/

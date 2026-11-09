@@ -93,8 +93,9 @@ what's fresh and has had no use in a browser yet.
   - Run frontend tests through `./dev.sh check`, not `npx ng test`
     directly. The checkout is shared with a Mac, and dev.sh swaps the
     esbuild native packages.
-- **`_reference/`** holds the user's mockups; the new screens are in
-  `_reference/new_screens/` (committed at the user's request).
+- **`_reference/`** holds the user's mockups and the audit-asset-maker
+  skill. It's git-ignored and untracked: local only, so a fresh clone
+  doesn't have it.
 - **Commits:**
   - Each commit lists the decisions made and ends with the
     `Co-Authored-By` line from the session's attribution reminder.
