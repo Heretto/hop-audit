@@ -448,6 +448,16 @@ re-read this file before starting the next.
       the first), each clipped to 150 characters; six issues instead of seven
       to leave room
 
+## hop-core 0.1.20 and the new sign-in page (branch `hop-core-upgrade`)
+
+- [x] Pins: `hop-core` and `@heretto/hop-ui` at v0.1.20 (latest release,
+      looked up per Step 0); npm lock regenerated
+- [x] `provideHopUi()` replaces the hand-written outline default (0.1.19)
+- [x] Sign-in page: the redesigned `HopLoginComponent` with HOP Audit's
+      name, mark and tagline via `HOP_LOGIN_CONFIG` / `HOP_LOGO_SRC`;
+      default background
+- [x] Spec: the login page shows the brand; `./dev.sh check`
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)

@@ -1,6 +1,6 @@
 # HOP Audit: agent notes
 
-Built on [hop-core](https://github.com/Heretto/hop-core), pinned at **v0.1.18**
+Built on [hop-core](https://github.com/Heretto/hop-core), pinned at **v0.1.20**
 (`backend/requirements.txt` and the `@heretto/hop-ui` tarball in
 `frontend/package.json`). Product spec and build order: `CLAUDE.md` and
 `design/HANDOFF.md`; progress: `TODO.md`; where the last session left
@@ -195,7 +195,12 @@ Read those instead of inferring from this project's code. Do not copy them here.
   mockups (header, subtitle, empty state) are in
   `frontend/src/app/shared/_page.scss`. The top-bar mark
   (`frontend/public/hop-audit-mark.svg`) is the mockup's navy tile with the
-  Material Symbols `fact_check` glyph.
+  Material Symbols `fact_check` glyph. The sign-in page is hop-core's
+  `HopLoginComponent` (redesigned in 0.1.20), branded through
+  `HOP_LOGIN_CONFIG` and `HOP_LOGO_SRC` in `app.config.ts` (`LOGIN`,
+  `LOGO_SRC`, which the shell's top bar shares); its background is
+  hop-core's default (`--hop-login-bg` unset). `provideHopUi()` makes form
+  fields outlined.
 - **Single replica**: the scheduler (milestone 9) will run in-process.
 
 ## Upgrading hop-core

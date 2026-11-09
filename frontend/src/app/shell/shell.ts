@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, OnInit } from '@angular/core';
 import { HopMainLayoutComponent, NavItem } from '@heretto/hop-ui';
+import { LOGO_SRC } from '../app.config';
 import { SetupService } from '../shared/setup.service';
 
 /** Sidebar per Nav.dc.html; hop-core appends Account and Administration. */
@@ -13,14 +14,11 @@ export const NAV_ITEMS: NavItem[] = [
   selector: 'app-shell',
   imports: [HopMainLayoutComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<hop-main-layout
-    appTitle="HOP Audit"
-    logoSrc="hop-audit-mark.svg"
-    [navItems]="navItems"
-  />`,
+  template: `<hop-main-layout appTitle="HOP Audit" [logoSrc]="logo" [navItems]="navItems" />`,
 })
 export class Shell implements OnInit {
   readonly navItems = NAV_ITEMS;
+  readonly logo = LOGO_SRC;
   private setup = inject(SetupService);
 
   ngOnInit(): void {

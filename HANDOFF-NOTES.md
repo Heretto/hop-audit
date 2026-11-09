@@ -14,7 +14,7 @@ only what those files don't: where things stand and what's open.
 - Last commit: `a8063b1` (Audit history: one site's page, back to that
   site). `./dev.sh check` passed on it: 235 backend tests, 156 frontend
   tests, build, and `hop-doctor --strict` (9 passed).
-- Pinned to hop-core **v0.1.18** (Python package and `@heretto/hop-ui`
+- Pinned to hop-core **v0.1.20** (Python package and `@heretto/hop-ui`
   tarball).
 
 ## Recent changes (this session, newest first)

@@ -21,7 +21,7 @@
     "@angular/material": "^22.2.4",
     "@angular/platform-browser": "^22.2.0",
     "@angular/router": "^22.2.0",
-    "@heretto/hop-ui": "https://github.com/Heretto/hop-core/releases/download/v0.1.18/heretto-hop-ui-0.1.18.tgz",
+    "@heretto/hop-ui": "https://github.com/Heretto/hop-core/releases/download/v0.1.20/heretto-hop-ui-0.1.20.tgz",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
