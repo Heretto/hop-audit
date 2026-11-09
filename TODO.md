@@ -477,6 +477,12 @@ re-read this file before starting the next.
 - [ ] The full backend image with Chromium: blocked here (deb.debian.org
       and cdn.playwright.dev need firewall approval)
 
+## Add site button (user: "The add site button is broken")
+
+- [x] `sites/new` routed before `sites/:id`, which took "new" as a site id
+      and sent the button to Run audit or back to Sites
+- [x] Route-order test
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)
