@@ -76,7 +76,7 @@ https://audit.herettoopenprojects.ai. See
 
 ## License
 
-Copyright 2026 Heretto.
+Copyright 2026 Jorsek Inc. D.B.A. Heretto.
 
 HOP Audit is licensed under the [Elastic License 2.0](LICENSE). You may
 use, copy, modify and distribute it, but you may not offer it to others as
