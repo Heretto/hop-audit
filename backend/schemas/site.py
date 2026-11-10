@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from catalog import AGENT_ANALYSES, ANALYSIS_KEYS, CATEGORY_CODES
 
-# Analyses a site can switch on; prospect deliverables follow from the purpose.
+# Analyses a site can switch on; the reports are built for every site.
 SITE_ANALYSES = tuple(k for k in ANALYSIS_KEYS if k != "deliverables")
 LANGUAGE_TAG = re.compile(r"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$")
 TIME = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")

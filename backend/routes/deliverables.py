@@ -23,8 +23,6 @@ COUNTS_MATCH = "Counts on the one-sheets match the triaged totals ({firm} · {hi
 
 def unavailable(run: AuditRun) -> str:
     """Why deliverables can't be built for this run, or ""."""
-    if run.site.purpose != "prospect":
-        return "One-sheets are for prospect reviews; this site is set up as your own documentation."
     if not (run.metrics or {}).get("integrity"):
         return "Content integrity hasn't run for this audit, so there are no findings to build from."
     return ""
@@ -187,8 +185,6 @@ async def build(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depen
 def update(run_id: UUID, body: DeliverablesUpdate, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
     run = get_run(db, ctx, run_id)
     if body.prospect is not None:
-        if run.site.purpose != "prospect":
-            raise HTTPException(status.HTTP_409_CONFLICT, unavailable(run))
         changes = {k: v.strip() for k, v in body.prospect.model_dump(exclude_none=True).items()}
         run.site.prospect = {**(run.site.prospect or {}), **changes}
     if any(v is not None for v in (body.copy_, body.spot_checked, body.marketing_ok, body.heights)):
@@ -209,8 +205,6 @@ def update(run_id: UUID, body: DeliverablesUpdate, ctx: CurrentUserContext = Ctx
 @router.put("/runs/{run_id}/deliverables/logo", response_model=DeliverablesView, response_model_by_alias=True)
 def put_logo(run_id: UUID, body: LogoIn, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
     run = get_run(db, ctx, run_id)
-    if run.site.purpose != "prospect":
-        raise HTTPException(status.HTTP_409_CONFLICT, unavailable(run))
     run.site.prospect_logo = body.data_uri
     db.commit()
     return view(db, run)

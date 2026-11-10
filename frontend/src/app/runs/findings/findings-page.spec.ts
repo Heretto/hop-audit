@@ -175,31 +175,33 @@ describe('FindingsPage', () => {
 
   it('confirms the triage', () => {
     const { fixture, page, runs, el } = render();
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     page.confirm();
     fixture.detectChanges();
     expect(runs.confirmTriage).toHaveBeenCalledWith('r1');
     expect(el.textContent).toContain('Triage confirmed');
     expect(el.textContent).toContain('Confirmed by me@x.com');
-    expect(el.textContent).toContain('Deliverables for this prospect review');
+    expect(el.textContent).toContain('The reports are built from these calls.');
   });
 
-  it('confirms and goes on to the deliverables for a prospect review', () => {
+  it('confirms and goes on to the reports', () => {
     const { fixture, page, el } = render();
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     const button = el.querySelector<HTMLButtonElement>('.page-actions button[color="primary"]')!;
-    expect(button.textContent).toContain('Confirm triage and build deliverables');
-    // Deliverables can be built before the triage is confirmed.
+    expect(button.textContent).toContain('Confirm triage and build reports');
+    // Reports can be built before the triage is confirmed.
     expect(el.querySelector('.page-actions a[href="/audits/r1/deliverables"]')).not.toBeNull();
-    page.confirm(true);
+    page.confirm();
     fixture.detectChanges();
     expect(navigate).toHaveBeenCalledWith(['/audits', 'r1', 'deliverables']);
     const link = el.querySelector('.page-actions a[href="/audits/r1/deliverables"]');
     expect(link?.textContent).toContain('Reports');
   });
 
-  it('only confirms for an own-docs site', () => {
+  it('offers the reports for an own-docs site too', () => {
     const { el } = render(sampleIntegrityView({ purpose: 'own' }));
     const button = el.querySelector<HTMLButtonElement>('.page-actions button[color="primary"]')!;
-    expect(button.textContent!.trim()).toBe('checkConfirm triage');
+    expect(button.textContent).toContain('Confirm triage and build reports');
+    expect(el.querySelector('.page-actions a[href="/audits/r1/deliverables"]')).not.toBeNull();
   });
 });

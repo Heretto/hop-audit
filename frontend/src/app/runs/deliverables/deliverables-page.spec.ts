@@ -85,22 +85,16 @@ describe('DeliverablesPage', () => {
     expect(el.querySelector('a[href="/audits/r1/deliverables/lead"]')).not.toBeNull();
   });
 
-  it('shows only the full report for a site that is your own documentation', () => {
-    const own = sampleDeliverables({
-      purpose: 'own',
-      available: false,
-      reason: 'One-sheets are for prospect reviews; this site is set up as your own documentation.',
-      copy: null,
-    });
-    const { el, runs } = render(own);
+  it('shows every report for a site that is your own documentation', () => {
+    const { el } = render(sampleDeliverables({ purpose: 'own' }));
     expect([...el.querySelectorAll('.deliverable h3')].map((h) => h.textContent)).toEqual([
+      'Lead one-sheet',
+      'Executive brief',
       'Full findings report',
+      'Internal summary',
     ]);
-    expect(el.querySelector('.page-actions')).toBeNull(); // nothing to build
-    expect(el.querySelector('.callout')).toBeNull();
-    expect(el.querySelector('.layout')).toBeNull();
-    expect(el.querySelector('.back')!.getAttribute('href')).toBe('/audits/r1');
-    expect(runs.sheetHtml).not.toHaveBeenCalled();
+    expect(el.querySelector('.page-actions')).not.toBeNull();
+    expect(el.querySelector('.layout')).not.toBeNull();
   });
 
   it('flags copy over its budget as you type', async () => {

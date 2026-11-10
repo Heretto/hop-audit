@@ -33,12 +33,12 @@
         <button mat-stroked-button (click)="exportCsv()">
           <mat-icon>download</mat-icon>Export findings (CSV)
         </button>
-        @if (v.purpose === 'prospect' && v.triage.status !== 'confirmed') {
+        @if (v.triage.status !== 'confirmed') {
           <a mat-stroked-button [routerLink]="['/audits', v.run.id, 'deliverables']"
             ><mat-icon>inventory_2</mat-icon>Reports</a
           >
         }
-        @if (v.purpose === 'prospect' && v.triage.status === 'confirmed') {
+        @if (v.triage.status === 'confirmed') {
           <a mat-flat-button color="primary" [routerLink]="['/audits', v.run.id, 'deliverables']"
             ><mat-icon>inventory_2</mat-icon>Reports</a
           >
@@ -46,13 +46,10 @@
           <button
             mat-flat-button
             color="primary"
-            (click)="confirm(v.purpose === 'prospect')"
-            [disabled]="confirming() || !findings().length || v.triage.status === 'confirmed'"
+            (click)="confirm()"
+            [disabled]="confirming() || !findings().length"
           >
-            <mat-icon>check</mat-icon
-            >{{
-              v.purpose === 'prospect' ? 'Confirm triage and build deliverables' : 'Confirm triage'
-            }}
+            <mat-icon>check</mat-icon>Confirm triage and build reports
           </button>
         }
       </div>
@@ -64,10 +61,7 @@
         }}{{
           v.triage.confirmed_at ? ' on ' + (v.triage.confirmed_at | date: 'MMM d, HH:mm') : ''
         }}. These counts now show on the dashboard and in history. Changing a tier reopens the
-        triage.
-        @if (v.purpose === 'prospect') {
-          Deliverables for this prospect review are built from these calls.
-        }
+        triage. The reports are built from these calls.
       </div>
     }
     @if (failure(); as detail) {

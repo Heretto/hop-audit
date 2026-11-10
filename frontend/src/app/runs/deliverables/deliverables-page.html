@@ -7,42 +7,34 @@
     <header class="page-header">
       <div>
         <h1>Reports</h1>
-        @if (v.purpose !== 'prospect') {
-          <span class="sub"
-            >The full findings report for this audit: open it, or download it as PDF or Word.</span
-          >
+        <span class="sub">
+          Built from the confirmed findings by {{ v.agent_name || 'the Collateral Writer' }}. The
+          one-sheets show counts and three examples; the full report is held back for the
+          walkthrough, so the prospect has a reason to take the meeting.
+        </span>
+      </div>
+      <div class="page-actions">
+        @if (built()) {
+          <button mat-stroked-button (click)="build()" [disabled]="building() || !v.available">
+            <mat-icon>refresh</mat-icon>Rebuild all
+          </button>
+          <button mat-flat-button color="primary" (click)="downloadPdfs()" [disabled]="!!busy()">
+            <mat-icon>download</mat-icon>Download PDFs
+          </button>
         } @else {
-          <span class="sub">
-            Built from the confirmed findings by {{ v.agent_name || 'the Collateral Writer' }}. The
-            one-sheets show counts and three examples; the full report is held back for the
-            walkthrough, so the prospect has a reason to take the meeting.
-          </span>
+          <button
+            mat-flat-button
+            color="primary"
+            (click)="build()"
+            [disabled]="building() || !v.available"
+          >
+            <mat-icon>auto_awesome</mat-icon>Build deliverables
+          </button>
         }
       </div>
-      @if (v.purpose === 'prospect') {
-        <div class="page-actions">
-          @if (built()) {
-            <button mat-stroked-button (click)="build()" [disabled]="building() || !v.available">
-              <mat-icon>refresh</mat-icon>Rebuild all
-            </button>
-            <button mat-flat-button color="primary" (click)="downloadPdfs()" [disabled]="!!busy()">
-              <mat-icon>download</mat-icon>Download PDFs
-            </button>
-          } @else {
-            <button
-              mat-flat-button
-              color="primary"
-              (click)="build()"
-              [disabled]="building() || !v.available"
-            >
-              <mat-icon>auto_awesome</mat-icon>Build deliverables
-            </button>
-          }
-        </div>
-      }
     </header>
 
-    @if (v.purpose === 'prospect' && !v.available) {
+    @if (!v.available) {
       <div class="callout" role="status">
         <mat-icon>info</mat-icon>
         <span
@@ -89,99 +81,97 @@
     }
 
     <div class="cards">
-      @if (v.purpose === 'prospect') {
-        <mat-card class="deliverable">
-          @if (sheets().lead; as html) {
-            <a
-              [routerLink]="['/audits', v.run.id, 'deliverables', 'lead']"
-              class="thumb-link"
-              aria-label="Preview the lead one-sheet"
-            >
-              <app-sheet-frame
-                [html]="html"
-                [crop]="120"
-                label="Lead one-sheet"
-                (measured)="measured('lead', $event)"
-              />
-            </a>
-          } @else {
-            <div class="thumb">Content Integrity Snapshot</div>
-          }
-          <div class="row between">
-            <h3>Lead one-sheet</h3>
-            <span class="hop-status-chip" [class.hop-status-chip-completed]="built()">{{
-              built() ? 'Built' : 'Not built'
-            }}</span>
-          </div>
-          <span class="sub"
-            >Letter PDF for the documentation lead: stats, categories, severity, three issues, why
-            it matters; page two lists more issues with links to their pages.</span
+      <mat-card class="deliverable">
+        @if (sheets().lead; as html) {
+          <a
+            [routerLink]="['/audits', v.run.id, 'deliverables', 'lead']"
+            class="thumb-link"
+            aria-label="Preview the lead one-sheet"
           >
-          <div class="actions">
-            <a
-              mat-stroked-button
-              class="small"
-              [routerLink]="['/audits', v.run.id, 'deliverables', 'lead']"
-              [disabled]="!built()"
-              ><mat-icon>visibility</mat-icon>Preview</a
-            >
-            <button
-              mat-stroked-button
-              class="small"
-              (click)="sheetPdf('lead')"
-              [disabled]="!built() || !!busy()"
-            >
-              <mat-icon>picture_as_pdf</mat-icon>PDF
-            </button>
-          </div>
-        </mat-card>
+            <app-sheet-frame
+              [html]="html"
+              [crop]="120"
+              label="Lead one-sheet"
+              (measured)="measured('lead', $event)"
+            />
+          </a>
+        } @else {
+          <div class="thumb">Content Integrity Snapshot</div>
+        }
+        <div class="row between">
+          <h3>Lead one-sheet</h3>
+          <span class="hop-status-chip" [class.hop-status-chip-completed]="built()">{{
+            built() ? 'Built' : 'Not built'
+          }}</span>
+        </div>
+        <span class="sub"
+          >Letter PDF for the documentation lead: stats, categories, severity, three issues, why it
+          matters; page two lists more issues with links to their pages.</span
+        >
+        <div class="actions">
+          <a
+            mat-stroked-button
+            class="small"
+            [routerLink]="['/audits', v.run.id, 'deliverables', 'lead']"
+            [disabled]="!built()"
+            ><mat-icon>visibility</mat-icon>Preview</a
+          >
+          <button
+            mat-stroked-button
+            class="small"
+            (click)="sheetPdf('lead')"
+            [disabled]="!built() || !!busy()"
+          >
+            <mat-icon>picture_as_pdf</mat-icon>PDF
+          </button>
+        </div>
+      </mat-card>
 
-        <mat-card class="deliverable">
-          @if (sheets().exec; as html) {
-            <a
-              [routerLink]="['/audits', v.run.id, 'deliverables', 'exec']"
-              class="thumb-link"
-              aria-label="Preview the executive brief"
-            >
-              <app-sheet-frame
-                [html]="html"
-                [crop]="120"
-                label="Executive brief"
-                (measured)="measured('exec', $event)"
-              />
-            </a>
-          } @else {
-            <div class="thumb">Executive Brief</div>
-          }
-          <div class="row between">
-            <h3>Executive brief</h3>
-            <span class="hop-status-chip" [class.hop-status-chip-completed]="built()">{{
-              built() ? 'Built' : 'Not built'
-            }}</span>
-          </div>
-          <span class="sub"
-            >Letter PDF for a CIO: business impact first, three cards with quoted evidence, numbers
-            in the header.</span
+      <mat-card class="deliverable">
+        @if (sheets().exec; as html) {
+          <a
+            [routerLink]="['/audits', v.run.id, 'deliverables', 'exec']"
+            class="thumb-link"
+            aria-label="Preview the executive brief"
           >
-          <div class="actions">
-            <a
-              mat-stroked-button
-              class="small"
-              [routerLink]="['/audits', v.run.id, 'deliverables', 'exec']"
-              [disabled]="!built()"
-              ><mat-icon>visibility</mat-icon>Preview</a
-            >
-            <button
-              mat-stroked-button
-              class="small"
-              (click)="sheetPdf('exec')"
-              [disabled]="!built() || !!busy()"
-            >
-              <mat-icon>picture_as_pdf</mat-icon>PDF
-            </button>
-          </div>
-        </mat-card>
-      }
+            <app-sheet-frame
+              [html]="html"
+              [crop]="120"
+              label="Executive brief"
+              (measured)="measured('exec', $event)"
+            />
+          </a>
+        } @else {
+          <div class="thumb">Executive Brief</div>
+        }
+        <div class="row between">
+          <h3>Executive brief</h3>
+          <span class="hop-status-chip" [class.hop-status-chip-completed]="built()">{{
+            built() ? 'Built' : 'Not built'
+          }}</span>
+        </div>
+        <span class="sub"
+          >Letter PDF for a CIO: business impact first, three cards with quoted evidence, numbers in
+          the header.</span
+        >
+        <div class="actions">
+          <a
+            mat-stroked-button
+            class="small"
+            [routerLink]="['/audits', v.run.id, 'deliverables', 'exec']"
+            [disabled]="!built()"
+            ><mat-icon>visibility</mat-icon>Preview</a
+          >
+          <button
+            mat-stroked-button
+            class="small"
+            (click)="sheetPdf('exec')"
+            [disabled]="!built() || !!busy()"
+          >
+            <mat-icon>picture_as_pdf</mat-icon>PDF
+          </button>
+        </div>
+      </mat-card>
       <mat-card class="deliverable">
         <a class="thumb doc" [routerLink]="['/audits', v.run.id, 'report']">
           <strong>Content Integrity Review</strong>
@@ -226,311 +216,300 @@
         </div>
       </mat-card>
 
-      @if (v.purpose === 'prospect') {
-        <mat-card class="deliverable">
-          <div class="thumb doc">
-            <strong>What it assessed</strong>
-            <span>Internal note · plain text</span>
-            <span class="line" style="width: 85%"></span>
-            <span class="line" style="width: 60%"></span>
-            <span class="line" style="width: 75%"></span>
-          </div>
-          <div class="row between">
-            <h3>Internal summary</h3>
-            <span class="hop-status-chip">On request</span>
-          </div>
-          <span class="sub"
-            >Short note for colleagues on what the review covered, the issue types found and the
-            result. Never sent to the prospect.</span
+      <mat-card class="deliverable">
+        <div class="thumb doc">
+          <strong>What it assessed</strong>
+          <span>Internal note · plain text</span>
+          <span class="line" style="width: 85%"></span>
+          <span class="line" style="width: 60%"></span>
+          <span class="line" style="width: 75%"></span>
+        </div>
+        <div class="row between">
+          <h3>Internal summary</h3>
+          <span class="hop-status-chip">On request</span>
+        </div>
+        <span class="sub"
+          >Short note for colleagues on what the review covered, the issue types found and the
+          result. Never sent to the prospect.</span
+        >
+        <div class="actions">
+          <button
+            mat-stroked-button
+            class="small"
+            (click)="copyNote()"
+            [disabled]="!v.internal_note"
           >
-          <div class="actions">
-            <button
-              mat-stroked-button
-              class="small"
-              (click)="copyNote()"
-              [disabled]="!v.internal_note"
-            >
-              <mat-icon>content_copy</mat-icon>Copy note
-            </button>
-          </div>
-        </mat-card>
-      }
+            <mat-icon>content_copy</mat-icon>Copy note
+          </button>
+        </div>
+      </mat-card>
     </div>
 
-    @if (v.purpose === 'prospect') {
-      <div class="layout">
-        <mat-card class="section">
-          <div class="card-title">
-            <h2>Copy and business case</h2>
+    <div class="layout">
+      <mat-card class="section">
+        <div class="card-title">
+          <h2>Copy and business case</h2>
+          <span class="sub">
+            @if (draft) {
+              Written by {{ v.agent_name }} from the findings{{
+                draft.industry
+                  ? " and the prospect's industry (" + draft.industry.toLowerCase() + ')'
+                  : ''
+              }}. Edit anything; budgets keep the page from overflowing.
+            } @else {
+              Build the deliverables to have the Collateral Writer draft the headlines and the
+              business case from the confirmed findings.
+            }
+          </span>
+        </div>
+
+        @if (draft; as c) {
+          <div class="grid-2">
+            <mat-form-field>
+              <mat-label>Lead headline, line 1</mat-label>
+              <input matInput [(ngModel)]="c.headline_line1" (blur)="saveCopy()" />
+              <mat-hint
+                align="end"
+                class="budget"
+                [class.over]="budget(c.headline_line1, 'headline_line1').over"
+                >{{ budget(c.headline_line1, 'headline_line1').text }}</mat-hint
+              >
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Lead headline, line 2</mat-label>
+              <input matInput [(ngModel)]="c.headline_line2" (blur)="saveCopy()" />
+              <mat-hint
+                align="end"
+                class="budget"
+                [class.over]="budget(c.headline_line2, 'headline_line2').over"
+                >{{ budget(c.headline_line2, 'headline_line2').text }}</mat-hint
+              >
+            </mat-form-field>
+          </div>
+          <mat-form-field>
+            <mat-label>Lead subhead, before the review sentence</mat-label>
+            <textarea matInput rows="2" [(ngModel)]="c.subhead_lead" (blur)="saveCopy()"></textarea>
+            <mat-hint
+              >What structured content makes possible for the team, in one sentence.</mat-hint
+            >
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Executive headline</mat-label>
+            <input matInput [(ngModel)]="c.exec_headline" (blur)="saveCopy()" />
+            <mat-hint
+              align="end"
+              class="budget"
+              [class.over]="budget(c.exec_headline, 'exec_headline').over"
+              >{{ budget(c.exec_headline, 'exec_headline').text }} · no "you" or "your"</mat-hint
+            >
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>Executive lead sentence</mat-label>
+            <textarea
+              matInput
+              rows="2"
+              [(ngModel)]="c.lead_sentence"
+              (blur)="saveCopy()"
+            ></textarea>
+            <mat-hint
+              align="end"
+              class="budget"
+              [class.over]="budget(c.lead_sentence, 'lead_sentence').over"
+              >{{ budget(c.lead_sentence, 'lead_sentence').text }} · "Structured content is critical
+              to [imperative]; without it, [consequence]."</mat-hint
+            >
+          </mat-form-field>
+          <span class="rules"
+            >Headline rules: never critical of the prospect, never implies Heretto audits or scans
+            content. Fresh wording per prospect; nothing reused with the name swapped.</span
+          >
+          @for (p of v.problems; track p) {
+            <span class="problem"><mat-icon>warning</mat-icon>{{ p }}</span>
+          }
+
+          <div class="why">
+            <h3>Why it matters: three lines, about {{ v.budgets['why'] }} characters each</h3>
+            @for (w of c.why; track $index) {
+              <div class="why-line">
+                <span class="tag" [class]="tag(w).cls">{{ tag(w).label }}</span>
+                <mat-form-field subscriptSizing="dynamic" class="lead-field">
+                  <mat-label>Lead</mat-label>
+                  <input matInput [(ngModel)]="w.lead" (blur)="saveCopy()" />
+                </mat-form-field>
+                <mat-form-field subscriptSizing="dynamic">
+                  <mat-label>Consequence</mat-label>
+                  <input matInput [(ngModel)]="w.text" (blur)="saveCopy()" />
+                </mat-form-field>
+                <span class="budget" [class.over]="whyLength(w) > v.budgets['why']">{{
+                  whyLength(w)
+                }}</span>
+              </div>
+            }
             <span class="sub">
-              @if (draft) {
-                Written by {{ v.agent_name }} from the findings{{
-                  draft.industry
-                    ? " and the prospect's industry (" + draft.industry.toLowerCase() + ')'
-                    : ''
-                }}. Edit anything; budgets keep the page from overflowing.
-              } @else {
-                Build the deliverables to have the Collateral Writer draft the headlines and the
-                business case from the confirmed findings.
+              @if (traces().length) {
+                Each line traces to findings: {{ traces().join('; ') }}.
               }
+              Imperatives are the framework, never printed.
             </span>
           </div>
 
-          @if (draft; as c) {
-            <div class="grid-2">
-              <mat-form-field>
-                <mat-label>Lead headline, line 1</mat-label>
-                <input matInput [(ngModel)]="c.headline_line1" (blur)="saveCopy()" />
-                <mat-hint
-                  align="end"
-                  class="budget"
-                  [class.over]="budget(c.headline_line1, 'headline_line1').over"
-                  >{{ budget(c.headline_line1, 'headline_line1').text }}</mat-hint
-                >
-              </mat-form-field>
-              <mat-form-field>
-                <mat-label>Lead headline, line 2</mat-label>
-                <input matInput [(ngModel)]="c.headline_line2" (blur)="saveCopy()" />
-                <mat-hint
-                  align="end"
-                  class="budget"
-                  [class.over]="budget(c.headline_line2, 'headline_line2').over"
-                  >{{ budget(c.headline_line2, 'headline_line2').text }}</mat-hint
-                >
-              </mat-form-field>
-            </div>
-            <mat-form-field>
-              <mat-label>Lead subhead, before the review sentence</mat-label>
-              <textarea
-                matInput
-                rows="2"
-                [(ngModel)]="c.subhead_lead"
-                (blur)="saveCopy()"
-              ></textarea>
-              <mat-hint
-                >What structured content makes possible for the team, in one sentence.</mat-hint
-              >
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Executive headline</mat-label>
-              <input matInput [(ngModel)]="c.exec_headline" (blur)="saveCopy()" />
-              <mat-hint
-                align="end"
-                class="budget"
-                [class.over]="budget(c.exec_headline, 'exec_headline').over"
-                >{{ budget(c.exec_headline, 'exec_headline').text }} · no "you" or "your"</mat-hint
-              >
-            </mat-form-field>
-            <mat-form-field>
-              <mat-label>Executive lead sentence</mat-label>
-              <textarea
-                matInput
-                rows="2"
-                [(ngModel)]="c.lead_sentence"
-                (blur)="saveCopy()"
-              ></textarea>
-              <mat-hint
-                align="end"
-                class="budget"
-                [class.over]="budget(c.lead_sentence, 'lead_sentence').over"
-                >{{ budget(c.lead_sentence, 'lead_sentence').text }} · "Structured content is
-                critical to [imperative]; without it, [consequence]."</mat-hint
-              >
-            </mat-form-field>
-            <span class="rules"
-              >Headline rules: never critical of the prospect, never implies Heretto audits or scans
-              content. Fresh wording per prospect; nothing reused with the name swapped.</span
-            >
-            @for (p of v.problems; track p) {
-              <span class="problem"><mat-icon>warning</mat-icon>{{ p }}</span>
+          <div class="why">
+            <h3>Executive brief: impact cards</h3>
+            @for (i of c.impacts; track $index) {
+              <div class="impact">
+                <span class="tag" [class]="i.tone === 'risk' ? 'risk' : 'cost'">{{ i.label }}</span>
+                <mat-form-field subscriptSizing="dynamic">
+                  <mat-label>Title</mat-label>
+                  <input matInput [(ngModel)]="i.title" (blur)="saveCopy()" />
+                  <mat-hint
+                    align="end"
+                    class="budget"
+                    [class.over]="budget(i.title, 'impact_title').over"
+                    >{{ budget(i.title, 'impact_title').text }}</mat-hint
+                  >
+                </mat-form-field>
+                <mat-form-field subscriptSizing="dynamic">
+                  <mat-label>Body</mat-label>
+                  <textarea matInput rows="2" [(ngModel)]="i.body" (blur)="saveCopy()"></textarea>
+                  <mat-hint
+                    align="end"
+                    class="budget"
+                    [class.over]="budget(i.body, 'impact_body').over"
+                    >{{ budget(i.body, 'impact_body').text }}</mat-hint
+                  >
+                </mat-form-field>
+                <mat-form-field subscriptSizing="dynamic">
+                  <mat-label>Evidence (exact quotes)</mat-label>
+                  <textarea
+                    matInput
+                    rows="2"
+                    [(ngModel)]="i.evidence"
+                    (blur)="saveCopy()"
+                  ></textarea>
+                  <mat-hint
+                    align="end"
+                    class="budget"
+                    [class.over]="budget(i.evidence, 'impact_evidence').over"
+                    >{{ budget(i.evidence, 'impact_evidence').text }}</mat-hint
+                  >
+                </mat-form-field>
+              </div>
             }
+          </div>
+        }
+      </mat-card>
 
-            <div class="why">
-              <h3>Why it matters: three lines, about {{ v.budgets['why'] }} characters each</h3>
-              @for (w of c.why; track $index) {
-                <div class="why-line">
-                  <span class="tag" [class]="tag(w).cls">{{ tag(w).label }}</span>
-                  <mat-form-field subscriptSizing="dynamic" class="lead-field">
-                    <mat-label>Lead</mat-label>
-                    <input matInput [(ngModel)]="w.lead" (blur)="saveCopy()" />
-                  </mat-form-field>
-                  <mat-form-field subscriptSizing="dynamic">
-                    <mat-label>Consequence</mat-label>
-                    <input matInput [(ngModel)]="w.text" (blur)="saveCopy()" />
-                  </mat-form-field>
-                  <span class="budget" [class.over]="whyLength(w) > v.budgets['why']">{{
-                    whyLength(w)
-                  }}</span>
+      <aside class="column">
+        <mat-card class="section">
+          <div class="card-title"><h2>Prepared for and sender</h2></div>
+          <div class="grid-2">
+            <mat-form-field>
+              <mat-label>Prospect</mat-label>
+              <input matInput [(ngModel)]="company" (blur)="saveProspect()" />
+            </mat-form-field>
+            <div class="logo-field">
+              <span class="field-label">Prospect logo</span>
+              @if (v.prospect.logo; as logo) {
+                <div class="logo">
+                  <img [src]="logo" alt="Prospect logo" />
+                  <button mat-icon-button (click)="removeLogo()" aria-label="Remove the logo">
+                    <mat-icon>close</mat-icon>
+                  </button>
                 </div>
+              } @else {
+                <button mat-stroked-button class="upload" (click)="logoFile.click()">
+                  <mat-icon>upload</mat-icon>Upload file…
+                </button>
               }
-              <span class="sub">
-                @if (traces().length) {
-                  Each line traces to findings: {{ traces().join('; ') }}.
-                }
-                Imperatives are the framework, never printed.
-              </span>
+              <input
+                #logoFile
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml"
+                hidden
+                (change)="uploadLogo($event)"
+              />
             </div>
-
-            <div class="why">
-              <h3>Executive brief: impact cards</h3>
-              @for (i of c.impacts; track $index) {
-                <div class="impact">
-                  <span class="tag" [class]="i.tone === 'risk' ? 'risk' : 'cost'">{{
-                    i.label
-                  }}</span>
-                  <mat-form-field subscriptSizing="dynamic">
-                    <mat-label>Title</mat-label>
-                    <input matInput [(ngModel)]="i.title" (blur)="saveCopy()" />
-                    <mat-hint
-                      align="end"
-                      class="budget"
-                      [class.over]="budget(i.title, 'impact_title').over"
-                      >{{ budget(i.title, 'impact_title').text }}</mat-hint
-                    >
-                  </mat-form-field>
-                  <mat-form-field subscriptSizing="dynamic">
-                    <mat-label>Body</mat-label>
-                    <textarea matInput rows="2" [(ngModel)]="i.body" (blur)="saveCopy()"></textarea>
-                    <mat-hint
-                      align="end"
-                      class="budget"
-                      [class.over]="budget(i.body, 'impact_body').over"
-                      >{{ budget(i.body, 'impact_body').text }}</mat-hint
-                    >
-                  </mat-form-field>
-                  <mat-form-field subscriptSizing="dynamic">
-                    <mat-label>Evidence (exact quotes)</mat-label>
-                    <textarea
-                      matInput
-                      rows="2"
-                      [(ngModel)]="i.evidence"
-                      (blur)="saveCopy()"
-                    ></textarea>
-                    <mat-hint
-                      align="end"
-                      class="budget"
-                      [class.over]="budget(i.evidence, 'impact_evidence').over"
-                      >{{ budget(i.evidence, 'impact_evidence').text }}</mat-hint
-                    >
-                  </mat-form-field>
-                </div>
-              }
-            </div>
-          }
+            <mat-form-field>
+              <mat-label>Sender name and title</mat-label>
+              <input
+                matInput
+                [(ngModel)]="sender"
+                placeholder="[Name, Title]"
+                (blur)="saveProspect()"
+              />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>Sender email</mat-label>
+              <input
+                matInput
+                type="email"
+                [(ngModel)]="email"
+                placeholder="[email]"
+                (blur)="saveProspect()"
+              />
+            </mat-form-field>
+          </div>
+          <span class="sub"
+            >Without a logo file the one-sheet shows a labelled placeholder. Logos are never drawn
+            or fetched from the prospect's site.</span
+          >
         </mat-card>
 
-        <aside class="column">
-          <mat-card class="section">
-            <div class="card-title"><h2>Prepared for and sender</h2></div>
-            <div class="grid-2">
-              <mat-form-field>
-                <mat-label>Prospect</mat-label>
-                <input matInput [(ngModel)]="company" (blur)="saveProspect()" />
-              </mat-form-field>
-              <div class="logo-field">
-                <span class="field-label">Prospect logo</span>
-                @if (v.prospect.logo; as logo) {
-                  <div class="logo">
-                    <img [src]="logo" alt="Prospect logo" />
-                    <button mat-icon-button (click)="removeLogo()" aria-label="Remove the logo">
-                      <mat-icon>close</mat-icon>
-                    </button>
-                  </div>
-                } @else {
-                  <button mat-stroked-button class="upload" (click)="logoFile.click()">
-                    <mat-icon>upload</mat-icon>Upload file…
-                  </button>
-                }
-                <input
-                  #logoFile
-                  type="file"
-                  accept="image/png,image/jpeg,image/svg+xml"
-                  hidden
-                  (change)="uploadLogo($event)"
-                />
-              </div>
-              <mat-form-field>
-                <mat-label>Sender name and title</mat-label>
-                <input
-                  matInput
-                  [(ngModel)]="sender"
-                  placeholder="[Name, Title]"
-                  (blur)="saveProspect()"
-                />
-              </mat-form-field>
-              <mat-form-field>
-                <mat-label>Sender email</mat-label>
-                <input
-                  matInput
-                  type="email"
-                  [(ngModel)]="email"
-                  placeholder="[email]"
-                  (blur)="saveProspect()"
-                />
-              </mat-form-field>
-            </div>
+        <mat-card class="section">
+          <div class="card-title">
+            <h2>Before sending</h2>
             <span class="sub"
-              >Without a logo file the one-sheet shows a labelled placeholder. Logos are never drawn
-              or fetched from the prospect's site.</span
+              >One wrong or petty finding in front of a documentation head undoes the piece.</span
             >
-          </mat-card>
-
-          <mat-card class="section">
-            <div class="card-title">
-              <h2>Before sending</h2>
-              <span class="sub"
-                >One wrong or petty finding in front of a documentation head undoes the piece.</span
-              >
-            </div>
-            @for (item of v.checklist; track item.key) {
-              <div class="check" [class.ok]="item.ok">
-                @if (item.toggle) {
-                  <button
-                    mat-icon-button
-                    class="tick"
-                    (click)="toggle(item)"
-                    [disabled]="!built()"
-                    [attr.aria-pressed]="item.ok"
-                    [attr.aria-label]="(item.ok ? 'Untick: ' : 'Tick: ') + item.text"
-                  >
-                    <mat-icon>{{ item.ok ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
-                  </button>
-                } @else {
-                  <mat-icon class="state">{{
-                    item.ok ? 'check_circle' : 'radio_button_unchecked'
-                  }}</mat-icon>
-                }
-                <span>
-                  {{ item.text }}
-                  @if (item.quotes.length) {
-                    <span class="quotes">
-                      @for (q of item.quotes; track $index) {
-                        @if (q.page_id) {
-                          <a [routerLink]="['/audits', v.run.id, 'pages', q.page_id]"
-                            >{{ q.code }} ({{ q.slug }})</a
-                          >
-                        } @else {
-                          <span>{{ q.code }} ({{ q.slug }})</span>
-                        }
-                        @if (!q.verified) {
-                          <span class="unverified">unverified</span>
-                        }
+          </div>
+          @for (item of v.checklist; track item.key) {
+            <div class="check" [class.ok]="item.ok">
+              @if (item.toggle) {
+                <button
+                  mat-icon-button
+                  class="tick"
+                  (click)="toggle(item)"
+                  [disabled]="!built()"
+                  [attr.aria-pressed]="item.ok"
+                  [attr.aria-label]="(item.ok ? 'Untick: ' : 'Tick: ') + item.text"
+                >
+                  <mat-icon>{{ item.ok ? 'check_circle' : 'radio_button_unchecked' }}</mat-icon>
+                </button>
+              } @else {
+                <mat-icon class="state">{{
+                  item.ok ? 'check_circle' : 'radio_button_unchecked'
+                }}</mat-icon>
+              }
+              <span>
+                {{ item.text }}
+                @if (item.quotes.length) {
+                  <span class="quotes">
+                    @for (q of item.quotes; track $index) {
+                      @if (q.page_id) {
+                        <a [routerLink]="['/audits', v.run.id, 'pages', q.page_id]"
+                          >{{ q.code }} ({{ q.slug }})</a
+                        >
+                      } @else {
+                        <span>{{ q.code }} ({{ q.slug }})</span>
                       }
-                    </span>
-                  }
-                </span>
-              </div>
-            }
-            @if (v.built_at) {
-              <span class="sub"
-                >Copy written {{ v.built_at | date: 'MMM d, HH:mm'
-                }}{{ v.built_by ? ' for ' + v.built_by : '' }}.</span
-              >
-            }
-          </mat-card>
-        </aside>
-      </div>
-    }
+                      @if (!q.verified) {
+                        <span class="unverified">unverified</span>
+                      }
+                    }
+                  </span>
+                }
+              </span>
+            </div>
+          }
+          @if (v.built_at) {
+            <span class="sub"
+              >Copy written {{ v.built_at | date: 'MMM d, HH:mm'
+              }}{{ v.built_by ? ' for ' + v.built_by : '' }}.</span
+            >
+          }
+        </mat-card>
+      </aside>
+    </div>
   } @else if (error(); as message) {
     <div class="hop-status-message error" role="alert">{{ message }}</div>
   }

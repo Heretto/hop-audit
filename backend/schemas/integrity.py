@@ -48,7 +48,7 @@ class CenterCount(BaseModel):
 
 class IntegrityView(BaseModel):
     run: RunDetail
-    purpose: str  # own | prospect: prospect reviews go on to Deliverables
+    purpose: str  # own | prospect: a label; every site gets every report
     triage: dict
     findings: list[IntegrityRow]
     help_centers: list[CenterCount]

@@ -49,14 +49,13 @@ export class ReportPage implements OnInit {
   readonly error = signal<string | null>(null);
   readonly exporting = signal<ReportFile | null>(null);
 
-  /** Prospect reviews come here from Deliverables; own docs from the dashboard. */
+  /** Every audit comes here from Reports. */
   readonly back = computed(() => {
     const v = this.view();
     if (!v) return null;
-    const prospect = v.purpose === 'prospect';
     return {
-      link: prospect ? ['/audits', v.run.id, 'deliverables'] : ['/audits', v.run.id],
-      label: `${v.run.site_name} · Audit #${v.run.number}${prospect ? ' · Deliverables' : ''}`,
+      link: ['/audits', v.run.id, 'deliverables'],
+      label: `${v.run.site_name} · Audit #${v.run.number} · Reports`,
     };
   });
 
