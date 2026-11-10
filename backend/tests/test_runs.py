@@ -107,6 +107,48 @@ async def test_run_crawls_and_records_stages_log_and_pages(client, user, db, moc
     assert "metrics only: no agent is assigned" in stages["readability"]["detail"]
 
 
+async def test_render_js_renders_pages_and_closes_chromium(client, user, db, mock, monkeypatch):
+    serve(mock)
+    rendered, closed = [], []
+
+    class Renderer:
+        async def html(self, url, body, content_type):
+            rendered.append(url)
+            return body.decode().replace("</h1>", " (rendered)</h1>")
+
+        async def close(self):
+            closed.append(True)
+
+    async def start(tabs):
+        assert tabs == 4  # the site's concurrency; render caps it
+        return Renderer()
+
+    monkeypatch.setattr(runner.render, "start", start)
+    site = make_site(client, user, render_js=True, concurrency=4)
+    run = await execute(db, add_run(db, site, user))
+    assert run.status == "completed", run.error
+    assert len(rendered) == 7 and closed == [True]
+    page = db.query(Page).filter(Page.run_id == run.id, Page.url == f"{BASE}authoring/a").one()
+    assert page.content["headings"][0] == [1, "Topic A (rendered)"]
+    log = [e.message for e in db.query(RunLogEntry).filter(RunLogEntry.run_id == run.id)]
+    assert "JavaScript is rendered in Chromium for every page fetched." in log
+    assert "Rendered 7 pages with JavaScript." in log
+
+
+async def test_render_js_without_chromium_reads_pages_as_served(client, user, db, mock, monkeypatch):
+    serve(mock)
+
+    async def start(tabs):
+        raise runner.render.RenderUnavailable("JavaScript rendering needs Chromium on the server.")
+
+    monkeypatch.setattr(runner.render, "start", start)
+    site = make_site(client, user, render_js=True)
+    run = await execute(db, add_run(db, site, user))
+    assert run.status == "completed" and run.page_count == 7
+    log = [e.message for e in db.query(RunLogEntry).filter(RunLogEntry.run_id == run.id)]
+    assert "JavaScript rendering needs Chromium on the server. Pages are read as served." in log
+
+
 async def test_second_run_reuses_and_reports_new_pages(client, user, db, mock):
     serve(mock)
     site = make_site(client, user)

@@ -70,7 +70,9 @@ None to run by hand:
   visitor's address and cookies are `Secure`.
 - Every service: `restart: unless-stopped`, json-file logs, 10 MB × 3.
 - Idle use is about 120 MB (backend) and 20 MB (web). The backend grows
-  while an audit runs, and by a few hundred MB while Chromium renders a PDF.
+  while an audit runs, and by a few hundred MB while Chromium renders a PDF
+  or, for a site with Render JavaScript on, its pages during the crawl
+  (up to 3 tabs; Chromium closes before the analyses).
 
 ## Data
 

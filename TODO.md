@@ -492,6 +492,20 @@ re-read this file before starting the next.
 - [x] Site settings: Purpose is a label on Sites
 - [x] Tests: an own-docs site builds the one-sheets; frontend specs updated
 
+## Render JavaScript (user: "implement the render js capability … in the site configuration")
+
+- [x] `render.py`: one Chromium per run, the crawler's response served for
+      the page URL, scripts run, images/media/fonts/CSS skipped, honest UA
+- [x] Crawler: renders every fetched page when on; a page that fails is
+      read as served; counts and log lines; shells aren't reused
+- [x] Runner: starts Chromium for `render_js`, falls back with a warning
+      without it, closes it after the crawl
+- [x] Shell warning without rendering points to the setting
+- [x] Tests: fake renderer (crawler, runner) and a real-Chromium test that
+      skips without Chromium
+- [ ] Run `tests/test_render.py` and a real audit with Chromium (blocked
+      here: cdn.playwright.dev needs firewall approval)
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)

@@ -64,7 +64,9 @@ what's fresh and has had no use in a browser yet.
   The real Anthropic API is also untested here. Ask the user to re-run the
   help.heretto.com audit.
 - **No PDF output** has been produced here. Chromium couldn't be installed
-  because `cdn.playwright.dev` is pending firewall approval.
+  because `cdn.playwright.dev` is pending firewall approval. For the same
+  reason, Render JavaScript has been tested only with a fake renderer;
+  `tests/test_render.py` runs against real Chromium and skips without it.
 
 ## Open work
 

@@ -66,7 +66,14 @@ Read those instead of inferring from this project's code. Do not copy them here.
   restart are marked failed at startup. `crawler.plan()` reads sitemaps per
   host and checks each help center's root; `Crawler` fetches, reuses
   unchanged pages from the last completed run (sitemap `lastmod`, then
-  content hash) and follows links within help centers. Paths, sections and
+  content hash) and follows links within help centers. With the site's
+  Render JavaScript rule (`render_js`), `render.py` starts one Chromium
+  per run (up to 3 tabs, closed before the analyses); the crawler still
+  fetches each page itself, then Chromium is handed that response for the
+  URL (`route.fulfill`), runs the page's scripts and returns the DOM. A
+  page that fails to render, or a server without Chromium, is read as
+  served and logged. Reuse skips pages last stored as JavaScript shells.
+  Paths, sections and
   include/exclude globs are relative to each help center's root
   (`backend/scope.py`), so `/de/authoring/x` is in section `/authoring`.
   Sections start below leading segments that aren't sections, found per help
