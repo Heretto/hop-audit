@@ -47,8 +47,8 @@ what's fresh and has had no use in a browser yet.
 6. **Navigation renames.** The dashboard header has Audit History, Reports
    and Run audit. The Deliverables page is called **Reports** in the UI
    (its route is still `/audits/:runId/deliverables`). The Assess, Triage,
-   Build and Hand off step boxes are removed, in the UI and the API. Own-docs
-   sites see only the full findings report card. The run log is opened from
+   Build and Hand off step boxes are removed, in the UI and the API. Every site
+   gets every report; a site's purpose is only a label on Sites. The run log is opened from
    a row action in Audit History.
 7. **Section detection** (`scope.detect_prefix`) looks past a leading
    language segment, such as `/en/` on Heretto portals, or past a base folder

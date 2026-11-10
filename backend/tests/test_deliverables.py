@@ -18,7 +18,6 @@ from tests.test_integrity import (  # noqa: F401  fixtures
     run_integrity,
     serve_site,
 )
-from tests.test_runs import make_site
 
 COPY = {
     "industry": "Software",
@@ -129,14 +128,20 @@ async def test_no_deliverables_without_content_integrity(client, user, db, mock)
     assert client.post(url(run, "/build"), headers=h).status_code == 409
 
 
-async def test_own_docs_sites_have_no_deliverables(client, user, db, mock):  # noqa: F811
-    serve_site(mock)
-    site = make_site(client, user)
-    run = await run_integrity(db, site, user, analyses=["links"])
-    v = client.get(url(run), headers=user["headers"]).json()
-    assert not v["available"] and "prospect reviews" in v["reason"]
-    r = client.patch(url(run), json={"prospect": {"company": "X"}}, headers=user["headers"])
-    assert r.status_code == 409
+async def test_own_docs_sites_get_every_report(client, user, db, mock, writer, jobs):  # noqa: F811
+    run, site = await prospect_run(client, user, db, mock)
+    h = user["headers"]
+    s = client.get(f"/api/v1/sites/{site['id']}", headers=h).json()
+    body = {k: v for k, v in s.items() if k not in ("id", "created_at", "updated_at")}
+    assert client.put(f"/api/v1/sites/{site['id']}", json={**body, "purpose": "own"}, headers=h).status_code == 200
+    v = client.get(url(run), headers=h).json()
+    assert v["purpose"] == "own" and v["available"] and v["reason"] == "" and v["report_ready"]
+    assert client.patch(url(run), json={"prospect": {"company": "X"}}, headers=h).status_code == 200
+    png = "data:image/png;base64," + base64.b64encode(b"\x89PNG fake").decode()
+    assert client.put(url(run, "/logo"), json={"data_uri": png}, headers=h).status_code == 200
+    v = await build(client, run, h, jobs)
+    assert v["status"] != "failed" and v["copy"] and v["internal_note"]
+    assert "Content Integrity Snapshot · X Help Center" in client.get(url(run, "/lead.html"), headers=h).text
 
 
 async def test_build_writes_the_copy_and_the_sheets(client, user, db, mock, writer, jobs):  # noqa: F811

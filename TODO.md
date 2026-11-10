@@ -483,6 +483,15 @@ re-read this file before starting the next.
       and sent the button to Run audit or back to Sites
 - [x] Route-order test
 
+## Every report for every site (user: "All the reports should be available for every site")
+
+- [x] Backend: no purpose check on building, the prospect details or the logo
+- [x] Reports page: one-sheets, internal summary, copy and checklist for every site
+- [x] Findings: Reports link and "Confirm triage and build reports" for every site
+- [x] Full report: back goes to Reports for every site
+- [x] Site settings: Purpose is a label on Sites
+- [x] Tests: an own-docs site builds the one-sheets; frontend specs updated
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)

@@ -149,13 +149,13 @@ export class FindingsPage implements OnInit {
   }
 
   /** Confirm the triage; a prospect review goes on to its deliverables. */
-  confirm(thenDeliverables = false): void {
+  confirm(): void {
     this.confirming.set(true);
     this.runs.confirmTriage(this.runId()).subscribe({
       next: (v) => {
         this.view.set(v);
         this.confirming.set(false);
-        if (thenDeliverables) this.router.navigate(['/audits', v.run.id, 'deliverables']);
+        this.router.navigate(['/audits', v.run.id, 'deliverables']);
         this.snack.open(
           `Triage confirmed: ${recount(v.findings).firm} issues count. ${v.findings[0]?.agent_name ?? 'The reviewer'} learns from your calls.`,
           undefined,

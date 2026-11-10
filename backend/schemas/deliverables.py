@@ -39,7 +39,7 @@ class BuildLogEntry(BaseModel):
 class DeliverablesView(BaseModel):
     run: RunDetail
     purpose: str
-    available: bool  # a prospect review with a confirmed triage
+    available: bool  # content integrity has run
     reason: str
     built_at: datetime | None
     built_by: str | None

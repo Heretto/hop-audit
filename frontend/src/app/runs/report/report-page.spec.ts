@@ -50,13 +50,13 @@ describe('ReportPage', () => {
     expect(el.querySelector('img.wordmark')!.getAttribute('src')).toBe('heretto-wordmark.png');
   });
 
-  it('goes back to Deliverables for a prospect review, the dashboard otherwise', () => {
+  it('goes back to Reports, whatever the site is for', () => {
     let { el } = render();
     expect(el.querySelector('a.back')!.getAttribute('href')).toBe('/audits/r1/deliverables');
-    expect(el.querySelector('a.back')!.textContent).toContain('Audit #15 · Deliverables');
+    expect(el.querySelector('a.back')!.textContent).toContain('Audit #15 · Reports');
     TestBed.resetTestingModule();
     ({ el } = render(sampleReport({ purpose: 'own' })));
-    expect(el.querySelector('a.back')!.getAttribute('href')).toBe('/audits/r1');
+    expect(el.querySelector('a.back')!.getAttribute('href')).toBe('/audits/r1/deliverables');
   });
 
   it('says when there is nothing to report', () => {

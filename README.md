@@ -3,8 +3,8 @@
 HOP Audit audits documentation websites and help centers. It crawls every
 language version of a site, runs analysis agents over the pages
 (readability, links, SEO and content integrity), and keeps a dashboard and
-an audit history for each site. For prospect reviews, it turns triaged
-findings into Heretto-branded reports: a full findings report, a lead
+an audit history for each site. It turns triaged findings into
+Heretto-branded reports: a full findings report, a lead
 one-sheet and an executive brief.
 
 It's built on [hop-core](https://github.com/Heretto/hop-core): a FastAPI
@@ -26,8 +26,8 @@ backend and an Angular frontend using `@heretto/hop-ui`.
 - **Triage:** content-integrity findings are sorted into firm, for review
   and dropped. Counts appear on the dashboard, history and comparisons once
   a person confirms the triage.
-- **Reports:** the full findings report (page, PDF, Word) and, for
-  prospect reviews, a lead one-sheet and an executive brief as Letter PDFs.
+- **Reports:** the full findings report (page, PDF, Word), a lead one-sheet
+  and an executive brief as Letter PDFs, for every site.
 
 Each analysis is run by a hop-core agent, assigned per site. Model keys
 (Claude, OpenAI or Gemini) are stored as hop-core credentials.
