@@ -62,7 +62,14 @@ Read those instead of inferring from this project's code. Do not copy them here.
   with another agent. In this sandbox every outbound site returns 403 from the
   egress proxy, so live detection reads as blocked here.
 - **Runs** (`backend/runner.py`): each audit is an asyncio task in this
-  process with a pause/resume/cancel `Control`; active runs left by a
+  process with a pause/resume/cancel `Control`. Pause and resume are
+  checked between pages and model requests; cancel also cancels the job's
+  task (`Control.task`), so it stops a paused run, a page in progress or a
+  retry wait at once, and the crawl gives pages in progress 5 s to stop
+  (`STOP_GRACE`; Chromium tabs 5 s to close). The control routes are async,
+  on the job's event loop, and cancel answers once the run has stopped
+  (up to 10 s). A task cancelled without `Control.cancel` (the server
+  shutting down) isn't recorded as cancelled; active runs left by a
   restart are marked failed at startup. `crawler.plan()` reads sitemaps per
   host and checks each help center's root; `Crawler` fetches, reuses
   unchanged pages from the last completed run (sitemap `lastmod`, then

@@ -526,6 +526,15 @@ re-read this file before starting the next.
 - [x] Tests: extraction blocks and checksum; component formatting and fallback
 - [ ] Look at it in a browser (not possible here)
 
+## Cancel a paused audit (user: "The cancel button doesn't work once an audit has been paused.")
+
+- [x] Cancel interrupts the job's task, not just a flag between pages
+- [x] Crawl and Chromium clean-up bounded (5 s), so a stuck page can't hold it
+- [x] Control routes async, on the job's loop; cancel answers "cancelled"
+- [x] Server shutdown isn't recorded as a cancel
+- [x] Tests: pause then cancel through the API; a 30 s page; a stuck tab; shutdown
+- [ ] Confirm on the server with a paused Render JavaScript audit
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)

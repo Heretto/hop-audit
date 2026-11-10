@@ -74,10 +74,27 @@ def control_for(run_id: UUID) -> crawler.Control | None:
     return _controls.get(run_id)
 
 
+async def stopped(run_id: UUID, timeout: float) -> None:
+    """Wait up to ``timeout`` seconds for a run's job to finish (after a cancel)."""
+    control = _controls.get(run_id)
+    if control and control.task:
+        await asyncio.wait({control.task}, timeout=timeout)
+
+
+def _user_cancelled(exc: BaseException, control: crawler.Control) -> bool:
+    """A cancel from the API, as opposed to the server shutting down (which re-raises)."""
+    if isinstance(exc, crawler.Cancelled):
+        return True
+    if not control.cancelled:
+        return False
+    asyncio.current_task().uncancel()  # handled here; the job's own clean-up can still await
+    return True
+
+
 def start(run_id: UUID, job=None) -> None:
     """Schedule a run (or another job on it, such as ``reanalyze``) on the running event loop."""
     control = _controls[run_id] = crawler.Control()
-    task = asyncio.get_running_loop().create_task((job or execute)(run_id, control))
+    task = control.task = asyncio.get_running_loop().create_task((job or execute)(run_id, control))
     _tasks.add(task)
     task.add_done_callback(_tasks.discard)
 
@@ -108,7 +125,9 @@ async def reanalyze(run_id: UUID, control: crawler.Control, http=None) -> None:
         rec.log("run", "info", "Analyzing the stored pages again; nothing is re-crawled.")
         await analysis.analyze(db, run, rec, http, control.checkpoint, integrity_review)
         rec.log("run", "info", "Analysis complete.")
-    except crawler.Cancelled:
+    except (crawler.Cancelled, asyncio.CancelledError) as exc:
+        if not _user_cancelled(exc, control):
+            raise
         db.rollback()
         rec.log("run", "warn", "Analysis cancelled; the earlier results are kept.")
         _settle(rec, "skipped")
@@ -285,7 +304,10 @@ async def execute(run_id: UUID, control: crawler.Control, http=None) -> None:
             if stage["status"] == "pending":
                 rec.stage(stage["key"], status="skipped", detail=NOT_AVAILABLE)
         run.status = "completed"
-    except crawler.Cancelled:
+    except (crawler.Cancelled, asyncio.CancelledError) as exc:
+        if not _user_cancelled(exc, control):
+            raise  # the server is stopping; startup marks the run interrupted
+        db.rollback()
         run.status = "cancelled"
         rec.log("run", "warn", "Cancelled. Pages read so far are kept.")
         _settle(rec, "skipped")
