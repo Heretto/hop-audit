@@ -9,6 +9,8 @@ PdfUnavailable with a message the API passes on, rather than a stack trace.
 
 from dataclasses import dataclass
 
+from render import CHROMIUM_ARGS
+
 PAGE_W, PAGE_H = 816, 1056  # Letter at 96 dpi
 LOAD_TIMEOUT = 20_000  # ms; fonts come from Google Fonts
 
@@ -37,7 +39,7 @@ async def _render(html: str, sheet: bool) -> Rendered:
         raise PdfUnavailable("Playwright isn't installed on the server.") from exc
     try:
         async with async_playwright() as p:
-            browser = await p.chromium.launch()
+            browser = await p.chromium.launch(args=CHROMIUM_ARGS)
             try:
                 page = await browser.new_page(viewport={"width": PAGE_W, "height": PAGE_H})
                 await page.set_content(html, wait_until="networkidle", timeout=LOAD_TIMEOUT)

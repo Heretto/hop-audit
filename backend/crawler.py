@@ -12,6 +12,7 @@ and retries server errors, timeouts and rate limits.
 """
 
 import asyncio
+import time
 from collections import Counter
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -260,6 +261,7 @@ class Stats:
     shells: int = 0
     rendered: int = 0
     unrendered: int = 0  # pages Chromium couldn't render, read as served
+    render_seconds: float = 0.0  # spent rendering, all pages
 
 
 class Crawler:
@@ -305,7 +307,9 @@ class Crawler:
         if self.failure:
             raise self.failure
         if self.render:
-            self.log("crawl", "info", f"Rendered {self.stats.rendered:,} pages with JavaScript.")
+            tried = self.stats.rendered + self.stats.unrendered
+            average = f", {self.stats.render_seconds / tried:.1f} s each on average" if tried else ""
+            self.log("crawl", "info", f"Rendered {self.stats.rendered:,} pages with JavaScript{average}.")
         if self.stats.unrendered:
             self.log(
                 "crawl",
@@ -423,12 +427,15 @@ class Crawler:
 
     async def _rendered(self, response: httpx.Response) -> str:
         """The page after its JavaScript ran, or as served when Chromium fails on it."""
+        started = time.monotonic()
         try:
             content_type = response.headers.get("content-type", "text/html")
             html = await self.render(str(response.url), response.content, content_type)
         except Exception:  # a timeout or a crash in one page; the crawl carries on
             self.stats.unrendered += 1
             return response.text
+        finally:
+            self.stats.render_seconds += time.monotonic() - started
         self.stats.rendered += 1
         return html
 

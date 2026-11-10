@@ -20,6 +20,15 @@ async def renderer():
     await r.close()
 
 
+async def test_waits_for_text_that_arrives_late_not_for_a_quiet_network(renderer):
+    late = b"""<html><body><p>Loading</p><script>
+setInterval(() => fetch('data:,poll'), 200);  // never idle
+setTimeout(() => { document.body.innerHTML = '<main><h1>Late</h1></main>'; }, 1500);
+</script></body></html>"""
+    html = await renderer.html("https://help.x.com/late", late, "text/html")
+    assert "<h1>Late</h1>" in html
+
+
 async def test_renders_the_fetched_page_with_its_scripts(renderer):
     html = await renderer.html("https://help.x.com/api/c", SHELL, "text/html; charset=utf-8")
     assert "<h1>Built by script</h1>" in html
@@ -30,7 +39,8 @@ async def test_start_without_chromium_says_how_to_install_it(monkeypatch):
     from playwright.async_api import Error as PlaywrightError
 
     class Chromium:
-        async def launch(self):
+        async def launch(self, args):
+            assert "--disable-dev-shm-usage" in args  # Docker's 64 MB /dev/shm
             raise PlaywrightError("Executable doesn't exist at /ms-playwright/chromium")
 
     class Playwright:

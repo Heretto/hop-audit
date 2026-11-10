@@ -1,6 +1,7 @@
 """The planner and crawler against the fake help center."""
 
 import asyncio
+import re
 import uuid
 from datetime import UTC, datetime
 
@@ -326,7 +327,7 @@ async def test_rendering_reads_the_page_after_its_scripts_ran(mock):
     url, body, content_type = next(call for call in render.calls if call[0].endswith("api/c"))
     assert body == SHELL.encode() and content_type.startswith("text/html")  # the response the crawler fetched
     assert stats.rendered == 7 and stats.unrendered == 0
-    assert "Rendered 7 pages with JavaScript." in log.text("info")
+    assert re.search(r"Rendered 7 pages with JavaScript, \d+\.\d s each on average\.", log.text("info"))
 
 
 async def test_a_page_that_fails_to_render_is_read_as_served(mock):

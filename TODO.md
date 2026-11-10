@@ -506,6 +506,15 @@ re-read this file before starting the next.
 - [ ] Run `tests/test_render.py` and a real audit with Chromium (blocked
       here: cdn.playwright.dev needs firewall approval)
 
+## Render JavaScript too slow (user: "200 pages … going to take 8 hours")
+
+- [x] Settle on the page's text instead of network idle (Salesforce never idles)
+- [x] Parse-only goto (domcontentloaded), not the load event
+- [x] Chromium flags for Docker (`--disable-dev-shm-usage` …), PDFs too
+- [x] 2 tabs instead of 3, for the 1.5 GB limit
+- [x] Average render time in the crawl log
+- [ ] Measure on helpcenter.affirm.com on the server (no Chromium here)
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)

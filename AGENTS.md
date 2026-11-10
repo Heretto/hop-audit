@@ -68,11 +68,14 @@ Read those instead of inferring from this project's code. Do not copy them here.
   unchanged pages from the last completed run (sitemap `lastmod`, then
   content hash) and follows links within help centers. With the site's
   Render JavaScript rule (`render_js`), `render.py` starts one Chromium
-  per run (up to 3 tabs, closed before the analyses); the crawler still
+  per run (up to 2 tabs, closed before the analyses); the crawler still
   fetches each page itself, then Chromium is handed that response for the
   URL (`route.fulfill`), runs the page's scripts and returns the DOM. A
   page that fails to render, or a server without Chromium, is read as
-  served and logged. Reuse skips pages last stored as JavaScript shells.
+  served and logged. It waits for the text to stop changing, not for the
+  network to go quiet (Salesforce help centers never do), and launches
+  Chromium with `--disable-dev-shm-usage` (render.CHROMIUM_ARGS, also used
+  for PDFs). Reuse skips pages last stored as JavaScript shells.
   Paths, sections and
   include/exclude globs are relative to each help center's root
   (`backend/scope.py`), so `/de/authoring/x` is in section `/authoring`.

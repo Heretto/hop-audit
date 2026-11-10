@@ -72,7 +72,7 @@ None to run by hand:
 - Idle use is about 120 MB (backend) and 20 MB (web). The backend grows
   while an audit runs, and by a few hundred MB while Chromium renders a PDF
   or, for a site with Render JavaScript on, its pages during the crawl
-  (up to 3 tabs; Chromium closes before the analyses).
+  (up to 2 tabs; Chromium closes before the analyses).
 
 ## Data
 
