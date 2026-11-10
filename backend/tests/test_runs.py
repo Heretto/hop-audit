@@ -132,7 +132,7 @@ async def test_render_js_renders_pages_and_closes_chromium(client, user, db, moc
     assert page.content["headings"][0] == [1, "Topic A (rendered)"]
     log = [e.message for e in db.query(RunLogEntry).filter(RunLogEntry.run_id == run.id)]
     assert "JavaScript is rendered in Chromium for every page fetched." in log
-    assert "Rendered 7 pages with JavaScript." in log
+    assert any(m.startswith("Rendered 7 pages with JavaScript, ") for m in log)
 
 
 async def test_render_js_without_chromium_reads_pages_as_served(client, user, db, mock, monkeypatch):
