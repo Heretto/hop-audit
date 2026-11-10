@@ -88,16 +88,6 @@
   }
 }
 
-.text {
-  max-height: 480px;
-  overflow: auto;
-  padding: 12px;
-  border-radius: 8px;
-  background: var(--surface-sunken);
-  font-family: var(--font-sans);
-  white-space: pre-wrap;
-}
-
 .fix {
   margin-top: 2px;
   color: var(--color-success-text);

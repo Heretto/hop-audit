@@ -85,7 +85,13 @@ Read those instead of inferring from this project's code. Do not copy them here.
   or one base folder every page shares with folders below it (`/docs/a/x` is
   in `/a`). Pages found by following links use the same prefix; a language
   code not in the sitemap is still skipped. The run log names the prefix.
-  Pages keep the extraction (`backend/extract.py`), not raw HTML.
+  Pages keep the extraction (`backend/extract.py`), not raw HTML. Besides
+  `text` (what the analyses read) it keeps `blocks`, the main content's
+  shape in reading order (headings, paragraphs, list items with depth,
+  table rows, code, quotes, summaries, image and media markers), which
+  the page screen's Crawled text tab draws (`crawled-text.ts`). Blocks are
+  outside the checksum, so adding them changed no page's identity; pages
+  crawled before them show the plain text with a note.
 - **Analyses** (`backend/analysis.py`): readability (`readability.py`, a
   Flesch formula per language, none for ja/zh/ko…), SEO (`seo.py`) and links
   (`links.py`, external results cached a week per organization) run on the

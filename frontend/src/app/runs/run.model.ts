@@ -218,6 +218,16 @@ export interface LinkRow {
   suggestion: string;
 }
 
+/** The main content in reading order (backend extract._blocks); `d` is list or quote depth. */
+export type Block =
+  | { t: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6'; x: string }
+  | { t: 'p' | 'quote' | 'summary' | 'term'; x: string; d: number }
+  | { t: 'li'; x: string; d: number; n?: number }
+  | { t: 'pre'; x: string }
+  | { t: 'row'; cells: string[]; head: boolean }
+  | { t: 'img'; src: string; alt: string | null; d: number }
+  | { t: 'media'; kind: string; src: string; title: string; d: number };
+
 export interface PageContent {
   title: string;
   description: string | null;
@@ -229,6 +239,8 @@ export interface PageContent {
   images: { src: string; alt: string | null }[];
   breadcrumb: string[];
   text: string;
+  /** Absent on pages crawled before the layout was kept. */
+  blocks?: Block[];
   final_url?: string | null;
   [key: string]: unknown;
 }

@@ -5,6 +5,11 @@ Hidden and collapsed content (``<details>``, accordions) is in the served
 HTML, so it is read like any other text. Pages a browser would have to
 render with JavaScript come back nearly empty, with scripts and no headings;
 ``looks_like_shell`` flags them so the run can say so.
+
+``blocks`` keeps the main content's shape for people reading it on the page
+screen: headings, paragraphs, list items, table rows, code, quotes, collapsed
+sections, and where images and other media sat. The analyses read ``text``;
+blocks aren't in the checksum, so keeping them changes no page's identity.
 """
 
 import hashlib
@@ -67,6 +72,7 @@ class PageContent:
     text: str = ""
     word_count: int = 0
     looks_like_shell: bool = False
+    blocks: list[dict] = field(default_factory=list)  # see _blocks
 
     def as_json(self) -> dict:
         return asdict(self)
@@ -127,10 +133,114 @@ def _main(soup: BeautifulSoup) -> Tag:
     return body
 
 
+MEDIA = ("video", "audio", "embed", "object", "hop-frame")  # hop-frame: an iframe, before DROP removes it
+LISTS = ("ul", "ol")
+CELLS = ("td", "th")
+MAX_BLOCKS = 2000  # a page longer than this is cut off on screen; the text is whole
+
+
+def _src(tag: Tag, url: str) -> str:
+    source = tag.get("src") or tag.get("data") or ""
+    if not source and (child := tag.find("source", src=True)):
+        source = child["src"]
+    return urljoin(url, source.strip()) if source.strip() else ""
+
+
+def _blocks(main: Tag, url: str) -> list[dict]:
+    """The main content in reading order, one entry per block:
+    ``{"t": "h1".."h6" | "p" | "li" | "term" | "summary" | "quote", "x": text}``
+    (list items also carry ``d``, their depth, and ``n`` when numbered),
+    ``{"t": "pre", "x": text}`` with its whitespace, ``{"t": "row", "cells": [...],
+    "head": bool}``, ``{"t": "img", "src", "alt", "d"}`` (alt None when missing)
+    and ``{"t": "media", "kind", "src", "title", "d"}``. Headings carry no depth."""
+    out: list[dict] = []
+    buf: list[str] = []
+    ctx = {"t": "p", "d": 0}  # what the next run of inline text becomes
+
+    def image(img: Tag) -> dict:
+        alt = img.get("alt")
+        src = urljoin(url, (img.get("src") or "").strip())
+        return {"t": "img", "src": src, "alt": alt.strip() if alt is not None else None, "d": ctx["d"]}
+
+    def flush():
+        text = squash("".join(buf))
+        buf.clear()
+        if text:
+            out.append({**ctx, "x": text})
+            if ctx["t"] == "li":  # more text in the same item reads as its continuation
+                ctx.update(t="p", d=ctx["d"])
+                ctx.pop("n", None)
+
+    def within(node: Tag, **c):
+        nonlocal ctx
+        flush()
+        saved, ctx = ctx, {**c}
+        walk(node)
+        flush()
+        ctx = saved
+
+    def walk(node: Tag):
+        for child in node.children:
+            if len(out) >= MAX_BLOCKS:
+                return
+            if not isinstance(child, Tag):
+                buf.append(str(child))
+                continue
+            name = child.name
+            if re.fullmatch(r"h[1-6]", name):
+                within(child, t=name)
+            elif name == "img":
+                flush()
+                out.append(image(child))
+            elif name in MEDIA:
+                flush()
+                kind = "iframe" if name == "hop-frame" else name
+                title = child.get("title") or ""
+                out.append({"t": "media", "kind": kind, "src": _src(child, url), "title": title, "d": ctx["d"]})
+            elif name == "pre":
+                flush()
+                if text := child.get_text().strip("\n"):
+                    out.append({"t": "pre", "x": text})
+            elif name in LISTS:
+                flush()
+                depth = ctx["d"] + 1
+                for i, li in enumerate(child.find_all("li", recursive=False), 1):
+                    within(li, t="li", d=depth, **({"n": i} if name == "ol" else {}))
+            elif name == "tr":
+                flush()
+                cells = child.find_all(CELLS, recursive=False)
+                texts = [squash(c.get_text(" ")) for c in cells]
+                if any(texts):
+                    out.append({"t": "row", "cells": texts, "head": all(c.name == "th" for c in cells)})
+                out.extend(image(img) for img in child.find_all("img"))
+            elif name == "blockquote":
+                within(child, t="quote", d=ctx["d"])
+            elif name == "summary":
+                within(child, t="summary", d=ctx["d"])
+            elif name == "dt":
+                within(child, t="term", d=ctx["d"])
+            elif name == "dd":
+                within(child, t="p", d=ctx["d"] + 1)
+            elif name == "br":
+                flush()
+            elif name in BLOCKS:
+                flush()
+                walk(child)
+                flush()
+            else:  # inline: links, emphasis, code
+                walk(child)
+
+    walk(main)
+    flush()
+    return out
+
+
 def extract(html: str, url: str) -> PageContent:
     soup = BeautifulSoup(html, "html.parser")
     page = PageContent(breadcrumb=_breadcrumb(soup))
     scripts = len(soup.find_all("script"))
+    for frame in soup.find_all("iframe"):  # a marker where it sat; DROP removes the frame itself
+        frame.insert_before(soup.new_tag("hop-frame", attrs={k: frame[k] for k in ("src", "title") if frame.get(k)}))
     for tag in soup.find_all(DROP):
         tag.decompose()
 
@@ -159,6 +269,7 @@ def extract(html: str, url: str) -> PageContent:
         {t["id"] for t in soup.find_all(id=True)} | {a["name"] for a in soup.find_all("a", attrs={"name": True})}
     )
     main = _main(soup)
+    page.blocks = _blocks(main, url)
     for a in main.find_all("a", href=True):
         href = a["href"].strip()
         if not href or href.startswith(("javascript:", "mailto:", "tel:")):

@@ -284,9 +284,10 @@
         <mat-tab label="Crawled text">
           <p class="sub">
             The main content as read, collapsed sections included. Navigation, headers and footers
-            are left out.
+            are left out. Images and media are marked where they sat; only their alt text and titles
+            are read, not what they show.
           </p>
-          <pre class="text">{{ p.content.text }}</pre>
+          <app-crawled-text [content]="p.content" />
         </mat-tab>
         <mat-tab label="Raw metrics (JSON)">
           <div class="hop-code-panel">
