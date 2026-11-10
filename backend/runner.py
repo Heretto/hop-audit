@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 import analysis
 import crawler
 import discovery
+import render
 from models import ACTIVE_STATUSES, AuditRun, HelpCenter, IntegrityFinding, Page, RunLogEntry
 from schemas.site import CrawlRules
 from scope import Root
@@ -210,6 +211,7 @@ async def execute(run_id: UUID, control: crawler.Control, http=None) -> None:
     run = db.get(AuditRun, run_id)
     rec = Recorder(db, run)
     own_client = http is None
+    renderer: render.Renderer | None = None
     http = http or discovery.client()
     try:
         site = run.site
@@ -220,7 +222,11 @@ async def execute(run_id: UUID, control: crawler.Control, http=None) -> None:
         run.status, run.started_at = "running", datetime.now(UTC)
         rec.stage("discover", status="running")
         if rules.render_js:
-            rec.log("discover", "warn", "JavaScript rendering isn't available yet; pages are read as served.")
+            try:
+                renderer = await render.start(rules.concurrency)
+                rec.log("discover", "info", "JavaScript is rendered in Chromium for every page fetched.")
+            except render.RenderUnavailable as exc:
+                rec.log("discover", "warn", f"{exc} Pages are read as served.")
 
         plan = await crawler.plan(http, roots, rules, run.scope, previous, rec.log)
         new = sum(1 for t in plan.targets if t.url not in previous) if prev else 0
@@ -265,7 +271,11 @@ async def execute(run_id: UUID, control: crawler.Control, http=None) -> None:
             rec.page,
             rec.total,
             retry_delay=RETRY_DELAY,
+            render=renderer.html if renderer else None,
         ).run(plan)
+        if renderer:  # Chromium's memory back before the analyses
+            await renderer.close()
+            renderer = None
         crawl = rec.get_stage("crawl")
         rec.stage("crawl", status="done", total=crawl["done"], detail=_crawl_detail(stats, prev))
         rec.log("crawl", "info", f"Crawl complete: {run.page_count:,} pages, {stats.links:,} links extracted.")
@@ -292,6 +302,8 @@ async def execute(run_id: UUID, control: crawler.Control, http=None) -> None:
         _controls.pop(run_id, None)
         if own_client:
             await http.aclose()
+        if renderer:
+            await renderer.close()
 
 
 def _settle(rec: Recorder, status: str) -> None:

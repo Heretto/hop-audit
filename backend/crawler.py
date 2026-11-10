@@ -41,6 +41,7 @@ from scope import (
 )
 
 Log = Callable[[str, str, str], None]  # (stage, level, message)
+Render = Callable[[str, bytes, str], Awaitable[str]]  # (url, body, content type) -> rendered HTML
 RETRYABLE = {500, 502, 503, 504, 429}
 NOT_PAGES = (".pdf", ".zip", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".mp4", ".css", ".js", ".json", ".xml")
 SHELL_WARNING = 5  # pages that look like JavaScript shells before the run warns
@@ -257,6 +258,8 @@ class Stats:
     found: int = 0  # pages added by following links
     links: int = 0
     shells: int = 0
+    rendered: int = 0
+    unrendered: int = 0  # pages Chromium couldn't render, read as served
 
 
 class Crawler:
@@ -273,12 +276,14 @@ class Crawler:
         on_total: Callable[[int], None] = lambda total: None,
         retries: int = 2,
         retry_delay: float = 30.0,
+        render: Render | None = None,
     ):
         self.http, self.rules, self.previous, self.reuse = http, rules, previous, reuse
         self.mode = scope.get("mode", "site")
         self.sections = set(scope.get("sections", []))
         self.log, self.control, self.on_page, self.on_total = log, control, on_page, on_total
         self.retries, self.retry_delay = retries, retry_delay
+        self.render = render
         self.stats = Stats()
         self._read = Counter()  # root id -> pages read
         self._refused = Counter()  # root id -> refusals
@@ -299,12 +304,23 @@ class Crawler:
         await asyncio.gather(joined, *workers, return_exceptions=True)
         if self.failure:
             raise self.failure
+        if self.render:
+            self.log("crawl", "info", f"Rendered {self.stats.rendered:,} pages with JavaScript.")
+        if self.stats.unrendered:
+            self.log(
+                "crawl",
+                "warn",
+                f"{self.stats.unrendered:,} pages didn't render in time or failed in Chromium; read as served.",
+            )
         if self.stats.shells >= SHELL_WARNING:
             self.log(
                 "crawl",
                 "warn",
-                f"{self.stats.shells} pages had almost no text but load scripts: they may need JavaScript "
-                "to render, so their content can't be reviewed as served.",
+                f"{self.stats.shells} pages had almost no text but load scripts even after rendering."
+                if self.render
+                else f"{self.stats.shells} pages had almost no text but load scripts: they may need JavaScript "
+                "to render, so their content can't be reviewed as served. Turn on Render JavaScript in the "
+                "site's crawl rules.",
             )
         return self.stats
 
@@ -337,6 +353,8 @@ class Crawler:
             and target.lastmod
             and prev.lastmod
             and target.lastmod <= prev.lastmod
+            # Rendering reads again what an unrendered run found empty.
+            and not (self.render and prev.content.get("looks_like_shell"))
         ):
             self.stats.reused += 1
             # Same content as last time; it counts as unchanged when the checksum
@@ -375,7 +393,8 @@ class Crawler:
             return Result(target, target.section, response.status_code, error="Larger than the 20 MB page limit")
 
         self._read[target.root.id] += 1
-        content: PageContent = extract(response.text, str(response.url))
+        html = await self._rendered(response) if self.render else response.text
+        content: PageContent = extract(html, str(response.url))
         if page_url(str(response.url)) != target.url:
             content.final_url = str(response.url)  # reached through a redirect
         digest = checksum(content.as_json())
@@ -401,6 +420,17 @@ class Crawler:
             content.word_count,
             reused_from=prev.id if unchanged else None,
         )
+
+    async def _rendered(self, response: httpx.Response) -> str:
+        """The page after its JavaScript ran, or as served when Chromium fails on it."""
+        try:
+            content_type = response.headers.get("content-type", "text/html")
+            html = await self.render(str(response.url), response.content, content_type)
+        except Exception:  # a timeout or a crash in one page; the crawl carries on
+            self.stats.unrendered += 1
+            return response.text
+        self.stats.rendered += 1
+        return html
 
     async def _fetch(self, target: Target) -> tuple[httpx.Response | None, str | None]:
         """The response after retrying server errors, timeouts and rate limits."""

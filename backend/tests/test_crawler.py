@@ -293,3 +293,67 @@ async def test_pause_holds_the_crawl_until_resumed(mock):
     control.resume()
     pages, _, _, _ = await asyncio.wait_for(task, 5)
     assert len(pages) == 7
+
+
+# ── Rendering JavaScript ──────────────────────────────────────────────────────
+
+SHELL = '<html><body><div id="app"></div><script src="/app.js"></script></body></html>'
+BUILT = (
+    "<html><head><title>Built</title></head><body><main><h1>Built by script</h1>"
+    + "<p>Words here. " * 40
+    + "</p></main></body></html>"
+)
+
+
+class FakeRenderer:
+    def __init__(self, fail=()):
+        self.calls, self.fail = [], fail
+
+    async def __call__(self, url, body, content_type):
+        self.calls.append((url, body, content_type))
+        if any(url.endswith(f) for f in self.fail):
+            raise TimeoutError("page.goto: Timeout 20000ms exceeded")
+        return BUILT if b'id="app"' in body else body.decode()
+
+
+async def test_rendering_reads_the_page_after_its_scripts_ran(mock):
+    serve(mock, **{"api/c": httpx.Response(200, html=SHELL)})
+    render = FakeRenderer()
+    pages, stats, log, _ = await crawl(render=render)
+    c = pages[f"{BASE}api/c"]
+    assert c.title == "Built" and c.content["headings"] == [[1, "Built by script"]]
+    assert not c.content["looks_like_shell"] and c.word_count > 30
+    url, body, content_type = next(call for call in render.calls if call[0].endswith("api/c"))
+    assert body == SHELL.encode() and content_type.startswith("text/html")  # the response the crawler fetched
+    assert stats.rendered == 7 and stats.unrendered == 0
+    assert "Rendered 7 pages with JavaScript." in log.text("info")
+
+
+async def test_a_page_that_fails_to_render_is_read_as_served(mock):
+    serve(mock)
+    pages, stats, log, _ = await crawl(render=FakeRenderer(fail=("api/c",)))
+    assert pages[f"{BASE}api/c"].title == "API C"
+    assert stats.rendered == 6 and stats.unrendered == 1
+    assert "1 pages didn't render in time or failed in Chromium; read as served." in log.text("warn")
+
+
+async def test_without_rendering_shells_suggest_turning_it_on(mock):
+    shells = {p: httpx.Response(200, html=SHELL) for p in ("", "authoring/a", "authoring/b", "api/c", "archive/old")}
+    serve(mock, **shells)
+    _, stats, log, _ = await crawl()
+    assert stats.shells == 5 and stats.rendered == 0
+    assert "Turn on Render JavaScript in the site's crawl rules." in log.text("warn")
+    assert "Rendered" not in log.text()
+
+
+async def test_rendering_reads_again_pages_reused_as_shells(mock):
+    serve(mock, **{"api/c": httpx.Response(200, html=SHELL)})
+    first, _, _, _ = await crawl()
+    assert first[f"{BASE}api/c"].content["looks_like_shell"]
+    previous = {
+        url: Previous(uuid.uuid4(), r.target.lastmod, r.content_hash, r.http_status, r.title, r.word_count, r.content)
+        for url, r in first.items()
+    }
+    second, stats, _, _ = await crawl(previous=previous, reuse=True, render=FakeRenderer())
+    assert second[f"{BASE}api/c"].fetched and second[f"{BASE}api/c"].title == "Built"
+    assert stats.reused == 6 and stats.rendered == 1
