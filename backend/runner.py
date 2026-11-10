@@ -164,8 +164,10 @@ class Recorder:
         self.db, self.run = db, run
 
     def log(self, stage: str, level: str, message: str) -> None:
+        """A step of the run. "detail" steps (one per page or request) ride on the next commit."""
         self.db.add(RunLogEntry(run_id=self.run.id, at=datetime.now(UTC), stage=stage, level=level, message=message))
-        self.db.commit()
+        if level != "detail":
+            self.db.commit()
 
     def stage(self, key: str, **changes) -> None:
         # A new list, so SQLAlchemy sees the JSON change.

@@ -49,8 +49,10 @@ export class RunsService {
     return this.http.get<RunDetail>(`${this.api}/runs/${runId}`);
   }
 
-  log(runId: string): Observable<LogEntry[]> {
-    return this.http.get<LogEntry[]>(`${this.api}/runs/${runId}/log`);
+  /** The run's log; ``after`` (an entry id) asks for newer entries only. */
+  log(runId: string, after = 0): Observable<LogEntry[]> {
+    const params: Record<string, number> = after ? { after } : {};
+    return this.http.get<LogEntry[]>(`${this.api}/runs/${runId}/log`, { params });
   }
 
   control(runId: string, action: 'pause' | 'resume' | 'cancel'): Observable<RunDetail> {

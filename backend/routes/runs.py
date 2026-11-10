@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from hop_core.api.dependencies import CurrentUserContext, get_current_active_user_with_org
 from hop_core.db import get_db
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 import crawler
@@ -157,8 +157,11 @@ def read_run(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(
 
 
 @router.get("/runs/{run_id}/log", response_model=list[LogEntry])
-def run_log(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
-    return get_run(db, ctx, run_id).log
+def run_log(run_id: UUID, after: int = 0, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
+    """The run's log; ``after`` (an entry id) returns only newer entries, for polling."""
+    run = get_run(db, ctx, run_id)
+    query = select(RunLogEntry).where(RunLogEntry.run_id == run.id, RunLogEntry.id > after)
+    return db.scalars(query.order_by(RunLogEntry.id)).all()
 
 
 # ── Controls ──────────────────────────────────────────────────────────────────

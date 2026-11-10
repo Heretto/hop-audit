@@ -205,9 +205,23 @@ async def test_crawl_records_missing_pages_and_skips_non_html(mock):
             "api/c": httpx.Response(200, content=b"%PDF", headers={"content-type": "application/pdf"}),
         },
     )
-    pages, stats, _, _ = await crawl()
+    pages, stats, log, _ = await crawl()
     assert pages[f"{BASE}authoring/b"].http_status == 404 and pages[f"{BASE}authoring/b"].error == "HTTP 404"
     assert f"{BASE}api/c" not in pages and stats.skipped == 1
+    steps = log.text("detail")
+    assert re.search(r"/authoring/b: 404 \(\d+ ms\)\.", steps)
+    assert "/api/c: 200, not HTML (application/pdf); skipped." in steps
+
+
+async def test_each_page_is_a_detail_step(mock):
+    serve(mock)
+    pages, _, log, _ = await crawl(rules=CrawlRules(delay_ms=0, max_depth=2))
+    steps = [m for stage, level, m in log if level == "detail"]
+    assert all(stage == "crawl" for stage, level, _ in log if level == "detail")
+    a = next(s for s in steps if s.startswith("/authoring/a:"))
+    assert re.fullmatch(r"/authoring/a: 200, \d+ KB, \d+ ms, \d+ words\.", a)
+    assert "/: 1 new link to follow." in steps  # /hidden/extra, off the sitemap
+    assert len([s for s in steps if not s.endswith("to follow.")]) == len(pages)
 
 
 async def test_crawl_blocks_help_center_that_refuses_every_page(mock):
@@ -391,6 +405,7 @@ async def test_a_page_that_fails_to_render_is_read_as_served(mock):
     serve(mock)
     pages, stats, log, _ = await crawl(render=FakeRenderer(fail=("api/c",)))
     assert pages[f"{BASE}api/c"].title == "API C"
+    assert "didn't render; read as served" in log.text("detail")
     assert stats.rendered == 6 and stats.unrendered == 1
     assert "1 pages didn't render in time or failed in Chromium; read as served." in log.text("warn")
 
@@ -412,6 +427,9 @@ async def test_rendering_reads_again_pages_reused_as_shells(mock):
         url: Previous(uuid.uuid4(), r.target.lastmod, r.content_hash, r.http_status, r.title, r.word_count, r.content)
         for url, r in first.items()
     }
-    second, stats, _, _ = await crawl(previous=previous, reuse=True, render=FakeRenderer())
+    second, stats, log, _ = await crawl(previous=previous, reuse=True, render=FakeRenderer())
     assert second[f"{BASE}api/c"].fetched and second[f"{BASE}api/c"].title == "Built"
     assert stats.reused == 6 and stats.rendered == 1
+    steps = log.text("detail")
+    assert "/authoring/a: unchanged since the last audit (sitemap date " in steps
+    assert re.search(r"/api/c: 200, \d+ KB, \d+ ms, rendered in \d+\.\d s, \d+ words\.", steps)

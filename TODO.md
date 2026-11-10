@@ -535,6 +535,18 @@ re-read this file before starting the next.
 - [x] Tests: pause then cancel through the API; a 30 s page; a stuck tab; shutdown
 - [ ] Confirm on the server with a paused Render JavaScript audit
 
+## Run log in sections (user: "see more information … categories that are collapsable")
+
+- [x] `detail` steps: each page crawled, each agent request, failed external links
+- [x] Detail entries ride on the next commit (no commit per step)
+- [x] `GET /runs/{id}/log?after=`; the audit page polls for newer entries only
+- [x] `RunLog`: a collapsible section per stage with status, counts and time
+      span; problems, the running stage and the latest open by default;
+      expand/collapse all; steps per section on request (last 1,000)
+- [x] Deliverables build log leaves detail out (it has its own answer line)
+- [x] Tests: crawler, review and link steps; incremental log; component
+- [ ] Look at it in a browser (not possible here)
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)

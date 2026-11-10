@@ -118,9 +118,11 @@ export interface RunInput {
 }
 
 export interface LogEntry {
+  id: number;
   at: string;
   stage: string;
-  level: 'info' | 'warn' | 'error';
+  /** detail: one step of many (a page fetched, an agent request). */
+  level: 'info' | 'warn' | 'error' | 'detail';
   message: string;
 }
 

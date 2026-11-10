@@ -9,16 +9,18 @@ import { sampleSite } from '../../sites/testing';
 import { LogEntry, RunDetail } from '../run.model';
 import { RunsService } from '../runs.service';
 import { sampleRun } from '../testing';
-import { AuditPage, logText, POLL_MS } from './audit-page';
+import { appendLog, AuditPage, logText, POLL_MS } from './audit-page';
 
 const LOG: LogEntry[] = [
   {
+    id: 1,
     at: '2026-10-22T09:14:02Z',
     stage: 'discover',
     level: 'info',
     message: 'Read sitemap.xml: 1,286 URLs.',
   },
   {
+    id: 2,
     at: '2026-10-22T09:15:41Z',
     stage: 'crawl',
     level: 'warn',
@@ -39,7 +41,7 @@ describe('AuditPage', () => {
     };
     const runs = {
       get: vi.fn(() => of(current)),
-      log: vi.fn(() => of(LOG)),
+      log: vi.fn((_id: string, _after?: number) => of(LOG)),
       control: vi.fn((_id: string, action: string) =>
         of((current = { ...current, status: statuses[action] })),
       ),
@@ -97,7 +99,7 @@ describe('AuditPage', () => {
     expect(text).toContain('Pending');
     expect(text).toContain('Readability Reviewer');
     expect(text).toContain('claude-sonnet-4-5 · Anthropic');
-    expect(text).toContain('2 steps');
+    expect(text).toContain('2 entries');
     expect(el.querySelector('.log li.warn')?.textContent).toContain('returned 503');
     expect(el.querySelector('.progress')?.classList).toContain('hop-shimmer');
     expect(page.stageCount(sampleRun().stages[3])).toBe('Pending');
@@ -113,6 +115,28 @@ describe('AuditPage', () => {
     vi.advanceTimersByTime(POLL_MS);
     vi.advanceTimersByTime(POLL_MS * 3);
     expect(runs.get).toHaveBeenCalledTimes(3);
+  });
+
+  it('polls the log for newer entries only and appends them', () => {
+    vi.useFakeTimers();
+    const { runs, page } = render();
+    expect(runs.log).toHaveBeenLastCalledWith('r1', 0);
+    const newer: LogEntry = {
+      id: 3,
+      at: '2026-10-22T09:16:00Z',
+      stage: 'crawl',
+      level: 'detail',
+      message: '/a: 200.',
+    };
+    runs.log.mockReturnValue(of([LOG[1], newer])); // overlaps what's held
+    vi.advanceTimersByTime(POLL_MS);
+    expect(runs.log).toHaveBeenLastCalledWith('r1', 2);
+    expect(page.log().map((e) => e.id)).toEqual([1, 2, 3]);
+  });
+
+  it('appends only entries newer than the last one held', () => {
+    expect(appendLog(LOG, [LOG[1]])).toBe(LOG);
+    expect(appendLog([], LOG)).toEqual(LOG);
   });
 
   it('pauses, resumes and cancels', () => {

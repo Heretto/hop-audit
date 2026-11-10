@@ -153,26 +153,19 @@
         >
           <mat-icon>{{ logOpen() ? 'expand_more' : 'chevron_right' }}</mat-icon>
           <h2>Run log</h2>
-          <span class="sub">{{ log().length }} steps</span>
+          <span class="sub">{{ log().length | number }} entries</span>
         </button>
         <button mat-stroked-button (click)="copyLog()">
           <mat-icon>content_copy</mat-icon>Copy log
         </button>
       </div>
       <span class="sub">
-        Each step of the run, in your timezone. Holds no API keys, prompts or page text, so it's
-        safe to share when reporting a problem.
+        Each step of the run, in your timezone, grouped by stage. Open a stage for its steps: every
+        page fetched and every agent request. Holds no API keys, prompts or page text, so it's safe
+        to share when reporting a problem.
       </span>
       @if (logOpen()) {
-        <ol class="log">
-          @for (e of log(); track $index) {
-            <li [class]="e.level">
-              <span class="t">{{ e.at | date: 'HH:mm:ss' }}</span
-              ><span class="s">{{ e.stage }}</span
-              ><span class="m">{{ e.message }}</span>
-            </li>
-          }
-        </ol>
+        <app-run-log [entries]="log()" [stages]="r.stages" />
       }
     </mat-card>
   } @else if (error(); as message) {
