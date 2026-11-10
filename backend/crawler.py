@@ -41,7 +41,7 @@ from scope import (
     sitemap_section,
 )
 
-Log = Callable[[str, str, str], None]  # (stage, level, message)
+Log = Callable[[str, str, str], None]  # (stage, level, message); level "detail" is one step of many
 Render = Callable[[str, bytes, str], Awaitable[str]]  # (url, body, content type) -> rendered HTML
 RETRYABLE = {500, 502, 503, 504, 429}
 NOT_PAGES = (".pdf", ".zip", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".mp4", ".css", ".js", ".json", ".xml")
@@ -370,6 +370,7 @@ class Crawler:
             and not (self.render and prev.content.get("looks_like_shell"))
         ):
             self.stats.reused += 1
+            self._step(target, f"unchanged since the last audit (sitemap date {target.lastmod:%Y-%m-%d}); reused")
             # Same content as last time; it counts as unchanged when the checksum
             # agrees (a checksum from an older definition doesn't).
             digest = checksum(prev.content)
@@ -385,36 +386,56 @@ class Crawler:
                 fetched=False,
             )
 
+        started = time.monotonic()
         response, error = await self._fetch(target)
+        took = f"{(time.monotonic() - started) * 1000:,.0f} ms"
         await asyncio.sleep(self.rules.delay_ms / 1000)
         if response is None:
             self.stats.failed += 1
             return Result(target, target.section, error=error)
-        if response.status_code in BLOCKED_STATUSES:
+        status = response.status_code
+        if status in BLOCKED_STATUSES:
+            self._step(target, f"{status}, refused ({took})")
             self._refused[target.root.id] += 1
             self._maybe_block(target.root)
             self.stats.failed += 1
-            return Result(target, target.section, response.status_code, error=f"Refused (HTTP {response.status_code})")
-        if response.status_code >= 400:
+            return Result(target, target.section, status, error=f"Refused (HTTP {status})")
+        if status >= 400:
+            self._step(target, f"{status} ({took})")
             self.stats.failed += 1
-            return Result(target, target.section, response.status_code, error=f"HTTP {response.status_code}")
-        if "html" not in response.headers.get("content-type", "text/html"):
+            return Result(target, target.section, status, error=f"HTTP {status}")
+        content_type = response.headers.get("content-type", "text/html")
+        if "html" not in content_type:
+            self._step(target, f"{status}, not HTML ({content_type.split(';')[0]}); skipped")
             self.stats.skipped += 1
             return None
         if len(response.content) > MAX_BYTES:
             self.stats.failed += 1
-            return Result(target, target.section, response.status_code, error="Larger than the 20 MB page limit")
+            return Result(target, target.section, status, error="Larger than the 20 MB page limit")
 
         self._read[target.root.id] += 1
-        html = await self._rendered(response) if self.render else response.text
+        notes = [f"{status}", f"{len(response.content) / 1024:,.0f} KB", took]
+        html = response.text
+        if self.render:
+            rendered, seconds = await self._rendered(response)
+            html = rendered or html
+            notes.append(f"rendered in {seconds:.1f} s" if rendered else "didn't render; read as served")
         content: PageContent = extract(html, str(response.url))
         if page_url(str(response.url)) != target.url:
             content.final_url = str(response.url)  # reached through a redirect
+            notes.append(f"redirected to {urlsplit(content.final_url).path or '/'}")
+        notes.append(f"{content.word_count:,} words")
+        if content.looks_like_shell:
+            notes.append("almost no text")
         digest = checksum(content.as_json())
         unchanged = prev is not None and prev.content_hash == digest
+        if unchanged:
+            notes.append("unchanged")
         if self.mode == "changed" and unchanged:
+            self._step(target, ", ".join(notes) + "; left out")
             self.stats.unchanged += 1
             return None
+        self._step(target, ", ".join(notes))
         self.stats.fetched += 1
         self.stats.links += len(content.links)
         self.stats.shells += content.looks_like_shell
@@ -434,19 +455,22 @@ class Crawler:
             reused_from=prev.id if unchanged else None,
         )
 
-    async def _rendered(self, response: httpx.Response) -> str:
-        """The page after its JavaScript ran, or as served when Chromium fails on it."""
+    async def _rendered(self, response: httpx.Response) -> tuple[str | None, float]:
+        """The page after its JavaScript ran (None when Chromium fails on it), and the seconds it took."""
         started = time.monotonic()
         try:
             content_type = response.headers.get("content-type", "text/html")
             html = await self.render(str(response.url), response.content, content_type)
         except Exception:  # a timeout or a crash in one page; the crawl carries on
             self.stats.unrendered += 1
-            return response.text
+            return None, time.monotonic() - started
         finally:
             self.stats.render_seconds += time.monotonic() - started
         self.stats.rendered += 1
-        return html
+        return html, time.monotonic() - started
+
+    def _step(self, target: Target, what: str) -> None:
+        self.log("crawl", "detail", f"{urlsplit(target.url).path or '/'}: {what}.")
 
     async def _fetch(self, target: Target) -> tuple[httpx.Response | None, str | None]:
         """The response after retrying server errors, timeouts and rate limits."""
@@ -511,6 +535,7 @@ class Crawler:
             self.seen.add(url)
             found.append(Target(url, root, section, None, t.depth + 1))
         if found:
+            self._step(t, f"{len(found)} new link{'s' if len(found) != 1 else ''} to follow")
             self.stats.found += len(found)
             self.on_total(len(self.seen))
         return found

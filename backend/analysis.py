@@ -173,6 +173,13 @@ async def _links(db, run, rec, http, pages, readable, checkpoint) -> Counter:
         progress,
         checkpoint,
     )
+    if probed:
+        rec.log("links", "detail", f"{len(probed):,} external link targets checked now; the rest were known or cached.")
+    for url, o in sorted(probed.items()):
+        if o.outcome != "ok":
+            status = f" ({o.status})" if o.status and f"{o.status}" not in o.note else ""
+            said = f"{o.outcome}{status}" + (f": {o.note}" if o.note else "")
+            rec.log("links", "detail", f"{url}: {said}.")
     now = datetime.now(UTC)
     for url, o in probed.items():
         db.merge(

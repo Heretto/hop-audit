@@ -125,34 +125,3 @@
     font-size: 1.125rem;
   }
 }
-
-.log {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  font-family: var(--font-mono);
-  font-size: 0.8125rem;
-
-  li {
-    display: grid;
-    grid-template-columns: 72px 100px minmax(0, 1fr);
-    gap: 12px;
-    padding: 6px 8px;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .t,
-  .s {
-    color: var(--text-tertiary);
-  }
-
-  .warn {
-    background: var(--color-warning-bg);
-    color: var(--color-warning-text);
-  }
-
-  .error {
-    background: var(--color-error-bg);
-    color: var(--color-error-text);
-  }
-}

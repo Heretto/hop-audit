@@ -16,6 +16,7 @@ import asyncio
 import hashlib
 import json
 import re
+import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Literal
@@ -311,6 +312,7 @@ class Review:
         """
         base = task or self.instructions
         instructions, retries, reasked = base, 0, False
+        started = time.monotonic()
         while True:
             await self.checkpoint()
             # No temperature: newer models reject it (Anthropic answers 400
@@ -356,6 +358,11 @@ class Review:
             found = (parse or parse_findings)(result.output)
             if found is not None:
                 self.tally.answered += 1
+                n = len(found) if isinstance(found, list) else None
+                answer = "answered" if n is None else f"{n} finding{'s' if n != 1 else ''}"
+                tokens = (result.input_tokens or 0) + (result.output_tokens or 0)
+                took = f"{time.monotonic() - started:.1f} s"
+                self.log(self.analysis, "detail", f"{self.agent.name}, {where}: {answer}, {tokens:,} tokens, {took}.")
                 return found
             if reasked:
                 self.log(self.analysis, "error", f"{self.agent.name}, {where}: reply wasn't JSON twice; skipped.")

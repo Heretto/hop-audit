@@ -66,7 +66,7 @@ class RunLogEntry(Base):
     run_id = Column(Uuid, ForeignKey("audit_runs.id", ondelete="CASCADE"), nullable=False, index=True)
     at = Column(UTCDateTime, nullable=False)
     stage = Column(String(32), nullable=False)
-    level = Column(String(8), nullable=False, default="info")  # info | warn | error
+    level = Column(String(8), nullable=False, default="info")  # info | warn | error | detail (one step of many)
     message = Column(Text, nullable=False)
 
 

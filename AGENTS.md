@@ -69,7 +69,16 @@ Read those instead of inferring from this project's code. Do not copy them here.
   (`STOP_GRACE`; Chromium tabs 5 s to close). The control routes are async,
   on the job's event loop, and cancel answers once the run has stopped
   (up to 10 s). A task cancelled without `Control.cancel` (the server
-  shutting down) isn't recorded as cancelled; active runs left by a
+  shutting down) isn't recorded as cancelled. The run log
+  (`RunLogEntry`) has a `detail` level for one step of many: each page
+  the crawler visits (status, size, time, rendered, reused, links found),
+  each answered agent request (findings, tokens, time) and each external
+  link target that failed. Recorder.log doesn't commit detail entries; they
+  ride on the next commit. `GET /runs/{id}/log?after=<id>` returns newer
+  entries only and the audit page appends them; `run-log.ts` groups the
+  log by stage in collapsible sections, steps behind a per-section
+  toggle (the last 1,000 shown). The deliverables build log leaves detail
+  out. Active runs left by a
   restart are marked failed at startup. `crawler.plan()` reads sitemaps per
   host and checks each help center's root; `Crawler` fetches, reuses
   unchanged pages from the last completed run (sitemap `lastmod`, then

@@ -150,6 +150,20 @@ async def test_render_js_without_chromium_reads_pages_as_served(client, user, db
     assert "JavaScript rendering needs Chromium on the server. Pages are read as served." in log
 
 
+async def test_link_check_lists_the_external_targets_that_failed(client, user, db, mock):
+    from tests.fake_site import page
+
+    serve(mock, **{"authoring/a": httpx.Response(200, html=page("Topic A", links=["https://ext.org/gone"]))})
+    mock.head("https://ext.org/gone").respond(410)
+    site = make_site(client, user)
+    run = await execute(db, add_run(db, site, user, analyses=["links"]))
+    steps = [e.message for e in run.log if e.level == "detail" and e.stage == "links"]
+    assert steps == [
+        "1 external link targets checked now; the rest were known or cached.",
+        "https://ext.org/gone: broken: HTTP 410.",
+    ]
+
+
 async def test_second_run_reuses_and_reports_new_pages(client, user, db, mock):
     serve(mock)
     site = make_site(client, user)
@@ -395,7 +409,13 @@ def test_run_listing_detail_log_and_isolation(client, user, db, started):
     assert [r["number"] for r in client.get(f"/api/v1/sites/{site['id']}/runs", headers=h).json()] == [1]
     assert run["id"] in [r["id"] for r in client.get("/api/v1/runs", headers=h).json()]
     assert client.get(f"/api/v1/runs/{run['id']}", headers=h).json()["progress"] == 0
-    assert client.get(f"/api/v1/runs/{run['id']}/log", headers=h).json()[0]["message"] == "hi"
+    first = client.get(f"/api/v1/runs/{run['id']}/log", headers=h).json()
+    assert first[0]["message"] == "hi" and first[0]["id"]
+    db.add(RunLogEntry(run_id=uuid.UUID(run["id"]), at=__import__("datetime").datetime.now(), stage="crawl",
+                       level="detail", message="/a: 200."))  # fmt: skip
+    db.commit()
+    newer = client.get(f"/api/v1/runs/{run['id']}/log?after={first[-1]['id']}", headers=h).json()
+    assert [(e["level"], e["message"]) for e in newer] == [("detail", "/a: 200.")]
 
     other = make_user(client)
     assert client.get(f"/api/v1/runs/{run['id']}", headers=other["headers"]).status_code == 404

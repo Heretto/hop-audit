@@ -28,6 +28,7 @@ import { apiErrors, SitesService } from '../../sites/sites.service';
 import { duration, estimate, scopeLabel, statusChip, tokens } from '../run-format';
 import { ACTIVE, AgentStats, LogEntry, RunDetail, Stage } from '../run.model';
 import { RunsService } from '../runs.service';
+import { RunLog } from './run-log';
 
 export const POLL_MS = 2000;
 
@@ -47,6 +48,13 @@ const AGENT_CHIPS: Record<Stage['status'], { cls: string; label: string }> = {
   skipped: { cls: '', label: 'Not run' },
 };
 
+/** ``held`` plus the newer entries; overlapping polls never add one twice. */
+export function appendLog(held: LogEntry[], newer: LogEntry[]): LogEntry[] {
+  const last = held.at(-1)?.id ?? 0;
+  const fresh = newer.filter((e) => e.id > last);
+  return fresh.length ? [...held, ...fresh] : held;
+}
+
 /** One line per log entry, in the viewer's time zone: safe to paste into a bug report. */
 export function logText(entries: LogEntry[]): string {
   return entries
@@ -59,7 +67,15 @@ export function logText(entries: LogEntry[]): string {
 
 @Component({
   selector: 'app-audit-page',
-  imports: [DatePipe, DecimalPipe, RouterLink, MatButtonModule, MatCardModule, MatIconModule],
+  imports: [
+    DatePipe,
+    DecimalPipe,
+    RouterLink,
+    MatButtonModule,
+    MatCardModule,
+    MatIconModule,
+    RunLog,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './audit-page.html',
   styleUrl: './audit-page.scss',
@@ -158,10 +174,13 @@ export class AuditPage implements OnInit {
   }
 
   refresh(first: boolean): void {
-    forkJoin([this.runs.get(this.runId()), this.runs.log(this.runId())]).subscribe({
+    // The log comes in increments: only entries newer than the last one held.
+    const after = first ? 0 : (this.log().at(-1)?.id ?? 0);
+    forkJoin([this.runs.get(this.runId()), this.runs.log(this.runId(), after)]).subscribe({
       next: ([run, log]) => {
         this.run.set(run);
-        this.log.set(log);
+        if (first) this.log.set(log);
+        else if (log.length) this.log.update((held) => appendLog(held, log));
         this.error.set(null);
         if (first)
           this.sites.get(run.site_id).subscribe({ next: (s) => this.site.set(s), error: () => {} });

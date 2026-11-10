@@ -25,15 +25,19 @@ describe('RunsService', () => {
     service.all().subscribe();
     service.get('r1').subscribe();
     service.log('r1').subscribe();
+    service.log('r1', 42).subscribe();
     service.control('r1', 'pause').subscribe();
     service.analyze('r1', true).subscribe();
-    expect(http.match(() => true).map((r) => `${r.request.method} ${r.request.url}`)).toEqual([
+    expect(
+      http.match(() => true).map((r) => `${r.request.method} ${r.request.urlWithParams}`),
+    ).toEqual([
       'GET /api/v1/sites/s1/runs/preview',
       'POST /api/v1/sites/s1/runs',
       'GET /api/v1/sites/s1/runs',
       'GET /api/v1/runs',
       'GET /api/v1/runs/r1',
       'GET /api/v1/runs/r1/log',
+      'GET /api/v1/runs/r1/log?after=42',
       'POST /api/v1/runs/r1/pause',
       'POST /api/v1/runs/r1/analyze',
     ]);

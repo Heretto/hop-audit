@@ -1,6 +1,7 @@
 """Agent review, against a fake model registered in hop-core's provider registry."""
 
 import json
+import re
 from uuid import UUID
 
 import httpx
@@ -175,6 +176,12 @@ async def test_run_with_agent_review(client, user, db, mock, model):
     assert len(readability_calls) == 7
     assert all(c.count("### P1") == 1 and "### P2" not in c for c in model.calls)
     assert not any("nowhere" in c and "### P1" not in c for c in model.calls)
+
+    # Each answered request is a detail step: no prompt or page text, just the outcome.
+    steps = [e.message for e in run.log if e.level == "detail" and e.stage == "readability"]
+    assert len(steps) == 7
+    assert re.fullmatch(r"Readability Reviewer, /authoring/a: 4 findings, 1,200 tokens, \d+\.\d s\.",
+                        next(s for s in steps if "/authoring/a" in s))  # fmt: skip
 
     # No temperature is sent: newer models reject the parameter.
     assert model.temperatures and set(model.temperatures) == {None}

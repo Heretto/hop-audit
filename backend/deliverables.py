@@ -461,6 +461,8 @@ async def write(db: Session, run: AuditRun, f: Facts, log: Log) -> tuple[Copy, s
     errors: list[str] = []
 
     def relay(_analysis: str, level: str, message: str) -> None:
+        if level == "detail":
+            return  # the build log says when the writer answered, with its tokens
         if level == "error":
             errors.append(message)
         log(level, message)

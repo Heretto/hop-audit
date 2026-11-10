@@ -111,6 +111,7 @@ class RunDetail(RunListItem):
 
 class LogEntry(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+    id: int
     at: datetime
     stage: str
     level: str
