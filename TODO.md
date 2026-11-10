@@ -515,6 +515,17 @@ re-read this file before starting the next.
 - [x] Average render time in the crawl log
 - [ ] Measure on helpcenter.affirm.com on the server (no Chromium here)
 
+## Crawled text with formatting (user: "a bit more formatting and indicates where images or other media were")
+
+- [x] `extract._blocks`: the main content in reading order, with image and
+      media markers (iframes noted before they're dropped); not in the checksum
+- [x] `CrawledText`: headings with their level, lists, tables, code, quotes,
+      expandable sections, image markers (alt text or a warning), media markers
+- [x] Plain text toggle shows exactly what the analyses read
+- [x] Older pages: plain text and a note to run the audit again
+- [x] Tests: extraction blocks and checksum; component formatting and fallback
+- [ ] Look at it in a browser (not possible here)
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)

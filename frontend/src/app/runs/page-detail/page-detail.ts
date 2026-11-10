@@ -16,6 +16,7 @@ import { RouterLink } from '@angular/router';
 import { apiErrors } from '../../sites/sites.service';
 import { scoreClass, signed } from '../run-format';
 import { Finding, LinkRow, PageDetail } from '../run.model';
+import { CrawledText } from './crawled-text';
 import { FindingCard } from './finding-card';
 import { RunsService } from '../runs.service';
 
@@ -50,6 +51,7 @@ export function readabilityBand(flesch: number | null): { label: string; sev: st
     MatIconModule,
     MatTabsModule,
     FindingCard,
+    CrawledText,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './page-detail.html',
