@@ -203,7 +203,7 @@ export class AuditPage implements OnInit {
   cancel(): void {
     const data: HopConfirmDialogData = {
       title: `Cancel audit #${this.run()!.number}?`,
-      message: 'The run stops after the pages in progress. Pages already read are kept.',
+      message: 'The run stops right away, paused or not. Pages already read are kept.',
       confirmText: 'Cancel run',
       cancelText: 'Keep running',
     };

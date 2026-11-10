@@ -1,5 +1,6 @@
 """Audit runs: the runner end to end, and the run routes."""
 
+import asyncio
 import time
 import uuid
 
@@ -250,6 +251,68 @@ async def test_cancelled_run_keeps_pages(client, user, db, mock, monkeypatch):
     run = db.get(AuditRun, run.id)
     assert run.status == "cancelled" and run.page_count == 1
     assert run.stages[1]["status"] == "skipped"
+
+
+async def slow_site(mock, seconds=0.3):
+    serve(mock)
+
+    async def slow(request):
+        await asyncio.sleep(seconds)
+        return httpx.Response(200, html="<main><h1>Slow</h1><p>Some words here.</p></main>")
+
+    for path in ("", "authoring/a", "authoring/b", "api/c", "de/", "de/authoring/a", "archive/old"):
+        mock.get(f"{BASE}{path}").mock(side_effect=slow)
+
+
+async def test_cancel_stops_a_paused_run_and_answers_cancelled(app, client, user, db, mock):
+    """Through the API on the run's own event loop, as in production."""
+    mock.route(host="api.test").pass_through()
+    await slow_site(mock)
+    site = make_site(client, user, concurrency=1)
+    run = add_run(db, site, user)
+    runner.start(run.id)
+    h = user["headers"]
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://api.test") as api:
+        for _ in range(100):
+            await asyncio.sleep(0.05)
+            if (await api.get(f"/api/v1/runs/{run.id}", headers=h)).json()["page_count"]:
+                break
+        assert (await api.post(f"/api/v1/runs/{run.id}/pause", headers=h)).json()["status"] == "paused"
+        await asyncio.sleep(0.5)
+        r = await api.post(f"/api/v1/runs/{run.id}/cancel", headers=h)
+        assert r.status_code == 200 and r.json()["status"] == "cancelled"
+        assert r.json()["finished_at"]
+        log = [e["message"] for e in (await api.get(f"/api/v1/runs/{run.id}/log", headers=h)).json()]
+        assert log[-1] == "Cancelled. Pages read so far are kept."
+        assert (await api.post(f"/api/v1/runs/{run.id}/cancel", headers=h)).status_code == 409
+    assert runner.control_for(run.id) is None
+
+
+async def test_cancel_interrupts_a_page_in_progress(client, user, db, mock):
+    await slow_site(mock, seconds=30)  # a page that would hold a flag-only cancel for 30 s
+    site = make_site(client, user, concurrency=1)
+    run = add_run(db, site, user)
+    runner.start(run.id)
+    control = runner.control_for(run.id)
+    await asyncio.sleep(0.3)
+    control.cancel()
+    await runner.stopped(run.id, 3)
+    db.expire_all()
+    assert db.get(AuditRun, run.id).status == "cancelled"
+
+
+async def test_a_server_shutdown_isnt_recorded_as_a_cancel(client, user, db, mock):
+    await slow_site(mock, seconds=30)
+    site = make_site(client, user)
+    run = add_run(db, site, user)
+    runner.start(run.id)
+    task = runner.control_for(run.id).task
+    await asyncio.sleep(0.3)
+    task.cancel()  # what the event loop does on shutdown
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    db.expire_all()
+    assert db.get(AuditRun, run.id).status == "running"  # startup's recover_interrupted marks it
 
 
 def test_recover_interrupted(client, user, db):

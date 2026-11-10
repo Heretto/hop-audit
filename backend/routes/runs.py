@@ -21,6 +21,7 @@ router = APIRouter(tags=["runs"])
 Ctx = Depends(get_current_active_user_with_org)
 TOKENS_PER_PAGE = 1400  # all five analyses together; refined once agents report usage
 FETCH_SECONDS = 0.5  # a page fetch, before the crawl delay
+CANCEL_WAIT = 10.0  # s the cancel answer waits for the run to stop (pages in progress get 5)
 
 
 def get_run(db: Session, ctx: CurrentUserContext, run_id: UUID) -> AuditRun:
@@ -163,8 +164,12 @@ def run_log(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(g
 # ── Controls ──────────────────────────────────────────────────────────────────
 
 
+# Async, so they run on the event loop with the job they control (asyncio
+# events and task.cancel aren't safe from FastAPI's thread pool).
+
+
 @router.post("/runs/{run_id}/pause", response_model=RunDetail)
-def pause(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
+async def pause(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
     run = get_run(db, ctx, run_id)
     control = runner.control_for(run.id)
     if run.status != "running" or control is None:
@@ -177,7 +182,7 @@ def pause(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(get
 
 
 @router.post("/runs/{run_id}/resume", response_model=RunDetail)
-def resume(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
+async def resume(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
     run = get_run(db, ctx, run_id)
     control = runner.control_for(run.id)
     if run.status != "paused" or control is None:
@@ -211,15 +216,19 @@ async def analyze(
 
 
 @router.post("/runs/{run_id}/cancel", response_model=RunDetail)
-def cancel(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
+async def cancel(run_id: UUID, ctx: CurrentUserContext = Ctx, db: Session = Depends(get_db)):
+    """Stop the run wherever it is, paused or not; the answer shows it stopped."""
     run = get_run(db, ctx, run_id)
     if run.status not in ACTIVE_STATUSES:
         raise HTTPException(status.HTTP_409_CONFLICT, "This audit has already finished")
     log(db, run, f"Cancel requested by {ctx.user.email}.")
     control = runner.control_for(run.id)
     if control:
-        control.cancel()  # the runner records the cancellation when it stops
+        db.commit()
+        control.cancel()  # interrupts the job; it records the cancellation as it stops
+        await runner.stopped(run.id, CANCEL_WAIT)
+        db.refresh(run)
     else:  # no task behind it: nothing to wait for
         run.status, run.finished_at = "cancelled", datetime.now(UTC)
-    db.commit()
+        db.commit()
     return detail(run)

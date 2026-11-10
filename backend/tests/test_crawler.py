@@ -2,6 +2,7 @@
 
 import asyncio
 import re
+import threading
 import uuid
 from datetime import UTC, datetime
 
@@ -294,6 +295,62 @@ async def test_pause_holds_the_crawl_until_resumed(mock):
     control.resume()
     pages, _, _, _ = await asyncio.wait_for(task, 5)
     assert len(pages) == 7
+
+
+async def test_cancel_from_another_thread_stops_a_paused_crawl(mock):
+    """The API's pause, resume and cancel run in FastAPI's thread pool, not on the loop."""
+    serve(mock)
+    control = Control()
+    control.pause()
+    task = asyncio.create_task(crawl(control=control))
+    await asyncio.sleep(0.2)
+    assert not task.done()
+    worker = threading.Thread(target=control.cancel)
+    worker.start()
+    worker.join()
+    with pytest.raises(Cancelled):
+        await asyncio.wait_for(task, 2)
+
+
+async def test_resume_from_another_thread_wakes_a_paused_crawl(mock):
+    serve(mock)
+    control = Control()
+    task = asyncio.create_task(crawl(control=control))
+    paused = threading.Thread(target=control.pause)
+    paused.start()
+    paused.join()
+    await asyncio.sleep(0.2)
+    resumed = threading.Thread(target=control.resume)
+    resumed.start()
+    resumed.join()
+    pages, _, _, _ = await asyncio.wait_for(task, 2)
+    assert len(pages) == 7
+
+
+async def test_a_cancelled_crawl_doesnt_wait_on_a_stuck_page(mock, monkeypatch):
+    import crawler as crawler_module
+
+    monkeypatch.setattr(crawler_module, "STOP_GRACE", 0.2)
+    serve(mock)
+    release = asyncio.Event()
+
+    async def render(url, body, content_type):
+        try:
+            await asyncio.sleep(60)
+        finally:
+            await release.wait()  # a tab that won't close
+
+    control = Control()
+    task = control.task = asyncio.create_task(crawl(control=control, render=render))
+    await asyncio.sleep(0.2)
+    control.pause()
+    started = asyncio.get_running_loop().time()
+    control.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(task, 3)
+    assert asyncio.get_running_loop().time() - started < 1.5
+    release.set()
+    await asyncio.sleep(0.05)
 
 
 # ── Rendering JavaScript ──────────────────────────────────────────────────────

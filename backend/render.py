@@ -16,10 +16,12 @@ RenderUnavailable and the run reads pages as served.
 """
 
 import asyncio
+import contextlib
 
 from discovery import USER_AGENT
 
 MAX_TABS = 2  # pages rendering at once; a heavy app's tab takes 300–500 MB
+CLOSE_TIMEOUT = 5  # s; a stalled tab or browser mustn't hold up a cancelled crawl
 LOAD_TIMEOUT = 20_000  # ms for the HTML to be parsed
 SETTLE_TIMEOUT = 15_000  # ms more for the scripts to build the content
 SKIPPED = {"image", "media", "font", "stylesheet"}
@@ -79,13 +81,16 @@ class Renderer:
                     pass  # still changing (a ticker, a feed); take what has rendered
                 return await page.content()
             finally:
-                await page.close()
+                with contextlib.suppress(Exception):
+                    await asyncio.wait_for(page.close(), CLOSE_TIMEOUT)
 
     async def close(self) -> None:
         try:
-            await self._browser.close()
+            with contextlib.suppress(Exception):
+                await asyncio.wait_for(self._browser.close(), CLOSE_TIMEOUT)
         finally:
-            await self._playwright.stop()
+            with contextlib.suppress(Exception):
+                await asyncio.wait_for(self._playwright.stop(), CLOSE_TIMEOUT)
 
 
 async def start(tabs: int = MAX_TABS) -> Renderer:

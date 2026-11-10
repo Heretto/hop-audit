@@ -46,6 +46,7 @@ Render = Callable[[str, bytes, str], Awaitable[str]]  # (url, body, content type
 RETRYABLE = {500, 502, 503, 504, 429}
 NOT_PAGES = (".pdf", ".zip", ".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".mp4", ".css", ".js", ".json", ".xml")
 SHELL_WARNING = 5  # pages that look like JavaScript shells before the run warns
+STOP_GRACE = 5.0  # seconds pages in progress get to stop once the crawl ends early
 REFUSALS_TO_BLOCK = 5  # refusals, with no page read, before a help center counts as blocked
 
 
@@ -54,12 +55,16 @@ class Cancelled(Exception):
 
 
 class Control:
-    """Pause, resume and cancel, checked between pages."""
+    """Pause and resume, checked between pages; cancel, which also interrupts
+    the job's task (``task``, set by runner.start) wherever it is waiting: a
+    page, a retry delay, a model call. Call it from the event loop; the API's
+    control routes are async for this."""
 
     def __init__(self):
         self._running = asyncio.Event()
         self._running.set()
         self.cancelled = False
+        self.task: asyncio.Task | None = None
 
     def pause(self):
         self._running.clear()
@@ -70,6 +75,8 @@ class Control:
     def cancel(self):
         self.cancelled = True
         self._running.set()
+        if self.task and not self.task.done():
+            self.task.cancel()
 
     @property
     def paused(self) -> bool:
@@ -300,10 +307,12 @@ class Crawler:
         self.failure: BaseException | None = None
         workers = [asyncio.create_task(self._worker(queue)) for _ in range(self.rules.concurrency)]
         joined = asyncio.create_task(queue.join())
-        await asyncio.wait([joined, *workers], return_when=asyncio.FIRST_COMPLETED)
-        for task in [joined, *workers]:
-            task.cancel()
-        await asyncio.gather(joined, *workers, return_exceptions=True)
+        try:
+            await asyncio.wait([joined, *workers], return_when=asyncio.FIRST_COMPLETED)
+        finally:  # also when the run is cancelled: stop the workers, but never wait on a stuck page for long
+            for task in [joined, *workers]:
+                task.cancel()
+            await asyncio.wait([joined, *workers], timeout=STOP_GRACE)
         if self.failure:
             raise self.failure
         if self.render:
