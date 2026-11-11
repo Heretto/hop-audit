@@ -558,6 +558,15 @@ re-read this file before starting the next.
       reported, in the first 40
 - [x] Tests: follow, sign-in detection and blocking, no-sitemap crawl
 
+## 403s from bot protection (user: kollmorgen, chromeriver "403s … I know the site/page exist")
+
+- [x] Diagnosed: both answer every non-browser request with Cloudflare's
+      bot challenge (`cf-mitigated: challenge`), whatever the headers
+- [x] Reported, not worked around (the project rule): refusals name the
+      protection and say the site's owner can allow HOP Audit's user agent
+- [x] Same naming in the crawl's page errors and steps and the link check
+- [x] Tests: header detection, detection message, crawl and link wording
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)

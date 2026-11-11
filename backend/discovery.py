@@ -32,6 +32,38 @@ class Blocked(Exception):
     """The site refused the request; report it, don't work around it."""
 
 
+# Bot protection names itself in its response headers. Its challenges are meant
+# to let browsers through and stop crawlers, so they're reported, never solved
+# or dodged (no browser user agent, no headless browser to pass them).
+PROTECTIONS = (
+    ("Cloudflare's bot challenge", lambda h: h.get("cf-mitigated", "").lower() == "challenge"),
+    ("DataDome's bot protection", lambda h: "x-datadome" in h or "datadome" in h.get("server", "").lower()),
+    ("Akamai's bot protection", lambda h: "akamai" in h.get("server", "").lower()),
+    ("Imperva's bot protection", lambda h: "x-iinfo" in h or "imperva" in h.get("x-cdn", "").lower()),
+    ("AWS WAF", lambda h: "x-amzn-waf-action" in h),
+    ("Cloudflare's firewall", lambda h: h.get("server", "").lower() == "cloudflare"),
+)
+
+
+def protection(response: httpx.Response) -> str | None:
+    """The bot protection that refused a request, from its headers, or None."""
+    return next((name for name, matches in PROTECTIONS if matches(response.headers)), None)
+
+
+def refusal(response: httpx.Response) -> str:
+    """Why the site refused us, for the run log and the site's detection."""
+    status, host = response.status_code, response.url.host
+    by = protection(response)
+    if by:
+        return (
+            f"{host} refused the request with {by} (HTTP {status}), which lets browsers through and stops "
+            f"crawlers. The site's owner can allow HOP Audit's user agent ({USER_AGENT})"
+        )
+    if status == 401:
+        return f"{host} asks for a login (HTTP 401)"
+    return f"{host} refused the request (HTTP {status})"
+
+
 @dataclass
 class Section:
     path: str
@@ -154,7 +186,7 @@ async def fetch(http: httpx.AsyncClient, url: str) -> httpx.Response | None:
     """The response, None for a 404/410, Blocked when the site refuses us."""
     response = await http.get(url)
     if response.status_code in BLOCKED_STATUSES:
-        raise Blocked(f"{urlsplit(url).hostname} refused the request (HTTP {response.status_code})")
+        raise Blocked(refusal(response))
     if response.status_code in (404, 410):
         return None
     response.raise_for_status()

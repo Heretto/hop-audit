@@ -139,6 +139,42 @@ async def test_detect_reports_blocked_site(mock, code):
     assert route.calls[0].request.headers["user-agent"] == discovery.USER_AGENT
 
 
+@pytest.mark.parametrize(
+    "headers, named",
+    [
+        ({"server": "cloudflare", "cf-mitigated": "challenge"}, "Cloudflare's bot challenge"),
+        ({"server": "cloudflare"}, "Cloudflare's firewall"),
+        ({"x-datadome": "protected"}, "DataDome's bot protection"),
+        ({"server": "AkamaiGHost"}, "Akamai's bot protection"),
+        ({"x-iinfo": "9-1-0"}, "Imperva's bot protection"),
+        ({"x-amzn-waf-action": "captcha"}, "AWS WAF"),
+        ({"server": "nginx"}, None),
+    ],
+)
+def test_protection_names_the_service_from_its_headers(headers, named):
+    response = httpx.Response(403, headers=headers, request=httpx.Request("GET", START))
+    assert discovery.protection(response) == named
+
+
+async def test_detect_reports_a_bot_challenge_and_what_the_owner_can_do(mock):
+    """As on webhelp.kollmorgen.com and help.chromeriver.com: reported, never worked around."""
+    mock.get(f"{START}robots.txt").respond(404)
+    route = mock.get(START).respond(403, headers={"server": "cloudflare", "cf-mitigated": "challenge"})
+    result = await run()
+    assert result.status == "blocked"
+    assert result.message == (
+        "help.example.com refused the request with Cloudflare's bot challenge (HTTP 403), which lets browsers through "
+        f"and stops crawlers. The site's owner can allow HOP Audit's user agent ({discovery.USER_AGENT})"
+    )
+    assert route.call_count == 1 and route.calls[0].request.headers["user-agent"] == discovery.USER_AGENT
+
+
+async def test_detect_names_a_login_prompt(mock):
+    mock.get(f"{START}robots.txt").respond(404)
+    mock.get(START).respond(401)
+    assert (await run()).message == "help.example.com asks for a login (HTTP 401)"
+
+
 async def test_detect_respects_robots(mock):
     mock.get(f"{START}robots.txt").respond(text="User-agent: *\nDisallow: /\n")
     page = mock.get(START).respond(html=HOME)

@@ -110,6 +110,13 @@ Read those instead of inferring from this project's code. Do not copy them here.
   and the error "Asks visitors to sign in", never followed; a help center
   whose first 5 pages are all refusals or sign-in pages is blocked, as
   for refusals.
+  Refusals name the bot protection behind them when its headers say so
+  (`discovery.protection`: Cloudflare's challenge `cf-mitigated:
+  challenge` or firewall, DataDome, Akamai, Imperva, AWS WAF), in site
+  detection, the crawl and the link check, and tell the user the site's
+  owner can allow HOP Audit's user agent. Challenges are never solved or
+  dodged: no browser user agent, and Render JavaScript only renders pages
+  the crawler's own request already got.
   Pages keep the extraction (`backend/extract.py`), not raw HTML. Besides
   `text` (what the analyses read) it keeps `blocks`, the main content's
   shape in reading order (headings, paragraphs, list items with depth,

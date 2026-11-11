@@ -26,7 +26,7 @@ from uuid import UUID
 import httpx
 
 import discovery
-from discovery import BLOCKED_STATUSES, MAX_BYTES, USER_AGENT, Blocked
+from discovery import BLOCKED_STATUSES, MAX_BYTES, USER_AGENT, Blocked, protection
 from extract import PageContent, checksum, extract, page_url
 from schemas.site import CrawlRules
 from scope import (
@@ -301,6 +301,7 @@ class Crawler:
         self._read = Counter()  # root id -> pages read
         self._refused = Counter()  # root id -> refusals
         self._gated = Counter()  # root id -> sign-in pages
+        self._protection: dict[UUID, str] = {}  # root id -> the bot protection that refused it
 
     async def run(self, plan: Plan) -> Stats:
         self.plan = plan
@@ -407,11 +408,14 @@ class Crawler:
             return Result(target, target.section, error=error)
         status = response.status_code
         if status in BLOCKED_STATUSES:
-            self._step(target, f"{status}, refused ({took})")
+            by = protection(response)
+            self._step(target, f"{status}, refused{f' by {by}' if by else ''} ({took})")
             self._refused[target.root.id] += 1
+            if by:
+                self._protection[target.root.id] = by
             self._maybe_block(target.root)
             self.stats.failed += 1
-            return Result(target, target.section, status, error=f"Refused (HTTP {status})")
+            return Result(target, target.section, status, error=f"Refused{f' by {by}' if by else ''} (HTTP {status})")
         if status >= 400:
             self._step(target, f"{status} ({took})")
             self.stats.failed += 1
@@ -518,10 +522,11 @@ class Crawler:
     def _maybe_block(self, root: Root):
         refused, gated = self._refused[root.id], self._gated[root.id]
         if self._read[root.id] == 0 and refused + gated >= REFUSALS_TO_BLOCK and root.id not in self.plan.blocked:
+            by = self._protection.get(root.id)
             message = (
                 f"asked visitors to sign in on all {gated} pages tried"
                 if gated >= refused
-                else f"refused {refused} requests in a row"
+                else f"refused {refused} requests in a row{f' with {by}' if by else ''}"
             )
             self.plan.blocked[root.id] = message
             self.log("crawl", "error", f"{root.name}: {message}. Reported, not worked around; skipped.")
