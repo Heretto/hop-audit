@@ -357,6 +357,8 @@ def _crawl_detail(stats: crawler.Stats, prev: AuditRun | None) -> str:
         parts.append(f"{stats.unchanged:,} unchanged left out")
     if stats.failed:
         parts.append(f"{stats.failed:,} failed")
+    if stats.gated:
+        parts.append(f"{stats.gated:,} behind a sign-in")
     if stats.skipped:
         parts.append(f"{stats.skipped:,} not HTML")
     return ", ".join(parts)

@@ -1,3 +1,5 @@
+import pytest
+
 from extract import checksum, extract
 
 HTML = """<html lang="de-DE"><head>
@@ -143,3 +145,34 @@ def test_blocks_stop_at_the_limit(monkeypatch):
     monkeypatch.setattr(ex, "MAX_BLOCKS", 3)
     p = extract("<main>" + "".join(f"<p>Para {i}</p>" for i in range(10)) + "</main>", "https://h.x/")
     assert len(p.blocks) <= 4 and p.word_count == 20  # the text is whole
+
+
+def test_follow_has_every_link_on_the_page_but_isnt_stored():
+    p = extract(HTML, "https://help.x.com/de/publish")
+    assert "https://help.x.com/nav" in p.follow  # navigation, outside <main>
+    assert "https://help.x.com/en/next#part" in p.follow
+    assert not any(u.startswith(("mailto:", "javascript:")) for u in p.follow)
+    assert "follow" not in p.as_json()
+    assert [link["url"] for link in p.links] == ["https://help.x.com/en/next#part"]  # the link check's set
+
+
+@pytest.mark.parametrize(
+    "body, asks",
+    [
+        ("<p>Access to this product documentation requires authentication. Please sign in to continue.</p>", True),
+        ("<form><input name='user'><input type='PASSWORD' name='pw'><button>Go</button></form>", True),
+        ("<p>You must be logged in to view this article.</p>", True),
+        ("<h1>Signing in</h1><p>How do I sign in? Open the app and choose Sign in.</p>", False),
+        ("<p>Please sign in to continue. " + "Real article text follows here. " * 20 + "</p>", False),
+    ],
+)
+def test_sign_in_walls(body, asks):
+    assert extract(f"<html><body><main>{body}</main></body></html>", "https://h.x/").asks_sign_in is asks
+
+
+def test_a_page_with_no_main_text_is_a_shell_even_with_a_heading_elsewhere():
+    html = (
+        "<html><body><header><h1>NetBackup</h1></header>"
+        "<main><div id='app'></div></main><script></script></body></html>"
+    )
+    assert extract(html, "https://h.x/").looks_like_shell

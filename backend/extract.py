@@ -6,6 +6,15 @@ HTML, so it is read like any other text. Pages a browser would have to
 render with JavaScript come back nearly empty, with scripts and no headings;
 ``looks_like_shell`` flags them so the run can say so.
 
+``follow`` holds every link on the page, navigation and footers included,
+for the crawler to follow; ``links`` (main content only)
+is what the link check reads. ``follow`` isn't stored.
+
+``asks_sign_in`` flags a sign-in wall served as a normal page (HTTP 200):
+little text with a password field, or wording such as "requires
+authentication" or "please sign in". The crawler reports those, never reads
+them.
+
 ``blocks`` keeps the main content's shape for people reading it on the page
 screen: headings, paragraphs, list items, table rows, code, quotes, collapsed
 sections, and where images and other media sat. The analyses read ``text``;
@@ -23,6 +32,13 @@ from bs4 import BeautifulSoup, Tag
 DROP = ("script", "style", "noscript", "template", "svg", "iframe")
 CHROME = ("nav", "header", "footer", "aside")  # dropped only when there's no <main>/<article>
 SHELL_WORDS = 30
+SIGN_IN_WORDS = 80  # a sign-in wall says little else
+SIGN_IN = re.compile(
+    r"requires? (authentication|(a )?(sign|log)[- ]?in)|please (sign|log) ?in|(sign|log) ?in to continue"
+    r"|you (must|need to) (be )?(sign|log)(ged)? ?in",
+    re.I,
+)
+NOT_FOLLOWED = ("javascript:", "mailto:", "tel:", "#")
 BLOCKS = (
     "p",
     "div",
@@ -72,10 +88,14 @@ class PageContent:
     text: str = ""
     word_count: int = 0
     looks_like_shell: bool = False
+    asks_sign_in: bool = False
     blocks: list[dict] = field(default_factory=list)  # see _blocks
+    follow: list[str] = field(default_factory=list)  # for the crawler; not stored
 
     def as_json(self) -> dict:
-        return asdict(self)
+        stored = asdict(self)
+        del stored["follow"]
+        return stored
 
 
 def squash(text: str) -> str:
@@ -268,6 +288,11 @@ def extract(html: str, url: str) -> PageContent:
     page.anchors = sorted(
         {t["id"] for t in soup.find_all(id=True)} | {a["name"] for a in soup.find_all("a", attrs={"name": True})}
     )
+    # Every link on the page, before _main drops the chrome: navigation and tables of contents
+    # often sit outside <main>, and a site without a sitemap is only found through them.
+    hrefs = (a["href"].strip() for a in soup.find_all("a", href=True))
+    page.follow = list(dict.fromkeys(urljoin(url, h) for h in hrefs if h and not h.startswith(NOT_FOLLOWED)))
+    password = soup.find("input", attrs={"type": re.compile("^password$", re.I)}) is not None
     main = _main(soup)
     page.blocks = _blocks(main, url)
     for a in main.find_all("a", href=True):
@@ -282,7 +307,10 @@ def extract(html: str, url: str) -> PageContent:
     lines = (squash(line) for line in main.get_text().splitlines())
     page.text = "\n".join(line for line in lines if line)
     page.word_count = len(page.text.split())
-    page.looks_like_shell = page.word_count < SHELL_WORDS and scripts > 0 and not page.headings
+    # Few words, scripts, and no headings; or no main text at all (a heading in the chrome isn't content).
+    few_words = page.word_count < SHELL_WORDS and not page.headings
+    page.looks_like_shell = scripts > 0 and (page.word_count == 0 or few_words)
+    page.asks_sign_in = page.word_count < SIGN_IN_WORDS and (password or bool(SIGN_IN.search(page.text)))
     return page
 
 

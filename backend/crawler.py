@@ -6,7 +6,9 @@ then fetches the pages with the site's concurrency and delay, reuses pages
 the last run already read when they haven't changed, and follows links within
 the help centers.
 
-A help center that refuses us is reported and skipped. HOP Audit identifies
+A help center that refuses us, or answers every page with a sign-in page,
+is reported and skipped; single pages behind a sign-in are reported, never
+read. HOP Audit identifies
 itself honestly and never retries a refusal another way; it only slows down
 and retries server errors, timeouts and rate limits.
 """
@@ -124,6 +126,7 @@ class Result:
     error: str | None = None
     reused_from: UUID | None = None
     fetched: bool = True
+    follow: list[str] = field(default_factory=list)  # every link on the page, for following
 
 
 @dataclass
@@ -266,6 +269,7 @@ class Stats:
     found: int = 0  # pages added by following links
     links: int = 0
     shells: int = 0
+    gated: int = 0  # pages that asked us to sign in
     rendered: int = 0
     unrendered: int = 0  # pages Chromium couldn't render, read as served
     render_seconds: float = 0.0  # spent rendering, all pages
@@ -296,6 +300,7 @@ class Crawler:
         self.stats = Stats()
         self._read = Counter()  # root id -> pages read
         self._refused = Counter()  # root id -> refusals
+        self._gated = Counter()  # root id -> sign-in pages
 
     async def run(self, plan: Plan) -> Stats:
         self.plan = plan
@@ -324,6 +329,13 @@ class Crawler:
                 "crawl",
                 "warn",
                 f"{self.stats.unrendered:,} pages didn't render in time or failed in Chromium; read as served.",
+            )
+        if self.stats.gated:
+            self.log(
+                "crawl",
+                "warn",
+                f"{self.stats.gated:,} page{'s' if self.stats.gated != 1 else ''} asked visitors to sign in: "
+                "reported, not read. Content behind a sign-in isn't audited.",
             )
         if self.stats.shells >= SHELL_WARNING:
             self.log(
@@ -413,7 +425,6 @@ class Crawler:
             self.stats.failed += 1
             return Result(target, target.section, status, error="Larger than the 20 MB page limit")
 
-        self._read[target.root.id] += 1
         notes = [f"{status}", f"{len(response.content) / 1024:,.0f} KB", took]
         html = response.text
         if self.render:
@@ -424,6 +435,13 @@ class Crawler:
         if page_url(str(response.url)) != target.url:
             content.final_url = str(response.url)  # reached through a redirect
             notes.append(f"redirected to {urlsplit(content.final_url).path or '/'}")
+        if content.asks_sign_in:
+            self._step(target, ", ".join(notes) + "; asks visitors to sign in; reported, not read")
+            self.stats.gated += 1
+            self._gated[target.root.id] += 1
+            self._maybe_block(target.root)
+            return Result(target, target.section, status, error="Asks visitors to sign in")
+        self._read[target.root.id] += 1
         notes.append(f"{content.word_count:,} words")
         if content.looks_like_shell:
             notes.append("almost no text")
@@ -453,6 +471,7 @@ class Crawler:
             content.title,
             content.word_count,
             reused_from=prev.id if unchanged else None,
+            follow=content.follow,
         )
 
     async def _rendered(self, response: httpx.Response) -> tuple[str | None, float]:
@@ -497,12 +516,13 @@ class Crawler:
         return None, f"Failed after {self.retries + 1} attempts ({problem})"
 
     def _maybe_block(self, root: Root):
-        if (
-            self._read[root.id] == 0
-            and self._refused[root.id] >= REFUSALS_TO_BLOCK
-            and root.id not in self.plan.blocked
-        ):
-            message = f"refused {self._refused[root.id]} requests in a row"
+        refused, gated = self._refused[root.id], self._gated[root.id]
+        if self._read[root.id] == 0 and refused + gated >= REFUSALS_TO_BLOCK and root.id not in self.plan.blocked:
+            message = (
+                f"asked visitors to sign in on all {gated} pages tried"
+                if gated >= refused
+                else f"refused {refused} requests in a row"
+            )
             self.plan.blocked[root.id] = message
             self.log("crawl", "error", f"{root.name}: {message}. Reported, not worked around; skipped.")
 
@@ -513,8 +533,9 @@ class Crawler:
         if not self.plan.follow or not result.content or t.depth >= self.rules.max_depth:
             return []
         found = []
-        for link in result.content.get("links", []):
-            url = page_url(link["url"])
+        # Every link on the page; a page reused from the last audit has only its main-content links.
+        for found_url in result.follow or [link["url"] for link in result.content.get("links", [])]:
+            url = page_url(found_url)
             if url in self.seen or len(self.seen) >= self.rules.max_pages:
                 continue
             if urlsplit(url).path.lower().endswith(NOT_PAGES):
