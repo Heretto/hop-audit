@@ -9,7 +9,7 @@ honestly and does not retry with another user agent.
 import gzip
 import xml.etree.ElementTree as ET
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from html.parser import HTMLParser
 from typing import Literal
@@ -30,6 +30,38 @@ Status = Literal["ok", "no_sitemap", "blocked", "unreachable"]
 
 class Blocked(Exception):
     """The site refused the request; report it, don't work around it."""
+
+
+# Bot protection names itself in its response headers. Its challenges are meant
+# to let browsers through and stop crawlers, so they're reported, never solved
+# or dodged (no browser user agent, no headless browser to pass them).
+PROTECTIONS = (
+    ("Cloudflare's bot challenge", lambda h: h.get("cf-mitigated", "").lower() == "challenge"),
+    ("DataDome's bot protection", lambda h: "x-datadome" in h or "datadome" in h.get("server", "").lower()),
+    ("Akamai's bot protection", lambda h: "akamai" in h.get("server", "").lower()),
+    ("Imperva's bot protection", lambda h: "x-iinfo" in h or "imperva" in h.get("x-cdn", "").lower()),
+    ("AWS WAF", lambda h: "x-amzn-waf-action" in h),
+    ("Cloudflare's firewall", lambda h: h.get("server", "").lower() == "cloudflare"),
+)
+
+
+def protection(response: httpx.Response) -> str | None:
+    """The bot protection that refused a request, from its headers, or None."""
+    return next((name for name, matches in PROTECTIONS if matches(response.headers)), None)
+
+
+def refusal(response: httpx.Response) -> str:
+    """Why the site refused us, for the run log and the site's detection."""
+    status, host = response.status_code, response.url.host
+    by = protection(response)
+    if by:
+        return (
+            f"{host} refused the request with {by} (HTTP {status}), which lets browsers through and stops "
+            f"crawlers. The site's owner can allow HOP Audit's user agent ({USER_AGENT})"
+        )
+    if status == 401:
+        return f"{host} asks for a login (HTTP 401)"
+    return f"{host} refused the request (HTTP {status})"
 
 
 @dataclass
@@ -54,6 +86,7 @@ class Discovery:
     last_modified: datetime | None = None
     sections: list[Section] = field(default_factory=list)
     alternates: list[Alternate] = field(default_factory=list)
+    zendesk: object | None = None  # zendesk.Info when the start URL is a Zendesk help center
 
 
 # ── Parsing (pure) ────────────────────────────────────────────────────────────
@@ -154,7 +187,7 @@ async def fetch(http: httpx.AsyncClient, url: str) -> httpx.Response | None:
     """The response, None for a 404/410, Blocked when the site refuses us."""
     response = await http.get(url)
     if response.status_code in BLOCKED_STATUSES:
-        raise Blocked(f"{urlsplit(url).hostname} refused the request (HTTP {response.status_code})")
+        raise Blocked(refusal(response))
     if response.status_code in (404, 410):
         return None
     response.raise_for_status()
@@ -218,12 +251,28 @@ async def find_sitemap(
 
 
 async def detect(start_url: str, sitemap_url: str = "", respect_robots: bool = True, http=None) -> Discovery:
-    """Sitemap, sections and hreflang alternates for a site's start URL."""
+    """Sitemap, sections and hreflang alternates for a site's start URL, and
+    whether it's a Zendesk help center (whose API can be read even when its
+    pages are refused)."""
+    import zendesk  # zendesk imports this module
+
     own = http is None
     http = http or client()
     host = urlsplit(start_url).hostname
     try:
         rules = await robots(http, start_url)
+        found_zendesk = await zendesk.probe(http, start_url, rules if respect_robots else None)
+        return replace(await _detect(http, start_url, sitemap_url, respect_robots, rules), zendesk=found_zendesk)
+    except (httpx.HTTPError, ValueError, OSError) as exc:
+        return Discovery("unreachable", f"Could not reach {host}: {type(exc).__name__}")
+    finally:
+        if own:
+            await http.aclose()
+
+
+async def _detect(http, start_url: str, sitemap_url: str, respect_robots: bool, rules: RobotFileParser) -> Discovery:
+    host = urlsplit(start_url).hostname
+    try:
         if respect_robots and not rules.can_fetch(USER_AGENT, start_url):
             return Discovery("blocked", f"robots.txt on {host} disallows crawling the start URL")
 
@@ -257,6 +306,3 @@ async def detect(start_url: str, sitemap_url: str = "", respect_robots: bool = T
         return Discovery("unreachable", "The sitemap is not valid XML")
     except (httpx.HTTPError, ValueError, OSError) as exc:
         return Discovery("unreachable", f"Could not reach {host}: {type(exc).__name__}")
-    finally:
-        if own:
-            await http.aclose()

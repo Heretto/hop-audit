@@ -89,6 +89,7 @@ class PageContent:
     word_count: int = 0
     looks_like_shell: bool = False
     asks_sign_in: bool = False
+    source: str = ""  # "zendesk" for an article read through Zendesk's API; "" for a page
     blocks: list[dict] = field(default_factory=list)  # see _blocks
     follow: list[str] = field(default_factory=list)  # for the crawler; not stored
 
@@ -180,7 +181,7 @@ def _blocks(main: Tag, url: str) -> list[dict]:
     def image(img: Tag) -> dict:
         alt = img.get("alt")
         src = urljoin(url, (img.get("src") or "").strip())
-        return {"t": "img", "src": src, "alt": alt.strip() if alt is not None else None, "d": ctx["d"]}
+        return {"t": "img", "src": src, "alt": alt.strip() if alt is not None else None, "d": ctx.get("d", 0)}
 
     def flush():
         text = squash("".join(buf))
@@ -188,7 +189,7 @@ def _blocks(main: Tag, url: str) -> list[dict]:
         if text:
             out.append({**ctx, "x": text})
             if ctx["t"] == "li":  # more text in the same item reads as its continuation
-                ctx.update(t="p", d=ctx["d"])
+                ctx.update(t="p", d=ctx.get("d", 0))
                 ctx.pop("n", None)
 
     def within(node: Tag, **c):
@@ -216,14 +217,14 @@ def _blocks(main: Tag, url: str) -> list[dict]:
                 flush()
                 kind = "iframe" if name == "hop-frame" else name
                 title = child.get("title") or ""
-                out.append({"t": "media", "kind": kind, "src": _src(child, url), "title": title, "d": ctx["d"]})
+                out.append({"t": "media", "kind": kind, "src": _src(child, url), "title": title, "d": ctx.get("d", 0)})
             elif name == "pre":
                 flush()
                 if text := child.get_text().strip("\n"):
                     out.append({"t": "pre", "x": text})
             elif name in LISTS:
                 flush()
-                depth = ctx["d"] + 1
+                depth = ctx.get("d", 0) + 1
                 for i, li in enumerate(child.find_all("li", recursive=False), 1):
                     within(li, t="li", d=depth, **({"n": i} if name == "ol" else {}))
             elif name == "tr":
@@ -234,13 +235,13 @@ def _blocks(main: Tag, url: str) -> list[dict]:
                     out.append({"t": "row", "cells": texts, "head": all(c.name == "th" for c in cells)})
                 out.extend(image(img) for img in child.find_all("img"))
             elif name == "blockquote":
-                within(child, t="quote", d=ctx["d"])
+                within(child, t="quote", d=ctx.get("d", 0))
             elif name == "summary":
-                within(child, t="summary", d=ctx["d"])
+                within(child, t="summary", d=ctx.get("d", 0))
             elif name == "dt":
-                within(child, t="term", d=ctx["d"])
+                within(child, t="term", d=ctx.get("d", 0))
             elif name == "dd":
-                within(child, t="p", d=ctx["d"] + 1)
+                within(child, t="p", d=ctx.get("d", 0) + 1)
             elif name == "br":
                 flush()
             elif name in BLOCKS:

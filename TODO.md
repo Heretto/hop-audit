@@ -558,6 +558,31 @@ re-read this file before starting the next.
       reported, in the first 40
 - [x] Tests: follow, sign-in detection and blocking, no-sitemap crawl
 
+## 403s from bot protection (user: kollmorgen, chromeriver "403s … I know the site/page exist")
+
+- [x] Diagnosed: both answer every non-browser request with Cloudflare's
+      bot challenge (`cf-mitigated: challenge`), whatever the headers
+- [x] Reported, not worked around (the project rule): refusals name the
+      protection and say the site's owner can allow HOP Audit's user agent
+- [x] Same naming in the crawl's page errors and steps and the link check
+- [x] Tests: header detection, detection message, crawl and link wording
+
+## Zendesk help centers through the Help Center API (user: "Build detection and support for the Zendesk options")
+
+- [x] `zendesk.py`: probe (locales, article count), locale per help center,
+      paginated sections/categories/articles, rate limits, refusals,
+      robots.txt, a guard against looping pagination
+- [x] Detection finds the API even when the pages are refused
+- [x] Crawl rule `source`; `plan_zendesk`; articles read without page fetches
+- [x] SEO checks skip API-read pages; Render JavaScript off for them
+- [x] Site form: Zendesk callout with "Read through Zendesk's API"; source select
+- [x] Fix: an image or list inside a heading broke the formatted blocks
+- [x] Checked live: help.chromeriver.com, 683 articles (en-us 358, de 325)
+      in 12 requests
+- [x] Tests: zendesk module, planning and reading, detection, a full audit,
+      site form
+- [ ] Look at the site form in a browser (not possible here)
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)

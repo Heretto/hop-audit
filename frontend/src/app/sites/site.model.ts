@@ -27,6 +27,8 @@ export interface CrawlRules {
   respect_robots: boolean;
   follow_links: boolean;
   render_js: boolean;
+  /** Where pages come from: crawling the site, or Zendesk's Help Center API. */
+  source: 'crawl' | 'zendesk';
 }
 
 export interface Schedule {
@@ -88,6 +90,8 @@ export interface Discovery {
   last_modified: string | null;
   sections: { path: string; count: number }[];
   alternates: { language: string; url: string }[];
+  /** Set when the start URL is a Zendesk help center whose Help Center API answers. */
+  zendesk?: { locales: string[]; default_locale: string; articles: number } | null;
 }
 
 /** The API's order; ANALYSES below is in the settings screen's layout order. */

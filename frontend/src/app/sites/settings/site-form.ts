@@ -109,6 +109,7 @@ export function siteForm(site: SiteInput) {
         respect_robots: flag(c.respect_robots),
         follow_links: flag(c.follow_links),
         render_js: flag(c.render_js),
+        source: new FormControl<'crawl' | 'zendesk'>(c.source ?? 'crawl', { nonNullable: true }),
       }),
       analyses: new FormGroup(
         Object.fromEntries(ANALYSES.map((a) => [a.key, flag(enabled.has(a.key))])) as Record<

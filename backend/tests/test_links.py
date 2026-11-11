@@ -145,3 +145,10 @@ def test_fixes_are_proposed_without_a_model():
     assert propose_fix(row("https://x.org/gone", "broken", internal=False), known, paths)[0] == "remove"
     assert propose_fix(row(f"{BASE}/b", "ok"), known, paths) == ("", "")
     assert propose_fix(row("https://x.org/", "blocked", internal=False), known, paths) == ("", "")
+
+
+def test_a_link_refused_by_bot_protection_says_so():
+    o = classify(403, None, "https://ext.org/x", by="Cloudflare's bot challenge")
+    assert o.outcome == "blocked"
+    assert o.note == "Couldn't check: the site refused with Cloudflare's bot challenge (HTTP 403)"
+    assert classify(403, None, "u").note == "Couldn't check: the site refused (HTTP 403)"

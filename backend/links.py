@@ -19,7 +19,7 @@ from urllib.parse import urldefrag, urlsplit
 
 import httpx
 
-from discovery import BLOCKED_STATUSES
+from discovery import BLOCKED_STATUSES, protection
 
 CACHE_DAYS = 7
 CHECK_CONCURRENCY = 8
@@ -46,11 +46,12 @@ class Known:
     anchors: list[str] | None  # None: read before anchors were recorded
 
 
-def classify(status: int | None, final_url: str | None, url: str, error: str = "") -> Outcome:
+def classify(status: int | None, final_url: str | None, url: str, error: str = "", by: str | None = None) -> Outcome:
     if status is None:
         return Outcome("broken", None, None, error or "No response")
     if status in BLOCKED_STATUSES:
-        return Outcome("blocked", status, None, f"Couldn't check: the site refused (HTTP {status})")
+        refused = f"the site refused with {by}" if by else "the site refused"
+        return Outcome("blocked", status, None, f"Couldn't check: {refused} (HTTP {status})")
     if status >= 400:
         return Outcome("broken", status, None, f"HTTP {status}")
     if final_url and urldefrag(final_url)[0].rstrip("/") != url.rstrip("/"):
@@ -70,7 +71,7 @@ async def probe(http: httpx.AsyncClient, url: str) -> Outcome:
             if response.status_code >= 500 and attempt == 0:
                 continue
             final = str(response.url) if response.history else None
-            return classify(response.status_code, final, url)
+            return classify(response.status_code, final, url, by=protection(response))
         except httpx.TimeoutException:
             error = "Timed out"
         except httpx.HTTPError as exc:

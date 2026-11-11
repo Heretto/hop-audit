@@ -45,6 +45,8 @@ class CrawlRules(BaseModel):
     respect_robots: bool = True
     follow_links: bool = True
     render_js: bool = False
+    # Where pages come from: crawling the site, or (Zendesk help centers) Zendesk's Help Center API.
+    source: Literal["crawl", "zendesk"] = "crawl"
 
     _clean_patterns = field_validator("include", "exclude")(_patterns)
 

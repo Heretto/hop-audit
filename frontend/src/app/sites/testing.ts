@@ -35,6 +35,7 @@ export function sampleSite(overrides: Partial<SiteInput> = {}): SiteInput {
       respect_robots: true,
       follow_links: true,
       render_js: false,
+      source: 'crawl',
     },
     analyses: ['readability', 'links', 'seo', 'content_integrity', 'summary'],
     integrity_categories: ['C', 'U', 'T'],

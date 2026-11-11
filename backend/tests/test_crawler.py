@@ -240,6 +240,15 @@ async def test_crawl_blocks_help_center_that_refuses_every_page(mock):
     assert "Deutsch" not in log.text("error")
 
 
+async def test_pages_refused_by_bot_protection_name_it(mock):
+    challenge = httpx.Response(403, headers={"server": "cloudflare", "cf-mitigated": "challenge"})
+    serve(mock, **{p: challenge for p in ("authoring/a", "authoring/b", "api/c", "archive/old")})
+    rules = CrawlRules(follow_links=False, delay_ms=0, concurrency=1)
+    pages, _, log, _ = await crawl(rules=rules)
+    assert pages[f"{BASE}authoring/a"].error == "Refused by Cloudflare's bot challenge (HTTP 403)"
+    assert re.search(r"/authoring/a: 403, refused by Cloudflare's bot challenge \(\d+ ms\)\.", log.text("detail"))
+
+
 async def test_crawl_stops_on_help_center_with_only_refusals(mock):
     entries = [("", None), *[(f"de/p{i}", None) for i in range(8)]]
     serve(mock, entries=entries, **{f"de/p{i}": httpx.Response(403) for i in range(8)})

@@ -176,6 +176,43 @@
                 <span class="spacer"></span>
                 <button mat-stroked-button type="button" (click)="detect()">Re-check</button>
               </div>
+              @if (d.zendesk; as z) {
+                <div class="callout zendesk">
+                  <mat-icon>api</mat-icon>
+                  <span>
+                    A Zendesk help center: its Help Center API lists
+                    {{ z.articles | number }} published articles in {{ z.default_locale
+                    }}{{ zendeskOthers(z) }}.
+                    @if (d.status === 'blocked') {
+                      Its pages refuse the crawler, but Zendesk's API answers: the articles can be
+                      read through it.
+                    }
+                  </span>
+                  <span class="spacer"></span>
+                  @if (f.controls.crawl.controls.source.value === 'crawl') {
+                    <button mat-flat-button color="primary" type="button" (click)="useZendesk()">
+                      Read through Zendesk's API
+                    </button>
+                  } @else {
+                    <span class="sub">Reading through Zendesk's API</span>
+                  }
+                </div>
+              }
+            }
+            @if (discovery()?.zendesk || f.controls.crawl.controls.source.value === 'zendesk') {
+              <mat-form-field>
+                <mat-label>Read pages by</mat-label>
+                <mat-select formControlName="source">
+                  <mat-option value="crawl">Crawling the site (sitemap and links)</mat-option>
+                  <mat-option value="zendesk">Zendesk's Help Center API</mat-option>
+                </mat-select>
+                <mat-hint
+                  >The API sends each published article's text, in each help center's locale. Pages
+                  themselves aren't fetched, so their title tags and meta tags aren't read and SEO
+                  checks skip them; the sitemap, link following and JavaScript rendering don't
+                  apply.</mat-hint
+                >
+              </mat-form-field>
             }
             <div class="grid-2">
               <mat-form-field>

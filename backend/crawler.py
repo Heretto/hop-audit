@@ -26,7 +26,8 @@ from uuid import UUID
 import httpx
 
 import discovery
-from discovery import BLOCKED_STATUSES, MAX_BYTES, USER_AGENT, Blocked
+import zendesk
+from discovery import BLOCKED_STATUSES, MAX_BYTES, USER_AGENT, Blocked, protection
 from extract import PageContent, checksum, extract, page_url
 from schemas.site import CrawlRules
 from scope import (
@@ -112,6 +113,7 @@ class Target:
     section: str
     lastmod: datetime | None = None
     depth: int = 1
+    article: zendesk.Article | None = None  # read through Zendesk's API: no page fetch
 
 
 @dataclass
@@ -154,6 +156,80 @@ def changed(target: Target, previous: dict[str, Previous]) -> bool:
     return prev is None or target.lastmod is None or prev.lastmod is None or target.lastmod > prev.lastmod
 
 
+def _scoped(targets: list[Target], rules: CrawlRules, scope: dict, previous: dict[str, Previous], log: Log):
+    """The run's scope and the page limit, applied to planned targets."""
+    mode = scope.get("mode", "site")
+    if mode == "sections":
+        wanted = set(scope.get("sections", []))
+        targets = [t for t in targets if t.section in wanted or t.depth == 0]
+    elif mode == "changed":
+        targets = [t for t in targets if changed(t, previous)]
+    if len(targets) > rules.max_pages:
+        log("discover", "warn", f"Max pages is {rules.max_pages:,}; {len(targets) - rules.max_pages:,} pages left out.")
+        targets = targets[: rules.max_pages]
+    return targets
+
+
+async def plan_zendesk(
+    http: httpx.AsyncClient, roots: list[Root], rules: CrawlRules, scope: dict, previous: dict[str, Previous], log: Log
+) -> Plan:
+    """Each help center's published articles from Zendesk's Help Center API, in its locale."""
+    robots: dict[str, RobotFileParser] = {}
+    blocked: dict[UUID, str] = {}
+    sources: dict[str, str | None] = {}
+    candidates: list[Target] = []
+    for root in roots:
+        host = urlsplit(root.url).hostname or ""
+        if host not in robots:
+            robots[host] = await discovery.robots(http, _base(root.url))
+        rules_for = robots[host] if rules.respect_robots else None
+        info = await zendesk.probe(http, root.url, rules_for)
+        locale = info and zendesk.locale_for(root.url, root.language, info.locales, info.default_locale)
+        if info is None:
+            blocked[root.id] = f"{host} doesn't answer as a Zendesk help center (its Help Center API isn't there)"
+        elif locale is None:
+            blocked[root.id] = f"Zendesk on {host} has no {root.language} locale (it has {', '.join(info.locales)})"
+        else:
+            try:
+                listing = await zendesk.articles(http, root.url, locale, rules_for, rules.delay_ms / 1000)
+            except Blocked as exc:
+                blocked[root.id] = str(exc)
+            except (httpx.HTTPError, ValueError) as exc:
+                blocked[root.id] = f"could not read Zendesk's Help Center API on {host} ({type(exc).__name__})"
+            else:
+                sources[host] = f"{zendesk.origin(root.url)}{zendesk.API}/{locale}/articles.json"
+                log(
+                    "discover",
+                    "info",
+                    f"{root.name}: Zendesk's Help Center API lists {len(listing.articles):,} published articles "
+                    f"in {locale} ({listing.requests} requests).",
+                )
+                for a in listing.articles:
+                    relative = relative_path(a.url, root)
+                    if allowed(relative, rules.include, rules.exclude):
+                        candidates.append(Target(page_url(a.url), root, a.category or "/", a.edited, article=a))
+        if root.id in blocked:
+            log("discover", "error", f"{root.name}: {blocked[root.id]}. Reported, not worked around; skipped.")
+
+    listed = len(candidates)
+    if scope.get("mode") == "pages":
+        primary = next((r for r in roots if r.is_primary), roots[0])
+        wanted = {page_url(u) for u in listed_urls(scope.get("pages", []), primary)}
+        candidates = [t for t in candidates if t.url in wanted]
+    targets = _scoped(list({t.url: t for t in candidates}.values()), rules, scope, previous, log)
+    return Plan(
+        targets=targets,
+        roots=roots,
+        robots=robots,
+        blocked=blocked,
+        sitemaps=sources,
+        listed=listed,
+        follow=False,
+        per_root=Counter(t.root.id for t in targets),
+        sections=Counter(t.section for t in targets),
+    )
+
+
 async def plan(
     http: httpx.AsyncClient,
     roots: list[Root],
@@ -162,6 +238,8 @@ async def plan(
     previous: dict[str, Previous],
     log: Log,
 ) -> Plan:
+    if rules.source == "zendesk":
+        return await plan_zendesk(http, roots, rules, scope, previous, log)
     mode = scope.get("mode", "site")
     robots: dict[str, RobotFileParser] = {}
     sitemaps: dict[str, str | None] = {}
@@ -235,14 +313,7 @@ async def plan(
         candidates += [target(r.url, depth=0) for r in roots if r.id not in covered]
     targets = list({t.url: t for t in candidates if t}.values())
 
-    if mode == "sections":
-        wanted = set(scope.get("sections", []))
-        targets = [t for t in targets if t.section in wanted or t.depth == 0]
-    elif mode == "changed":
-        targets = [t for t in targets if changed(t, previous)]
-    if len(targets) > rules.max_pages:
-        log("discover", "warn", f"Max pages is {rules.max_pages:,}; {len(targets) - rules.max_pages:,} pages left out.")
-        targets = targets[: rules.max_pages]
+    targets = _scoped(targets, rules, scope, previous, log)
 
     follow = mode in ("site", "sections") and (rules.follow_links or any(t.depth == 0 for t in targets))
     return Plan(
@@ -301,6 +372,7 @@ class Crawler:
         self._read = Counter()  # root id -> pages read
         self._refused = Counter()  # root id -> refusals
         self._gated = Counter()  # root id -> sign-in pages
+        self._protection: dict[UUID, str] = {}  # root id -> the bot protection that refused it
 
     async def run(self, plan: Plan) -> Stats:
         self.plan = plan
@@ -398,6 +470,9 @@ class Crawler:
                 fetched=False,
             )
 
+        if target.article is not None:
+            return self._article(target, prev)
+
         started = time.monotonic()
         response, error = await self._fetch(target)
         took = f"{(time.monotonic() - started) * 1000:,.0f} ms"
@@ -407,11 +482,14 @@ class Crawler:
             return Result(target, target.section, error=error)
         status = response.status_code
         if status in BLOCKED_STATUSES:
-            self._step(target, f"{status}, refused ({took})")
+            by = protection(response)
+            self._step(target, f"{status}, refused{f' by {by}' if by else ''} ({took})")
             self._refused[target.root.id] += 1
+            if by:
+                self._protection[target.root.id] = by
             self._maybe_block(target.root)
             self.stats.failed += 1
-            return Result(target, target.section, status, error=f"Refused (HTTP {status})")
+            return Result(target, target.section, status, error=f"Refused{f' by {by}' if by else ''} (HTTP {status})")
         if status >= 400:
             self._step(target, f"{status} ({took})")
             self.stats.failed += 1
@@ -474,6 +552,31 @@ class Crawler:
             follow=content.follow,
         )
 
+    def _article(self, target: Target, prev: Previous | None) -> Result | None:
+        """An article from Zendesk's API, read like a page (nothing more is fetched)."""
+        content = extract(zendesk.page_html(target.article), target.url)
+        content.source = zendesk.SOURCE
+        self._read[target.root.id] += 1
+        digest = checksum(content.as_json())
+        unchanged = prev is not None and prev.content_hash == digest
+        if self.mode == "changed" and unchanged:
+            self._step(target, "from Zendesk's API, unchanged; left out")
+            self.stats.unchanged += 1
+            return None
+        self.stats.fetched += 1
+        self.stats.links += len(content.links)
+        self._step(target, f"from Zendesk's API, {content.word_count:,} words" + (", unchanged" if unchanged else ""))
+        return Result(
+            target,
+            target.section,
+            200,
+            content.as_json(),
+            digest,
+            content.title,
+            content.word_count,
+            reused_from=prev.id if unchanged else None,
+        )
+
     async def _rendered(self, response: httpx.Response) -> tuple[str | None, float]:
         """The page after its JavaScript ran (None when Chromium fails on it), and the seconds it took."""
         started = time.monotonic()
@@ -518,10 +621,11 @@ class Crawler:
     def _maybe_block(self, root: Root):
         refused, gated = self._refused[root.id], self._gated[root.id]
         if self._read[root.id] == 0 and refused + gated >= REFUSALS_TO_BLOCK and root.id not in self.plan.blocked:
+            by = self._protection.get(root.id)
             message = (
                 f"asked visitors to sign in on all {gated} pages tried"
                 if gated >= refused
-                else f"refused {refused} requests in a row"
+                else f"refused {refused} requests in a row{f' with {by}' if by else ''}"
             )
             self.plan.blocked[root.id] = message
             self.log("crawl", "error", f"{root.name}: {message}. Reported, not worked around; skipped.")

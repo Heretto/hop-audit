@@ -242,7 +242,10 @@ async def execute(run_id: UUID, control: crawler.Control, http=None) -> None:
         previous = previous_pages(db, prev)
         run.status, run.started_at = "running", datetime.now(UTC)
         rec.stage("discover", status="running")
-        if rules.render_js:
+        if rules.render_js and rules.source == "zendesk":
+            off = "Render JavaScript is off for this run: Zendesk's API sends the articles' text."
+            rec.log("discover", "info", off)
+        elif rules.render_js:
             try:
                 renderer = await render.start(rules.concurrency)
                 rec.log("discover", "info", "JavaScript is rendered in Chromium for every page fetched.")
