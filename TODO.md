@@ -547,6 +547,17 @@ re-read this file before starting the next.
 - [x] Tests: crawler, review and link steps; incremental log; component
 - [ ] Look at it in a browser (not possible here)
 
+## Sites without a sitemap; sign-in walls (user: docs.cohesity.com "only scanned one page")
+
+- [x] Follow every link on a page, not only main-content links (Cohesity's
+      `<main>` holds one banner; its products are in the page around it)
+- [x] Report pages that ask visitors to sign in (HTTP 200 sign-in walls);
+      never read or follow them; block a help center that only answers so
+- [x] A page with no main text counts as a JavaScript shell
+- [x] Checked against the live site: 7 public pages read, 33 sign-in pages
+      reported, in the first 40
+- [x] Tests: follow, sign-in detection and blocking, no-sitemap crawl
+
 ## Later milestones (from the handoff)
 
 - [x] 7 Full findings report + exports (see milestone 7 above)

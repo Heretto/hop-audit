@@ -101,6 +101,15 @@ Read those instead of inferring from this project's code. Do not copy them here.
   or one base folder every page shares with folders below it (`/docs/a/x` is
   in `/a`). Pages found by following links use the same prefix; a language
   code not in the sitemap is still skipped. The run log names the prefix.
+  The crawler follows every link on a page (`PageContent.follow`, not
+  stored), navigation and footers included, since sites without a sitemap
+  are only reachable through them; the link check still reads main-content
+  links only. A page that is a sign-in wall served as HTTP 200
+  (`asks_sign_in`: under 80 words with a password field or wording like
+  "requires authentication") is reported, not read: stored with no content
+  and the error "Asks visitors to sign in", never followed; a help center
+  whose first 5 pages are all refusals or sign-in pages is blocked, as
+  for refusals.
   Pages keep the extraction (`backend/extract.py`), not raw HTML. Besides
   `text` (what the analyses read) it keeps `blocks`, the main content's
   shape in reading order (headings, paragraphs, list items with depth,

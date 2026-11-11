@@ -14,7 +14,7 @@ import discovery
 from crawler import Cancelled, Control, Crawler, Previous, plan
 from schemas.site import CrawlRules
 from scope import Root
-from tests.fake_site import BASE, SITEMAP, serve
+from tests.fake_site import BASE, SITEMAP, page, serve
 
 EN = Root(uuid.uuid4(), "US English", BASE, "en", True)
 DE = Root(uuid.uuid4(), "Deutsch", f"{BASE}de/", "de", False)
@@ -174,9 +174,10 @@ async def test_crawl_follows_links_within_help_centers_and_depth(mock):
     pages, stats, _, totals = await crawl(CrawlRules(follow_links=True, delay_ms=0, max_depth=2))
     assert f"{BASE}hidden/extra" in pages  # linked from the home page (depth 1 -> 2)
     assert f"{BASE}hidden/deeper" not in pages  # would be depth 3
-    assert f"{BASE}nav-only" not in pages  # navigation isn't main content
+    assert f"{BASE}nav-only" in pages  # links outside <main> (navigation, tables of contents) are followed too
+    assert pages[f"{BASE}nav-only"].target.depth == 2
     assert not any("elsewhere.org" in u for u in pages)
-    assert stats.found == 1 and totals[-1] == 8
+    assert stats.found == 2 and totals[-1] == 9
     assert routes["authoring/b"].call_count == 1  # #fragment links aren't new pages
 
 
@@ -220,7 +221,7 @@ async def test_each_page_is_a_detail_step(mock):
     assert all(stage == "crawl" for stage, level, _ in log if level == "detail")
     a = next(s for s in steps if s.startswith("/authoring/a:"))
     assert re.fullmatch(r"/authoring/a: 200, \d+ KB, \d+ ms, \d+ words\.", a)
-    assert "/: 1 new link to follow." in steps  # /hidden/extra, off the sitemap
+    assert "/: 2 new links to follow." in steps  # /hidden/extra and /nav-only, off the sitemap
     assert len([s for s in steps if not s.endswith("to follow.")]) == len(pages)
 
 
@@ -365,6 +366,63 @@ async def test_a_cancelled_crawl_doesnt_wait_on_a_stuck_page(mock, monkeypatch):
     assert asyncio.get_running_loop().time() - started < 1.5
     release.set()
     await asyncio.sleep(0.05)
+
+
+# ── Sign-in pages and sites without a sitemap ───────────────────────────────
+
+SIGN_IN_PAGE = (
+    "<html><head><title>Guide</title></head><body><main><h1>Guide</h1>"
+    "<p>Access to this product documentation requires authentication. Please sign in to continue.</p>"
+    "<a href='/login'>Sign In to Continue</a></main></body></html>"
+)
+
+
+async def test_a_sign_in_page_is_reported_not_read(mock):
+    serve(mock, **{"api/c": httpx.Response(200, html=SIGN_IN_PAGE)})
+    pages, stats, log, _ = await crawl()
+    c = pages[f"{BASE}api/c"]
+    assert c.http_status == 200 and c.error == "Asks visitors to sign in"
+    assert c.content == {} and not c.follow  # nothing stored or followed from it
+    assert stats.gated == 1 and stats.fetched == 6
+    assert re.search(r"/api/c: 200, \d+ KB, \d+ ms; asks visitors to sign in; reported, not read\.", log.text())
+    assert "1 page asked visitors to sign in: reported, not read." in log.text("warn")
+
+
+async def test_a_help_center_behind_a_sign_in_is_blocked_and_reported(mock):
+    gate = httpx.Response(200, html=SIGN_IN_PAGE)
+    serve(mock, **{p: gate for p in ("", "authoring/a", "authoring/b", "api/c", "archive/old")})
+    pages, stats, log, _ = await crawl(rules=CrawlRules(follow_links=False, delay_ms=0, concurrency=1))
+    assert "US English: asked visitors to sign in on all 5 pages tried. Reported, not worked around; skipped." in (
+        log.text("error")
+    )
+    assert pages[f"{BASE}de/"].title == "Startseite"  # the other help center is read
+
+
+async def test_without_a_sitemap_navigation_links_lead_to_the_pages(mock):
+    """As on docs.cohesity.com: <main> holds a banner; the way in is the navigation."""
+    home = (
+        "<html><body><nav><a href='/products'>Products</a></nav>"
+        "<main><h1>Docs</h1><a href='/guide.pdf'>Checklist</a></main>"
+        "<footer><a href='mailto:x@y.z'>Mail</a><a href='https://elsewhere.org/'>Out</a></footer></body></html>"
+    )
+    products = page("Products", links=["/products/a", "/products/b"])
+    mock.get(f"{BASE}robots.txt").respond(404)
+    mock.get(f"{BASE}sitemap.xml").respond(404)
+    mock.get(BASE).respond(html=home)
+    for path, html in (("products", products), ("products/a", page("A")), ("products/b", page("B"))):
+        mock.get(f"{BASE}{path}").respond(html=html)
+    mock.get(f"{BASE}nav-only").respond(html=page("Nav only"))
+    rules = CrawlRules(follow_links=True, delay_ms=0)
+    log, results = Log(), []
+
+    async def on_page(result):
+        results.append(result)
+
+    async with discovery.client() as http:
+        p = await plan(http, [EN], rules, {"mode": "site"}, {}, log)
+        await Crawler(http, rules, {"mode": "site"}, {}, False, log, Control(), on_page, retry_delay=0).run(p)
+    assert {r.target.url for r in results} >= urls("", "products", "products/a", "products/b")
+    assert not any(r.target.url.endswith(".pdf") or "elsewhere" in r.target.url for r in results)
 
 
 # ── Rendering JavaScript ──────────────────────────────────────────────────────

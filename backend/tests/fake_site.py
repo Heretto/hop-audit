@@ -51,6 +51,7 @@ def serve(mock: respx.MockRouter, entries=SITEMAP, robots: str = "User-agent: *\
         "archive/old": page("Old"),
         "hidden/extra": page("Not in sitemap", links=["/hidden/deeper"]),
         "hidden/deeper": page("Deeper"),
+        "nav-only": page("Linked from navigation only"),
     }
     for path, html in pages.items():
         routes[path] = mock.get(f"{BASE}{path}").respond(html=html)
