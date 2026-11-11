@@ -76,6 +76,7 @@ def test_parse_hreflang():
 @pytest.fixture
 def mock():
     with respx.mock(assert_all_called=False) as m:
+        m.get(f"{START}api/v2/help_center/locales.json").respond(404)  # not a Zendesk help center
         yield m
 
 
@@ -214,3 +215,13 @@ def test_lastmod_is_always_aware():
     assert parse_lastmod("2026-10-20").tzinfo is not None
     assert parse_lastmod("2026-10-20T10:00:00+02:00").utcoffset().total_seconds() == 7200
     assert parse_lastmod("last tuesday") is None
+
+
+async def test_detect_finds_a_zendesk_help_center(mock):
+    mock.get(f"{START}robots.txt").respond(404)
+    mock.get(START).respond(html="<html><body>Help</body></html>")
+    mock.get(f"{START}sitemap.xml").respond(404)
+    mock.get(f"{START}api/v2/help_center/locales.json").respond(json={"locales": ["en-us"], "default_locale": "en-us"})
+    mock.get(f"{START}api/v2/help_center/en-us/articles.json").respond(json={"count": 42, "articles": []})
+    result = await run()
+    assert result.zendesk.locales == ["en-us"] and result.zendesk.articles == 42

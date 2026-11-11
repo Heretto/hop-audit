@@ -176,3 +176,9 @@ def test_a_page_with_no_main_text_is_a_shell_even_with_a_heading_elsewhere():
         "<main><div id='app'></div></main><script></script></body></html>"
     )
     assert extract(html, "https://h.x/").looks_like_shell
+
+
+def test_an_image_or_list_inside_a_heading_doesnt_break_the_blocks():
+    p = extract("<main><h2><img src='/i.png' alt='Icon'> Setup</h2><h3><ul><li>x</li></ul></h3></main>", "https://h.x/")
+    assert {"t": "img", "src": "https://h.x/i.png", "alt": "Icon", "d": 0} in p.blocks
+    assert {"t": "li", "d": 1, "x": "x"} in p.blocks

@@ -232,10 +232,23 @@ export class SiteSettings implements OnInit {
             last_modified: null,
             sections: [],
             alternates: [],
+            zendesk: null,
           });
           this.detecting.set(false);
         },
       });
+  }
+
+  /** " (also de, fr)": the help center's other Zendesk locales. */
+  zendeskOthers(z: NonNullable<Discovery['zendesk']>): string {
+    const others = z.locales.filter((l) => l !== z.default_locale);
+    return others.length ? ` (also ${others.join(', ')})` : '';
+  }
+
+  useZendesk(): void {
+    const source = this.form()!.controls.crawl.controls.source;
+    source.setValue('zendesk');
+    source.markAsDirty();
   }
 
   // ── Save ──────────────────────────────────────────────────────────────────

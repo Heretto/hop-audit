@@ -125,6 +125,42 @@ describe('SiteSettings', () => {
     );
   });
 
+  it("offers Zendesk's API for a Zendesk help center whose pages are refused", () => {
+    const { fixture, page, sites, el } = render();
+    sites.detect.mockReturnValue(
+      of({
+        ...found,
+        status: 'blocked',
+        message: "help.z.com refused the request with Cloudflare's bot challenge (HTTP 403)",
+        zendesk: { locales: ['de', 'en-us', 'fr'], default_locale: 'en-us', articles: 358 },
+      }),
+    );
+    page.form()!.controls.start_url.setValue('https://help.z.com/');
+    page.startUrlChanged();
+    fixture.detectChanges();
+    const callout = el.querySelector('.callout.zendesk')!;
+    expect(callout.textContent).toContain('lists 358 published articles in en-us (also de, fr)');
+    expect(callout.textContent).toContain(
+      "Its pages refuse the crawler, but Zendesk's API answers",
+    );
+    expect(el.textContent).toContain('Read pages by');
+    const source = page.form()!.controls.crawl.controls.source;
+    expect(source.value).toBe('crawl');
+    (callout.querySelector('button') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(source.value).toBe('zendesk');
+    expect(callout.textContent).toContain("Reading through Zendesk's API");
+  });
+
+  it('shows no Zendesk choice for other sites', () => {
+    const { fixture, page, el } = render();
+    page.form()!.controls.start_url.setValue('https://help.heretto.com/');
+    page.startUrlChanged();
+    fixture.detectChanges();
+    expect(el.querySelector('.callout.zendesk')).toBeNull();
+    expect(el.textContent).not.toContain('Read pages by');
+  });
+
   it('offers keywords or an OpenAI/Gemini configuration for matching statements', () => {
     const { page } = render();
     expect(page.embedders().map((c) => c.id)).toEqual(['c2', 'c3']); // Anthropic can't embed

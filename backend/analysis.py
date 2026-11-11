@@ -19,6 +19,7 @@ import links as link_checks
 import readability
 import review
 import seo
+import zendesk
 from models import AgentFinding, AuditRun, HelpCenter, LinkCache, LinkResult, Page
 from scoring import page_score, run_metrics
 
@@ -84,11 +85,14 @@ async def analyze(
         await _review(db, run, rec, "readability", reviewable, detail, checkpoint, languages, unchanged)
 
     if "seo" in keys:
-        rec.stage("seo", status="running", done=0, total=len(readable), detail="")
-        titles = Counter(p.content.get("title") for p in readable if p.content.get("title"))
-        descriptions = Counter(p.content.get("description") for p in readable if p.content.get("description"))
+        # Articles read through Zendesk's API come without their page's title tag and meta tags.
+        checkable = [p for p in readable if p.content.get("source") != zendesk.SOURCE]
+        api_only = len(readable) - len(checkable)
+        rec.stage("seo", status="running", done=0, total=len(checkable), detail="")
+        titles = Counter(p.content.get("title") for p in checkable if p.content.get("title"))
+        descriptions = Counter(p.content.get("description") for p in checkable if p.content.get("description"))
         kept = 0
-        for page in readable:
+        for page in checkable:
             prev = unchanged.get(page.id)
             if prev is not None and prev.seo is not None:
                 page.seo, page.seo_issues = prev.seo, prev.seo_issues
@@ -96,12 +100,16 @@ async def analyze(
             else:
                 checks = seo.check(page.content, page.url, titles, descriptions)
                 page.seo, page.seo_issues = seo.as_json(checks), seo.issues(checks)
-        issues = sum(p.seo_issues for p in readable)
-        affected = sum(1 for p in readable if p.seo_issues)
+        issues = sum(p.seo_issues for p in checkable)
+        affected = sum(1 for p in checkable if p.seo_issues)
         detail = f"{issues:,} issues on {affected:,} pages" + (f" · {kept:,} unchanged pages kept" if kept else "")
+        if api_only:
+            detail += f" · {api_only:,} pages read through Zendesk's API not checked (no page metadata)"
+            if not checkable:
+                detail = f"Not checked: all {api_only:,} pages were read through Zendesk's API, without page metadata"
         rec.log("seo", "info", f"SEO checks complete: {detail}.")
         await _review(
-            db, run, rec, "seo", [p for p in readable if p.seo_issues], detail, checkpoint, languages, unchanged
+            db, run, rec, "seo", [p for p in checkable if p.seo_issues], detail, checkpoint, languages, unchanged
         )
     await checkpoint()
 

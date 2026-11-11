@@ -9,7 +9,7 @@ honestly and does not retry with another user agent.
 import gzip
 import xml.etree.ElementTree as ET
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from html.parser import HTMLParser
 from typing import Literal
@@ -86,6 +86,7 @@ class Discovery:
     last_modified: datetime | None = None
     sections: list[Section] = field(default_factory=list)
     alternates: list[Alternate] = field(default_factory=list)
+    zendesk: object | None = None  # zendesk.Info when the start URL is a Zendesk help center
 
 
 # ── Parsing (pure) ────────────────────────────────────────────────────────────
@@ -250,12 +251,28 @@ async def find_sitemap(
 
 
 async def detect(start_url: str, sitemap_url: str = "", respect_robots: bool = True, http=None) -> Discovery:
-    """Sitemap, sections and hreflang alternates for a site's start URL."""
+    """Sitemap, sections and hreflang alternates for a site's start URL, and
+    whether it's a Zendesk help center (whose API can be read even when its
+    pages are refused)."""
+    import zendesk  # zendesk imports this module
+
     own = http is None
     http = http or client()
     host = urlsplit(start_url).hostname
     try:
         rules = await robots(http, start_url)
+        found_zendesk = await zendesk.probe(http, start_url, rules if respect_robots else None)
+        return replace(await _detect(http, start_url, sitemap_url, respect_robots, rules), zendesk=found_zendesk)
+    except (httpx.HTTPError, ValueError, OSError) as exc:
+        return Discovery("unreachable", f"Could not reach {host}: {type(exc).__name__}")
+    finally:
+        if own:
+            await http.aclose()
+
+
+async def _detect(http, start_url: str, sitemap_url: str, respect_robots: bool, rules: RobotFileParser) -> Discovery:
+    host = urlsplit(start_url).hostname
+    try:
         if respect_robots and not rules.can_fetch(USER_AGENT, start_url):
             return Discovery("blocked", f"robots.txt on {host} disallows crawling the start URL")
 
@@ -289,6 +306,3 @@ async def detect(start_url: str, sitemap_url: str = "", respect_robots: bool = T
         return Discovery("unreachable", "The sitemap is not valid XML")
     except (httpx.HTTPError, ValueError, OSError) as exc:
         return Discovery("unreachable", f"Could not reach {host}: {type(exc).__name__}")
-    finally:
-        if own:
-            await http.aclose()
